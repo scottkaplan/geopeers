@@ -1,0 +1,13 @@
+# Read about fixtures at http://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  beacon: MyString
+  expire_time: 2014-07-21 07:00:15
+  seen_device_id: MyString
+  seer_device_id: MyString
+
+two:
+  beacon: MyString
+  expire_time: 2014-07-21 07:00:15
+  seen_device_id: MyString
+  seer_device_id: MyString

@@ -1,0 +1,55 @@
+<html>
+
+  <head>
+    <title>
+      Geopeers - Seen
+    </title>
+    <link type="text/css"
+	  rel="stylesheet"
+	  href="https://prod1.magtogo.com/library/jquery.mobile-1.4.2.min.css" />
+
+    <script type="text/javascript" src="http://maps.google.com/maps/api/js?sensor=true"></script>
+
+    <script src="https://prod1.magtogo.com/library/jquery-1.11.1.min.js"></script>
+    <script src="https://prod1.magtogo.com/library/jminit.js"></script>
+    <script src="https://prod1.magtogo.com/library/jquery.mobile-1.4.2.min.js"></script>
+    <script src="geo.js"></script>
+    <link type="text/css"
+	  rel ="stylesheet"
+	  href="geo.css" />
+  </head>
+
+  <body>
+    <div data-role="page" id="index">
+      <div data-theme="a" data-role="header">
+        <div class="header_content">
+          <div id="header_title" class="overlap_div">
+            Geopeers Seer
+          </div>
+	  <div id="geo_info" class="info"></div>
+	  <div id="geo_error" class="error"></div>
+          <div class="overlap_div">
+            <div class="icon_div">
+              <img src="images/pin.png"
+                   class="icon_img"
+                   onclick="create_geomark()">
+            </div>
+            <div class="icon_div">
+              <img src="images/bookmark.png"
+                   class="icon_img"
+                   onclick="list_geomark()">
+            </div>
+            <div style="clear:both"></div>
+          </div>
+        </div>
+      </div>
+
+      <div data-role="content" id="content">
+        <div id="map_canvas"
+             style="height:100%">       <!-- this has to be here or JQM will override -->
+        </div>
+      </div>
+    </div>
+  </body>
+
+</html>

@@ -1,0 +1,33 @@
+<h1>Listing beacons</h1>
+
+<table>
+  <thead>
+    <tr>
+      <th>Beacon</th>
+      <th>Expire time</th>
+      <th>Seen device</th>
+      <th>Seer device</th>
+      <th></th>
+      <th></th>
+      <th></th>
+    </tr>
+  </thead>
+
+  <tbody>
+    <% @beacons.each do |beacon| %>
+      <tr>
+        <td><%= beacon.beacon %></td>
+        <td><%= beacon.expire_time %></td>
+        <td><%= beacon.seen_device_id %></td>
+        <td><%= beacon.seer_device_id %></td>
+        <td><%= link_to 'Show', beacon %></td>
+        <td><%= link_to 'Edit', edit_beacon_path(beacon) %></td>
+        <td><%= link_to 'Destroy', beacon, method: :delete, data: { confirm: 'Are you sure?' } %></td>
+      </tr>
+    <% end %>
+  </tbody>
+</table>
+
+<br>
+
+<%= link_to 'New Beacon', new_beacon_path %>

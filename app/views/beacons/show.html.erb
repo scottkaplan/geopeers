@@ -1,0 +1,24 @@
+<p id="notice"><%= notice %></p>
+
+<p>
+  <strong>Beacon:</strong>
+  <%= @beacon.beacon %>
+</p>
+
+<p>
+  <strong>Expire time:</strong>
+  <%= @beacon.expire_time %>
+</p>
+
+<p>
+  <strong>Seen device:</strong>
+  <%= @beacon.seen_device_id %>
+</p>
+
+<p>
+  <strong>Seer device:</strong>
+  <%= @beacon.seer_device_id %>
+</p>
+
+<%= link_to 'Edit', edit_beacon_path(@beacon) %> |
+<%= link_to 'Back', beacons_path %>

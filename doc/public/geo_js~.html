@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+<meta charset="UTF-8">
+
+<title>geo.js~ - RDoc Documentation</title>
+
+<link href="../fonts.css" rel="stylesheet">
+<link href="../rdoc.css" rel="stylesheet">
+
+<script type="text/javascript">
+  var rdoc_rel_prefix = "../";
+</script>
+
+<script src="../js/jquery.js"></script>
+<script src="../js/navigation.js"></script>
+<script src="../js/search_index.js"></script>
+<script src="../js/search.js"></script>
+<script src="../js/searcher.js"></script>
+<script src="../js/darkfish.js"></script>
+
+
+<body id="top" role="document" class="file">
+<nav role="navigation">
+  <div id="project-navigation">
+    <div id="home-section" role="region" title="Quick navigation" class="nav-section">
+  <h2>
+    <a href="../index.html" rel="home">Home</a>
+  </h2>
+
+  <div id="table-of-contents-navigation">
+    <a href="../table_of_contents.html#pages">Pages</a>
+    <a href="../table_of_contents.html#classes">Classes</a>
+    <a href="../table_of_contents.html#methods">Methods</a>
+  </div>
+</div>
+
+    <div id="search-section" role="search" class="project-section initially-hidden">
+  <form action="#" method="get" accept-charset="utf-8">
+    <div id="search-field-wrapper">
+      <input id="search-field" role="combobox" aria-label="Search"
+             aria-autocomplete="list" aria-controls="search-results"
+             type="text" name="search" placeholder="Search" spellcheck="false"
+             title="Type to search, Up and Down to navigate, Enter to load">
+    </div>
+
+    <ul id="search-results" aria-label="Search Results"
+        aria-busy="false" aria-expanded="false"
+        aria-atomic="false" class="initially-hidden"></ul>
+  </form>
+</div>
+
+  </div>
+
+  
+
+  <div id="project-metadata">
+    <div id="fileindex-section" class="nav-section">
+  <h3>Pages</h3>
+
+  <ul class="link-list">
+  
+    <li><a href="../Gemfile.html">Gemfile</a>
+  
+    <li><a href="../Gemfile_lock.html">Gemfile.lock</a>
+  
+    <li><a href="../Gemfile~.html">Gemfile~</a>
+  
+    <li><a href="../INSTALL.html">INSTALL</a>
+  
+    <li><a href="../Rakefile.html">Rakefile</a>
+  
+    <li><a href="../app/assets/javascripts/beacons_js_coffee.html">beacons.js.coffee</a>
+  
+    <li><a href="../app/assets/javascripts/devices_js_coffee.html">devices.js.coffee</a>
+  
+    <li><a href="../app/assets/javascripts/sightings_js_coffee.html">sightings.js.coffee</a>
+  
+    <li><a href="../app/assets/stylesheets/beacons_css_scss.html">beacons.css.scss</a>
+  
+    <li><a href="../app/assets/stylesheets/devices_css_scss.html">devices.css.scss</a>
+  
+    <li><a href="../app/assets/stylesheets/scaffolds_css_scss.html">scaffolds.css.scss</a>
+  
+    <li><a href="../app/assets/stylesheets/sightings_css_scss.html">sightings.css.scss</a>
+  
+    <li><a href="../app/views/beacons/index_json_jbuilder.html">index.json.jbuilder</a>
+  
+    <li><a href="../app/views/beacons/show_json_jbuilder.html">show.json.jbuilder</a>
+  
+    <li><a href="../app/views/devices/index_json_jbuilder.html">index.json.jbuilder</a>
+  
+    <li><a href="../app/views/devices/show_json_jbuilder.html">show.json.jbuilder</a>
+  
+    <li><a href="../app/views/sightings/index_json_jbuilder.html">index.json.jbuilder</a>
+  
+    <li><a href="../app/views/sightings/show_json_jbuilder.html">show.json.jbuilder</a>
+  
+    <li><a href="../config_ru.html">config.ru</a>
+  
+    <li><a href="../config/database_yml~.html">database.yml~</a>
+  
+    <li><a href="../db/migrate/20140722215439_add_these_to_beacons_rb~.html">20140722215439_add_these_to_beacons.rb~</a>
+  
+    <li><a href="../db/migrate/20140722220448_add_this2_to_beacons_rb~.html">20140722220448_add_this2_to_beacons.rb~</a>
+  
+    <li><a href="../db/migrate/20140722220842_add_this3_to_beacons_rb~.html">20140722220842_add_this3_to_beacons.rb~</a>
+  
+    <li><a href="../geo_rb~.html">geo.rb~</a>
+  
+    <li><a href="../public/dialog_css.html">dialog.css</a>
+  
+    <li><a href="../public/dialog_css~.html">dialog.css~</a>
+  
+    <li><a href="../public/dialog_html.html">dialog.html</a>
+  
+    <li><a href="../public/dialog_html~.html">dialog.html~</a>
+  
+    <li><a href="../public/dialog_js.html">dialog.js</a>
+  
+    <li><a href="../public/dialog_js~.html">dialog.js~</a>
+  
+    <li><a href="../public/dialog_sav_js.html">dialog_sav.js</a>
+  
+    <li><a href="../public/geo_css.html">geo.css</a>
+  
+    <li><a href="../public/geo_css~.html">geo.css~</a>
+  
+    <li><a href="../public/geo_js.html">geo.js</a>
+  
+    <li><a href="../public/geo_js~.html">geo.js~</a>
+  
+    <li><a href="../public/index_html.html">index.html</a>
+  
+    <li><a href="../public/index_html~.html">index.html~</a>
+  
+    <li><a href="../public/seer_html.html">seer.html</a>
+  
+    <li><a href="../public/seer_html~.html">seer.html~</a>
+  
+    <li><a href="../test_rb~.html">test.rb~</a>
+  
+    <li><a href="../views/error_erb~.html">error.erb~</a>
+  
+    <li><a href="../views/index_erb~.html">index.erb~</a>
+  
+  </ul>
+</div>
+
+  </div>
+</nav>
+
+<main role="main" aria-label="Page public/geo.js~">
+
+<p>var MAP;</p>
+
+<p>function is_def (v) {</p>
+
+<pre>var ret = (typeof (v) !== &#39;undefined&#39;)
+return (ret);</pre>
+
+<p>}</p>
+
+<p>function display_in_div (msg, div_id) {</p>
+
+<pre>div_id = (typeof div_id === &quot;undefined&quot;) ? &quot;geo_error&quot; : div_id;
+if (typeof msg === &#39;object&#39;) {
+    msg = JSON.stringify (msg);
+}
+$(&#39;#&#39;+div_id).html (msg);</pre>
+
+<p>}</p>
+
+<p>function display_error (msg) {</p>
+
+<pre>display_in_div (msg, &#39;geo_error&#39;);
+return;</pre>
+
+<p>}</p>
+
+<p>function geo_ajax_success_callback (data, textStatus, jqXHR) {</p>
+
+<pre>if (data.message) {
+    display_in_div (data.message, &#39;geo_info&#39;);
+}
+if (data.js) {
+    eval (data.js);
+}
+return;</pre>
+
+<p>}</p>
+
+<p>function geo_ajax_fail_callback (data, textStatus, jqXHR) {</p>
+
+<pre>var error_html;
+if (typeof (data.error) === &#39;string&#39;) {
+    error_html = data.error_html ? data.error_html : data.error;
+} else if (data.responseJSON) {
+    error_html = data.responseJSON.error_html ? data.responseJSON.error_html : data.responseJSON.error;
+}
+display_in_div (error_html, &#39;geo_error&#39;);
+return;</pre>
+
+<p>}</p>
+
+<p>function ajax_request (request_parms, success_callback) {</p>
+
+<pre>var url = &quot;http://www.geopeers.com:4567/api&quot;;
+$.ajax({type:  &quot;POST&quot;,
+        async: true,
+        url:   url,
+        data:  request_parms,
+      })
+    .done(success_callback)
+    .fail(geo_ajax_fail_callback);
+return;</pre>
+
+<p>}</p>
+
+<p>function send_position_request (position) {</p>
+
+<pre>var device_id = get_cookie(&#39;device_id&#39;);
+if (! is_def (device_id))
+    return
+var request_parms = { gps_longitude: position.coords.longitude,
+                      gps_latitude:  position.coords.latitude,
+                      method:        &#39;send_position&#39;,
+                      device_id:     device_id,
+};
+ajax_request (request_parms, geo_ajax_success_callback);
+return;</pre>
+
+<p>}</p>
+
+<p>function get_cookie(cname) {</p>
+
+<pre>var name = cname + &quot;=&quot;;
+var ca = document.cookie.split(&#39;;&#39;);
+for(var i=0; i&lt;ca.length; i++) {
+    var c = ca[i];
+    while (c.charAt(0)==&#39; &#39;) c = c.substring(1);
+    if (c.indexOf(name) != -1) return c.substring(name.length,c.length);
+}
+return;</pre>
+
+<p>}</p>
+
+<p>function get_positions () {</p>
+
+<pre>var device_id = get_cookie(&#39;device_id&#39;);
+if (! is_def (device_id))
+    return
+var request_parms = { method: &#39;get_positions&#39;,
+                      device_id: device_id};
+ajax_request (request_parms, update_markers);
+return;</pre>
+
+<p>}</p>
+
+<p>$(document).ready(function(e,data){</p>
+
+<pre>    // Try W3C Geolocation (Preferred)
+    if(navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(function(position) {init_map(position)},
+                                                 function() {init_map()});
+    } else {
+        // Browser doesn&#39;t support Geolocation
+        init_map();
+    }
+    get_positions();
+});</pre>
+
+<p>function init_map (position) {</p>
+
+<pre>var initial_location;
+var zoom_level = 13;
+if (is_def (position)) {
+    initial_location = new google.maps.LatLng(position.coords.latitude,
+                                              position.coords.longitude);
+    send_position_request (position);
+}
+MAP = new google.maps.Map(document.getElementById(&#39;map_canvas&#39;), {
+        zoom: zoom_level,
+        center: initial_location,
+        mapTypeId: google.maps.MapTypeId.ROADMAP,
+    });
+if (is_def (position)) {
+    var image = &#39;images/green_star_32x32.png&#39;;
+    new google.maps.Marker({position: initial_location,
+                map: MAP,
+                icon: image
+                });
+}</pre>
+
+<p>}</p>
+
+<p>function update_markers (data, textStatus, jqXHR) {</p>
+
+<pre>var sightings = data.sightings;
+if (! is_def (sightings))
+    return;
+
+for (var i=0, len=sightings.length; i&lt;len; i++) {
+    var sighting = sightings[i];
+    var elapsed_sec = (Date.now() - Date.parse(sighting.updated_at)) / 1000;
+    var sighting_location = new google.maps.LatLng(sighting.gps_latitude,
+                                                   sighting.gps_longitude);
+    var image = &#39;images/pin.png&#39;;
+    new google.maps.Marker({position: sighting_location,
+                map: MAP,
+                icon: image,
+                });
+}</pre>
+
+<p>}</p>
+
+<p>var REGISTER_STATE;</p>
+
+<p>function share_location_popup_callback () {</p>
+
+<pre>$(&#39;#share_location_popup&#39;).popup(&#39;open&#39;);
+return;</pre>
+
+<p>}</p>
+
+<p>var registration_callback = function(success_routine) {</p>
+
+<pre>return function(data, textStatus, jqXHR) {
+    if (is_def (data)) {
+        if (is_def (data.device_id)) {
+            if (is_def (data.name) &amp;&amp; is_def (data.email)) {
+                REGISTER_STATE = 1
+                success_routine();
+            } else {
+                $(&#39;#registration_popup&#39;).popup(&#39;open&#39;)
+            }
+        } else {
+            display_error (&quot;No device&quot;);
+        }
+    } else {
+        display_error (&quot;No data&quot;);
+    }
+};</pre>
+
+<p>};</p>
+
+<p>function call_when_registered (callback) {</p>
+
+<pre>if (is_def (REGISTER_STATE)) {
+    callback();
+} else {
+    var device_id = get_cookie(&#39;device_id&#39;);
+    if (is_def (device_id)) {
+        var request_parms = { method: &#39;get_registration&#39;,
+                              device_id: device_id};
+        ajax_request (request_parms, registration_callback(callback));
+    } else {
+        return;
+    }
+}</pre>
+
+<p>}</p>
+
+<p>function share_location_popup () {</p>
+
+<pre>call_when_registered(share_location_popup_callback);</pre>
+
+<p>}</p>
+
+<p>function share_location_callback (data, textStatus, jqXHR) {</p>
+
+<pre>// nothing to be done
+return;</pre>
+
+<p>}</p>
+
+<p>function share_location () {</p>
+
+<pre>var params = $(&#39;#share_location_form&#39;).serialize();
+ajax_request (params, share_location_callback);</pre>
+
+<p>}</p>
+
+<p>function view_beacon () {</p>
+
+<pre>alert (&quot;view_beacon&quot;);</pre>
+
+<p>}</p>
+
+<p>function registration_callback (data, textStatus, jqXHR) {</p>
+
+<pre>display_in_div (data.msg, &#39;geo_info&#39;)</pre>
+
+<p>}</p>
+
+<p>function send_registration () {</p>
+
+<pre>var params = $(&#39;#registration_form&#39;).serialize();
+ajax_request (params, registration_callback);</pre>
+
+<p>}</p>
+</main>
+
+
+
+<footer id="validator-badges" role="contentinfo">
+  <p><a href="http://validator.w3.org/check/referer">Validate</a>
+  <p>Generated by <a href="http://rdoc.rubyforge.org">RDoc</a> 4.1.1.
+  <p>Based on <a href="http://deveiate.org/projects/Darkfish-Rdoc/">Darkfish</a> by <a href="http://deveiate.org">Michael Granger</a>.
+</footer>
+

@@ -1,0 +1,31 @@
+<h1>Listing sightings</h1>
+
+<table>
+  <thead>
+    <tr>
+      <th>Device</th>
+      <th>Gps longitude</th>
+      <th>Gps latitude</th>
+      <th></th>
+      <th></th>
+      <th></th>
+    </tr>
+  </thead>
+
+  <tbody>
+    <% @sightings.each do |sighting| %>
+      <tr>
+        <td><%= sighting.device_id %></td>
+        <td><%= sighting.gps_longitude %></td>
+        <td><%= sighting.gps_latitude %></td>
+        <td><%= link_to 'Show', sighting %></td>
+        <td><%= link_to 'Edit', edit_sighting_path(sighting) %></td>
+        <td><%= link_to 'Destroy', sighting, method: :delete, data: { confirm: 'Are you sure?' } %></td>
+      </tr>
+    <% end %>
+  </tbody>
+</table>
+
+<br>
+
+<%= link_to 'New Sighting', new_sighting_path %>

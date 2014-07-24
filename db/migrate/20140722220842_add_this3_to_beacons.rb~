@@ -1,0 +1,5 @@
+class AddThis3ToBeacons < ActiveRecord::Migration
+  def change
+    add_column :beacons, :share_type, :enum
+  end
+end

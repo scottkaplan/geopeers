@@ -1,0 +1,6 @@
+class AddTheseToBeacons < ActiveRecord::Migration
+  def change
+    add_column :beacons, :type, :string
+    add_column :beacons, :to, :string
+  end
+end

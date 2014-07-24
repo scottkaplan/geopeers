@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+<meta charset="UTF-8">
+
+<title>geo.rb~ - RDoc Documentation</title>
+
+<link href="./fonts.css" rel="stylesheet">
+<link href="./rdoc.css" rel="stylesheet">
+
+<script type="text/javascript">
+  var rdoc_rel_prefix = "./";
+</script>
+
+<script src="./js/jquery.js"></script>
+<script src="./js/navigation.js"></script>
+<script src="./js/search_index.js"></script>
+<script src="./js/search.js"></script>
+<script src="./js/searcher.js"></script>
+<script src="./js/darkfish.js"></script>
+
+
+<body id="top" role="document" class="file">
+<nav role="navigation">
+  <div id="project-navigation">
+    <div id="home-section" role="region" title="Quick navigation" class="nav-section">
+  <h2>
+    <a href="./index.html" rel="home">Home</a>
+  </h2>
+
+  <div id="table-of-contents-navigation">
+    <a href="./table_of_contents.html#pages">Pages</a>
+    <a href="./table_of_contents.html#classes">Classes</a>
+    <a href="./table_of_contents.html#methods">Methods</a>
+  </div>
+</div>
+
+    <div id="search-section" role="search" class="project-section initially-hidden">
+  <form action="#" method="get" accept-charset="utf-8">
+    <div id="search-field-wrapper">
+      <input id="search-field" role="combobox" aria-label="Search"
+             aria-autocomplete="list" aria-controls="search-results"
+             type="text" name="search" placeholder="Search" spellcheck="false"
+             title="Type to search, Up and Down to navigate, Enter to load">
+    </div>
+
+    <ul id="search-results" aria-label="Search Results"
+        aria-busy="false" aria-expanded="false"
+        aria-atomic="false" class="initially-hidden"></ul>
+  </form>
+</div>
+
+  </div>
+
+  
+
+  <div id="project-metadata">
+    <div id="fileindex-section" class="nav-section">
+  <h3>Pages</h3>
+
+  <ul class="link-list">
+  
+    <li><a href="./Gemfile.html">Gemfile</a>
+  
+    <li><a href="./Gemfile_lock.html">Gemfile.lock</a>
+  
+    <li><a href="./Gemfile~.html">Gemfile~</a>
+  
+    <li><a href="./INSTALL.html">INSTALL</a>
+  
+    <li><a href="./Rakefile.html">Rakefile</a>
+  
+    <li><a href="./app/assets/javascripts/beacons_js_coffee.html">beacons.js.coffee</a>
+  
+    <li><a href="./app/assets/javascripts/devices_js_coffee.html">devices.js.coffee</a>
+  
+    <li><a href="./app/assets/javascripts/sightings_js_coffee.html">sightings.js.coffee</a>
+  
+    <li><a href="./app/assets/stylesheets/beacons_css_scss.html">beacons.css.scss</a>
+  
+    <li><a href="./app/assets/stylesheets/devices_css_scss.html">devices.css.scss</a>
+  
+    <li><a href="./app/assets/stylesheets/scaffolds_css_scss.html">scaffolds.css.scss</a>
+  
+    <li><a href="./app/assets/stylesheets/sightings_css_scss.html">sightings.css.scss</a>
+  
+    <li><a href="./app/views/beacons/index_json_jbuilder.html">index.json.jbuilder</a>
+  
+    <li><a href="./app/views/beacons/show_json_jbuilder.html">show.json.jbuilder</a>
+  
+    <li><a href="./app/views/devices/index_json_jbuilder.html">index.json.jbuilder</a>
+  
+    <li><a href="./app/views/devices/show_json_jbuilder.html">show.json.jbuilder</a>
+  
+    <li><a href="./app/views/sightings/index_json_jbuilder.html">index.json.jbuilder</a>
+  
+    <li><a href="./app/views/sightings/show_json_jbuilder.html">show.json.jbuilder</a>
+  
+    <li><a href="./config_ru.html">config.ru</a>
+  
+    <li><a href="./config/database_yml~.html">database.yml~</a>
+  
+    <li><a href="./db/migrate/20140722215439_add_these_to_beacons_rb~.html">20140722215439_add_these_to_beacons.rb~</a>
+  
+    <li><a href="./db/migrate/20140722220448_add_this2_to_beacons_rb~.html">20140722220448_add_this2_to_beacons.rb~</a>
+  
+    <li><a href="./db/migrate/20140722220842_add_this3_to_beacons_rb~.html">20140722220842_add_this3_to_beacons.rb~</a>
+  
+    <li><a href="./geo_rb~.html">geo.rb~</a>
+  
+    <li><a href="./public/dialog_css.html">dialog.css</a>
+  
+    <li><a href="./public/dialog_css~.html">dialog.css~</a>
+  
+    <li><a href="./public/dialog_html.html">dialog.html</a>
+  
+    <li><a href="./public/dialog_html~.html">dialog.html~</a>
+  
+    <li><a href="./public/dialog_js.html">dialog.js</a>
+  
+    <li><a href="./public/dialog_js~.html">dialog.js~</a>
+  
+    <li><a href="./public/dialog_sav_js.html">dialog_sav.js</a>
+  
+    <li><a href="./public/geo_css.html">geo.css</a>
+  
+    <li><a href="./public/geo_css~.html">geo.css~</a>
+  
+    <li><a href="./public/geo_js.html">geo.js</a>
+  
+    <li><a href="./public/geo_js~.html">geo.js~</a>
+  
+    <li><a href="./public/index_html.html">index.html</a>
+  
+    <li><a href="./public/index_html~.html">index.html~</a>
+  
+    <li><a href="./public/seer_html.html">seer.html</a>
+  
+    <li><a href="./public/seer_html~.html">seer.html~</a>
+  
+    <li><a href="./test_rb~.html">test.rb~</a>
+  
+    <li><a href="./views/error_erb~.html">error.erb~</a>
+  
+    <li><a href="./views/index_erb~.html">index.erb~</a>
+  
+  </ul>
+</div>
+
+  </div>
+</nav>
+
+<main role="main" aria-label="Page geo.rb~">
+
+<p>require &#39;sinatra&#39; require &#39;sinatra/activerecord&#39; require
+&#39;json&#39; require &#39;erb&#39; require &#39;logger&#39; require
+&#39;yaml&#39; require &#39;date&#39;</p>
+
+<p># TODO #   registration screen #   Git #   share_location API: #     
+server - create_beacon, send_beacon, #      client form - Share Type (sms,
+email, twitter, facebook), Share To, Share Duration #   add label to marker
+w/Devices.name #   View Beacons table - Name, Status (active, unopened,
+expires), Last Viewed, Expires #   Permissions: #     allow seer to view
+seen history #     allow seen to view seer viewed history #     allow seer
+to know that seen is watching</p>
+
+<p>set :public_folder, &#39;public&#39; class <a
+href="Sighting.html">Sighting</a> &lt; ActiveRecord::Base end</p>
+
+<p>class <a href="Device.html">Device</a> &lt; ActiveRecord::Base end</p>
+
+<p>def init</p>
+
+<pre class="ruby"><span class="ruby-identifier">$LOG</span> = <span class="ruby-constant">Logger</span>.<span class="ruby-identifier">new</span>(<span class="ruby-constant">STDOUT</span>)
+<span class="ruby-comment"># $LOG = Logger.new(log_file, &#39;daily&#39;)</span>
+<span class="ruby-identifier">$LOG</span>.<span class="ruby-identifier">datetime_format</span> = <span class="ruby-string">&quot;%Y-%m-%d %H:%M:%S.%L&quot;</span>
+<span class="ruby-identifier">$LOG</span>.<span class="ruby-identifier">formatter</span> = <span class="ruby-identifier">proc</span> { <span class="ruby-operator">|</span><span class="ruby-identifier">severity</span>, <span class="ruby-identifier">datetime</span>, <span class="ruby-identifier">progname</span>, <span class="ruby-identifier">msg</span><span class="ruby-operator">|</span>
+  <span class="ruby-identifier">path</span>, <span class="ruby-identifier">line</span>, <span class="ruby-identifier">method</span> = <span class="ruby-identifier">caller</span>[<span class="ruby-value">4</span>].<span class="ruby-identifier">split</span>(<span class="ruby-regexp">/(?::in `|:|&#39;)/</span>)
+  <span class="ruby-identifier">whence</span> = <span class="ruby-identifier">$:</span>.<span class="ruby-identifier">detect</span> { <span class="ruby-operator">|</span><span class="ruby-identifier">p</span><span class="ruby-operator">|</span> <span class="ruby-identifier">path</span>.<span class="ruby-identifier">start_with?</span>(<span class="ruby-identifier">p</span>) }
+  <span class="ruby-keyword">if</span> <span class="ruby-operator">!</span><span class="ruby-identifier">whence</span>
+    <span class="ruby-comment"># We get here if the path is not in $:                                                                  </span>
+    <span class="ruby-identifier">file</span> = <span class="ruby-identifier">path</span>
+  <span class="ruby-keyword">else</span>
+    <span class="ruby-identifier">file</span> = <span class="ruby-identifier">path</span>[<span class="ruby-identifier">whence</span>.<span class="ruby-identifier">length</span> <span class="ruby-operator">+</span> <span class="ruby-value">1</span><span class="ruby-operator">..</span><span class="ruby-value">-1</span>]
+  <span class="ruby-keyword">end</span>
+  <span class="ruby-node">&quot;[#{datetime.strftime($LOG.datetime_format)} #{severity} #{file}:#{line}]: #{msg.inspect}\n&quot;</span>
+}
+<span class="ruby-identifier">db_config</span> = <span class="ruby-constant">YAML</span><span class="ruby-operator">::</span><span class="ruby-identifier">load_file</span>(<span class="ruby-string">&#39;config/database.yml&#39;</span>)
+<span class="ruby-identifier">set</span> :<span class="ruby-identifier">database</span>, <span class="ruby-node">&quot;#{db_config[&#39;adapter&#39;]}://#{db_config[&#39;username&#39;]}:#{db_config[&#39;password&#39;]}@#{db_config[&#39;host&#39;]}:#{db_config[&#39;port&#39;]}/#{db_config[&#39;database&#39;]}&quot;</span>
+</pre>
+
+<p>end</p>
+
+<p>class <a href="Protocol.html">Protocol</a></p>
+
+<pre class="ruby"><span class="ruby-identifier">private</span>
+<span class="ruby-keyword">def</span> <span class="ruby-identifier">compute_expire_time</span> (<span class="ruby-identifier">params</span>)
+
+  <span class="ruby-identifier">multiplier</span> = {
+    <span class="ruby-string">&#39;minute&#39;</span> =<span class="ruby-operator">&gt;</span> <span class="ruby-value">1</span>,
+    <span class="ruby-string">&#39;hour&#39;</span>   =<span class="ruby-operator">&gt;</span> <span class="ruby-value">60</span>,
+    <span class="ruby-string">&#39;day&#39;</span>    =<span class="ruby-operator">&gt;</span> <span class="ruby-value">60</span><span class="ruby-operator">*</span><span class="ruby-value">24</span>,
+    <span class="ruby-string">&#39;week&#39;</span>   =<span class="ruby-operator">&gt;</span> <span class="ruby-value">60</span><span class="ruby-operator">*</span><span class="ruby-value">24</span><span class="ruby-operator">*</span><span class="ruby-value">7</span>
+  }
+  <span class="ruby-keyword">if</span> <span class="ruby-operator">!</span> <span class="ruby-identifier">params</span>.<span class="ruby-identifier">has_key?</span>(<span class="ruby-string">&#39;share_duration_unit&#39;</span>)
+    <span class="ruby-identifier">raise</span> <span class="ruby-constant">ArgumentError</span>.<span class="ruby-identifier">new</span>(<span class="ruby-string">&quot;No share unit&quot;</span>)
+  <span class="ruby-keyword">end</span>
+
+  <span class="ruby-keyword">if</span> <span class="ruby-identifier">params</span>[<span class="ruby-string">&#39;share_duration_unit&#39;</span>] <span class="ruby-operator">==</span> <span class="ruby-string">&#39;manual&#39;</span>
+    <span class="ruby-keyword">return</span>
+  <span class="ruby-keyword">end</span>
+
+  <span class="ruby-keyword">if</span> <span class="ruby-operator">!</span> <span class="ruby-identifier">params</span>.<span class="ruby-identifier">has_key?</span>(<span class="ruby-string">&#39;share_duration_number&#39;</span>)
+    <span class="ruby-identifier">raise</span> <span class="ruby-constant">ArgumentError</span>.<span class="ruby-identifier">new</span>(<span class="ruby-string">&quot;No share number&quot;</span>)
+  <span class="ruby-keyword">end</span>
+
+  <span class="ruby-keyword">if</span> <span class="ruby-operator">!</span> <span class="ruby-identifier">multiplier</span>.<span class="ruby-identifier">has_key?</span>(<span class="ruby-identifier">params</span>[<span class="ruby-string">&#39;share_duration_unit&#39;</span>])
+    <span class="ruby-identifier">raise</span> <span class="ruby-constant">ArgumentError</span>.<span class="ruby-identifier">new</span>(<span class="ruby-string">&quot;No multiplier&quot;</span>)
+  <span class="ruby-keyword">end</span>
+  <span class="ruby-identifier">multiplier</span>[<span class="ruby-identifier">params</span>[<span class="ruby-string">&#39;share_duration_unit&#39;</span>]] <span class="ruby-operator">*</span> <span class="ruby-identifier">params</span>[<span class="ruby-string">&#39;share_duration_number&#39;</span>]
+<span class="ruby-keyword">end</span>
+
+<span class="ruby-keyword">def</span> <span class="ruby-identifier">send_beacon_sms</span> (<span class="ruby-identifier">beacon</span>)
+  {<span class="ruby-identifier">message</span><span class="ruby-operator">:</span> <span class="ruby-string">&quot;SMS/text beacons are not implemented yet&quot;</span>}
+<span class="ruby-keyword">end</span>
+
+<span class="ruby-keyword">def</span> <span class="ruby-identifier">send_beacon_email</span> (<span class="ruby-identifier">beacon</span>)
+  {<span class="ruby-identifier">message</span><span class="ruby-operator">:</span> <span class="ruby-string">&quot;Email beacons are not implemented yet&quot;</span>}
+<span class="ruby-keyword">end</span>
+
+<span class="ruby-keyword">def</span> <span class="ruby-identifier">send_beacon_facebook</span> (<span class="ruby-identifier">beacon</span>)
+  {<span class="ruby-identifier">message</span><span class="ruby-operator">:</span> <span class="ruby-string">&quot;Facebook beacons are not implemented yet&quot;</span>}
+<span class="ruby-keyword">end</span>
+
+<span class="ruby-keyword">def</span> <span class="ruby-identifier">send_beacon_twitter</span> (<span class="ruby-identifier">beacon</span>)
+  {<span class="ruby-identifier">message</span><span class="ruby-operator">:</span> <span class="ruby-string">&quot;Twitter beacons are not implemented yet&quot;</span>}
+<span class="ruby-keyword">end</span>
+
+<span class="ruby-keyword">def</span> <span class="ruby-identifier">send_beacon</span> (<span class="ruby-identifier">beacon</span>)
+  <span class="ruby-identifier">procname</span> = <span class="ruby-string">&#39;send_beacon_&#39;</span> <span class="ruby-operator">+</span> <span class="ruby-identifier">params</span>[<span class="ruby-string">&#39;share_via&#39;</span>]
+  <span class="ruby-keyword">begin</span>
+    (<span class="ruby-identifier">method</span> <span class="ruby-identifier">procname</span>).<span class="ruby-identifier">call</span>(<span class="ruby-identifier">beacon</span>)
+  <span class="ruby-keyword">rescue</span> <span class="ruby-constant">NameError</span>
+    <span class="ruby-identifier">error_response</span> <span class="ruby-string">&quot;Bad method &quot;</span> <span class="ruby-operator">+</span> <span class="ruby-identifier">procname</span>
+  <span class="ruby-keyword">end</span>
+<span class="ruby-keyword">end</span>
+
+<span class="ruby-keyword">def</span> <span class="ruby-constant">Protocol</span>.<span class="ruby-identifier">error_response</span> (<span class="ruby-identifier">error_msg</span>)
+  { <span class="ruby-identifier">error</span><span class="ruby-operator">:</span> <span class="ruby-identifier">error_msg</span>, <span class="ruby-identifier">backtrace</span><span class="ruby-operator">:</span> <span class="ruby-identifier">caller</span> }
+<span class="ruby-keyword">end</span>
+
+<span class="ruby-keyword">def</span> <span class="ruby-constant">Protocol</span>.<span class="ruby-identifier">process_request_send_position</span> (<span class="ruby-identifier">params</span>)
+  <span class="ruby-comment"># parms: device_id, gps_*</span>
+  <span class="ruby-comment"># returns: OK/ERROR</span>
+  <span class="ruby-keyword">begin</span>
+    <span class="ruby-identifier">sighting</span> = <span class="ruby-constant">Sighting</span>.<span class="ruby-identifier">new</span>(<span class="ruby-identifier">device_id</span><span class="ruby-operator">:</span>     <span class="ruby-identifier">params</span>[<span class="ruby-string">&#39;device_id&#39;</span>],
+                            <span class="ruby-identifier">gps_longitude</span><span class="ruby-operator">:</span> <span class="ruby-identifier">params</span>[<span class="ruby-string">&#39;gps_longitude&#39;</span>],
+                            <span class="ruby-identifier">gps_latitude</span><span class="ruby-operator">:</span>  <span class="ruby-identifier">params</span>[<span class="ruby-string">&#39;gps_latitude&#39;</span>],
+                            )
+    <span class="ruby-identifier">sighting</span>.<span class="ruby-identifier">save</span>
+    {}
+  <span class="ruby-keyword">rescue</span> =<span class="ruby-operator">&gt;</span> <span class="ruby-identifier">err</span>
+    <span class="ruby-identifier">error_response</span> <span class="ruby-identifier">err</span>.<span class="ruby-identifier">to_s</span>
+  <span class="ruby-keyword">end</span>
+<span class="ruby-keyword">end</span>
+
+<span class="ruby-keyword">def</span> <span class="ruby-constant">Protocol</span>.<span class="ruby-identifier">process_request_get_positions</span> (<span class="ruby-identifier">params</span>)
+  <span class="ruby-comment"># params: [device_ids]</span>
+  <span class="ruby-comment"># returns: [{device_id_1, latest gps_*_1, sighting_time_1},</span>
+  <span class="ruby-comment">#           {device_id_2, latest gps_*_2, sighting_time_2}, ...]</span>
+  <span class="ruby-keyword">if</span> (<span class="ruby-operator">!</span> <span class="ruby-identifier">params</span>.<span class="ruby-identifier">has_key?</span>(<span class="ruby-string">&#39;device_id&#39;</span>))
+    <span class="ruby-keyword">return</span> (<span class="ruby-identifier">error_response</span> <span class="ruby-string">&quot;No device ID&quot;</span>)
+  <span class="ruby-keyword">end</span>
+  <span class="ruby-keyword">begin</span>
+    <span class="ruby-identifier">device_ids_str</span> = <span class="ruby-identifier">params</span>[<span class="ruby-string">&#39;device_id&#39;</span>].<span class="ruby-identifier">split</span>(<span class="ruby-string">&#39;,&#39;</span>).<span class="ruby-identifier">collect</span> {<span class="ruby-operator">|</span><span class="ruby-identifier">did</span><span class="ruby-operator">|</span> <span class="ruby-string">&quot;&#39;&quot;</span> <span class="ruby-operator">+</span> <span class="ruby-identifier">did</span> <span class="ruby-operator">+</span> <span class="ruby-string">&quot;&#39;&quot;</span>}.<span class="ruby-identifier">join</span>(<span class="ruby-string">&#39;,&#39;</span>)
+    <span class="ruby-identifier">sql</span> = <span class="ruby-string">&quot;
+</span></pre>
+
+<p>SELECT  sightings.* FROM    (SELECT   id, MAX(updated_at) AS max_updated_at</p>
+
+<pre> FROM     sightings
+ GROUP BY device_id
+) max_device_id</pre>
+
+<p>JOIN    sightings ON      sightings.id = max_device_id.id WHERE   device_id
+IN (#{device_ids_str}) “</p>
+
+<pre class="ruby">    {<span class="ruby-identifier">sightings</span><span class="ruby-operator">:</span> <span class="ruby-constant">Sighting</span>.<span class="ruby-identifier">find_by_sql</span>(<span class="ruby-identifier">sql</span>)}
+  <span class="ruby-keyword">rescue</span> =<span class="ruby-operator">&gt;</span> <span class="ruby-identifier">err</span>
+    <span class="ruby-identifier">error_response</span> <span class="ruby-identifier">err</span>.<span class="ruby-identifier">to_s</span>
+  <span class="ruby-keyword">end</span>
+<span class="ruby-keyword">end</span>
+
+<span class="ruby-keyword">def</span> <span class="ruby-constant">Protocol</span>.<span class="ruby-identifier">process_request_get_registration</span> (<span class="ruby-identifier">params</span>)
+  <span class="ruby-keyword">if</span> <span class="ruby-operator">!</span> <span class="ruby-identifier">params</span>.<span class="ruby-identifier">has_key?</span>(<span class="ruby-string">&#39;device_id&#39;</span>)
+    <span class="ruby-identifier">error_response</span> <span class="ruby-string">&quot;No device ID&quot;</span>
+  <span class="ruby-keyword">else</span>
+    <span class="ruby-identifier">device</span> = <span class="ruby-constant">Device</span>.<span class="ruby-identifier">where</span>(<span class="ruby-string">&quot;device_id=?&quot;</span>, <span class="ruby-identifier">params</span>[<span class="ruby-string">&#39;device_id&#39;</span>]).<span class="ruby-identifier">first</span>
+    <span class="ruby-keyword">if</span> <span class="ruby-keyword">defined?</span> <span class="ruby-identifier">device</span>
+      <span class="ruby-identifier">device</span>
+    <span class="ruby-keyword">else</span>
+      <span class="ruby-comment"># This shouldn&#39;t happen.  If there is a device_id, it should be in the DB</span>
+      <span class="ruby-identifier">$LOG</span>.<span class="ruby-identifier">error</span> (<span class="ruby-string">&quot;No record for &quot;</span><span class="ruby-operator">+</span><span class="ruby-identifier">params</span>[<span class="ruby-string">&#39;device_id&#39;</span>])
+      <span class="ruby-identifier">error_response</span> <span class="ruby-string">&quot;Unknown device ID&quot;</span>
+    <span class="ruby-keyword">end</span>
+  <span class="ruby-keyword">end</span>
+<span class="ruby-keyword">end</span>
+
+<span class="ruby-keyword">def</span> <span class="ruby-constant">Protocol</span>.<span class="ruby-identifier">process_request_register_device</span> (<span class="ruby-identifier">params</span>)
+  <span class="ruby-identifier">$LOG</span>.<span class="ruby-identifier">debug</span> (<span class="ruby-identifier">params</span>.<span class="ruby-identifier">inspect</span>)
+  <span class="ruby-identifier">$LOG</span>.<span class="ruby-identifier">debug</span> <span class="ruby-identifier">params</span>.<span class="ruby-identifier">has_key?</span>(<span class="ruby-string">&#39;name&#39;</span>)
+  <span class="ruby-keyword">if</span> <span class="ruby-operator">!</span> <span class="ruby-identifier">params</span>.<span class="ruby-identifier">has_key?</span>(<span class="ruby-string">&#39;name&#39;</span>)
+    <span class="ruby-identifier">error_response</span> <span class="ruby-string">&quot;No name&quot;</span>
+  <span class="ruby-keyword">elsif</span> <span class="ruby-operator">!</span> <span class="ruby-identifier">params</span>.<span class="ruby-identifier">has_key?</span>(<span class="ruby-string">&#39;email&#39;</span>)
+    <span class="ruby-identifier">error_response</span> <span class="ruby-string">&quot;No email&quot;</span>
+  <span class="ruby-keyword">elsif</span> <span class="ruby-operator">!</span> <span class="ruby-identifier">params</span>.<span class="ruby-identifier">has_key?</span>(<span class="ruby-string">&#39;device_id&#39;</span>)
+    <span class="ruby-identifier">error_response</span> <span class="ruby-string">&quot;No device ID&quot;</span>
+  <span class="ruby-keyword">else</span>
+    <span class="ruby-identifier">device</span> = <span class="ruby-constant">Device</span>.<span class="ruby-identifier">where</span>(<span class="ruby-string">&quot;device_id=?&quot;</span>, <span class="ruby-identifier">params</span>[<span class="ruby-string">&#39;device_id&#39;</span>]).<span class="ruby-identifier">first</span>
+    <span class="ruby-identifier">$LOG</span>.<span class="ruby-identifier">debug</span> <span class="ruby-identifier">device</span>
+    <span class="ruby-keyword">if</span> <span class="ruby-operator">!</span> <span class="ruby-keyword">defined?</span> <span class="ruby-identifier">device</span>
+      <span class="ruby-comment"># This shouldn&#39;t happen.  If there is a device_id, it should be in the DB</span>
+      <span class="ruby-identifier">$LOG</span>.<span class="ruby-identifier">error</span> (<span class="ruby-string">&quot;No record for &quot;</span><span class="ruby-operator">+</span><span class="ruby-identifier">params</span>[<span class="ruby-string">&#39;device_id&#39;</span>])
+      <span class="ruby-identifier">error_response</span> <span class="ruby-string">&quot;Unknown device ID&quot;</span>
+    <span class="ruby-keyword">else</span>
+      <span class="ruby-identifier">device</span>.<span class="ruby-identifier">name</span> = <span class="ruby-identifier">params</span>[<span class="ruby-string">&#39;name&#39;</span>]
+      <span class="ruby-identifier">device</span>.<span class="ruby-identifier">email</span> = <span class="ruby-identifier">params</span>[<span class="ruby-string">&#39;email&#39;</span>]
+      <span class="ruby-identifier">device</span>.<span class="ruby-identifier">save</span>
+      <span class="ruby-keyword">return</span>
+    <span class="ruby-keyword">end</span>
+  <span class="ruby-keyword">end</span>
+<span class="ruby-keyword">end</span>
+
+<span class="ruby-keyword">def</span> <span class="ruby-constant">Protocol</span>.<span class="ruby-identifier">process_request_share_location</span> (<span class="ruby-identifier">params</span>)
+  <span class="ruby-identifier">$LOG</span>.<span class="ruby-identifier">debug</span> <span class="ruby-identifier">params</span>
+  <span class="ruby-keyword">begin</span>
+    <span class="ruby-identifier">$LOG</span>.<span class="ruby-identifier">debug</span> <span class="ruby-string">&#39;A&#39;</span>
+    <span class="ruby-identifier">expire_time</span> = <span class="ruby-identifier">compute_expire_time</span> <span class="ruby-identifier">params</span>
+    <span class="ruby-identifier">$LOG</span>.<span class="ruby-identifier">debug</span> <span class="ruby-identifier">expire_time</span>
+    <span class="ruby-identifier">device_id</span> = <span class="ruby-identifier">get_device_id</span> <span class="ruby-identifier">params</span>
+    <span class="ruby-identifier">$LOG</span>.<span class="ruby-identifier">debug</span> <span class="ruby-identifier">device_id</span>
+    <span class="ruby-keyword">if</span> <span class="ruby-operator">!</span> <span class="ruby-identifier">params</span>.<span class="ruby-identifier">has_key?</span>(<span class="ruby-string">&quot;share_via&quot;</span>)
+      <span class="ruby-identifier">raise</span> <span class="ruby-constant">ArgumentError</span>.<span class="ruby-identifier">new</span>(<span class="ruby-string">&quot;No share_via&quot;</span>)
+    <span class="ruby-keyword">end</span>
+    <span class="ruby-keyword">if</span> <span class="ruby-operator">!</span> <span class="ruby-identifier">params</span>.<span class="ruby-identifier">has_key?</span>(<span class="ruby-string">&quot;share_to&quot;</span>)
+      <span class="ruby-identifier">raise</span> <span class="ruby-constant">ArgumentError</span>.<span class="ruby-identifier">new</span>(<span class="ruby-string">&quot;No share_to&quot;</span>)
+    <span class="ruby-keyword">end</span>
+  <span class="ruby-keyword">rescue</span> <span class="ruby-constant">ArgumentError</span> =<span class="ruby-operator">&gt;</span> <span class="ruby-identifier">e</span>
+    <span class="ruby-identifier">$LOG</span>.<span class="ruby-identifier">debug</span> <span class="ruby-identifier">e</span>
+    <span class="ruby-identifier">error_response</span> (<span class="ruby-identifier">e</span>.<span class="ruby-identifier">message</span>)
+  <span class="ruby-keyword">end</span>
+  <span class="ruby-identifier">require</span> <span class="ruby-string">&#39;securerandom&#39;</span>
+  <span class="ruby-identifier">share_cred</span> = <span class="ruby-constant">SecureRandom</span>.<span class="ruby-identifier">base64</span>(<span class="ruby-value">20</span>)
+  <span class="ruby-identifier">beacon</span> = <span class="ruby-constant">Beacon</span>.<span class="ruby-identifier">new</span>(<span class="ruby-identifier">expire_time</span><span class="ruby-operator">:</span> <span class="ruby-identifier">expire_time</span>,
+                      <span class="ruby-identifier">seen_device_id</span><span class="ruby-operator">:</span> <span class="ruby-identifier">device_id</span>,
+                      <span class="ruby-identifier">share_via</span><span class="ruby-operator">:</span> <span class="ruby-identifier">params</span>[<span class="ruby-string">&quot;share_via&quot;</span>],
+                      <span class="ruby-identifier">share_to</span><span class="ruby-operator">:</span> <span class="ruby-identifier">params</span>[<span class="ruby-string">&quot;share_to&quot;</span>],
+                      <span class="ruby-identifier">shar_cred</span><span class="ruby-operator">:</span> <span class="ruby-identifier">share_cred</span>,
+                      )
+  <span class="ruby-identifier">send_beacon</span> (<span class="ruby-identifier">beacon</span>)
+<span class="ruby-keyword">end</span>
+
+<span class="ruby-identifier">public</span>
+<span class="ruby-keyword">def</span> <span class="ruby-constant">Protocol</span>.<span class="ruby-identifier">process_request</span> (<span class="ruby-identifier">params</span>)
+  <span class="ruby-identifier">$LOG</span>.<span class="ruby-identifier">info</span> (<span class="ruby-identifier">params</span>)
+  <span class="ruby-keyword">if</span> <span class="ruby-identifier">params</span>.<span class="ruby-identifier">has_key?</span>(<span class="ruby-string">&#39;method&#39;</span>)
+    <span class="ruby-identifier">procname</span> = <span class="ruby-string">&#39;process_request_&#39;</span> <span class="ruby-operator">+</span> <span class="ruby-identifier">params</span>[<span class="ruby-string">&#39;method&#39;</span>]
+    <span class="ruby-keyword">begin</span>
+      (<span class="ruby-identifier">method</span> <span class="ruby-identifier">procname</span>).<span class="ruby-identifier">call</span>(<span class="ruby-identifier">params</span>)
+    <span class="ruby-keyword">rescue</span> <span class="ruby-constant">NameError</span>
+      <span class="ruby-identifier">error_response</span> <span class="ruby-string">&quot;Bad method &quot;</span> <span class="ruby-operator">+</span> <span class="ruby-identifier">procname</span>
+    <span class="ruby-keyword">end</span>
+  <span class="ruby-keyword">else</span>
+    <span class="ruby-identifier">error_response</span> <span class="ruby-string">&quot;No method&quot;</span>
+  <span class="ruby-keyword">end</span>
+<span class="ruby-keyword">end</span>
+</pre>
+
+<p>end</p>
+
+<p>class <a href="ProtocolEngine.html">ProtocolEngine</a> &lt; Sinatra::Base</p>
+
+<pre class="ruby"><span class="ruby-identifier">set</span> :<span class="ruby-identifier">static</span>, <span class="ruby-keyword">true</span>
+
+<span class="ruby-keyword">def</span> <span class="ruby-identifier">parse_backtrace</span> (<span class="ruby-identifier">backtrace</span>) 
+  <span class="ruby-identifier">ar</span> = <span class="ruby-constant">Array</span>.<span class="ruby-identifier">new</span>
+  <span class="ruby-identifier">backtrace</span>.<span class="ruby-identifier">each</span> { <span class="ruby-operator">|</span><span class="ruby-identifier">x</span><span class="ruby-operator">|</span>
+    <span class="ruby-regexp">/(?&lt;path&gt;.*?):(?&lt;line_num&gt;\d+):in `(?&lt;routine&gt;.*)&#39;/</span> <span class="ruby-operator">=~</span> <span class="ruby-identifier">x</span>
+    <span class="ruby-identifier">file_base</span> = <span class="ruby-constant">File</span>.<span class="ruby-identifier">basename</span>(<span class="ruby-identifier">path</span>);
+    <span class="ruby-identifier">ar</span>.<span class="ruby-identifier">push</span>({<span class="ruby-identifier">file_base</span><span class="ruby-operator">:</span> <span class="ruby-identifier">file_base</span>, <span class="ruby-identifier">line_num</span><span class="ruby-operator">:</span> <span class="ruby-identifier">line_num</span>, <span class="ruby-identifier">routine</span><span class="ruby-operator">:</span> <span class="ruby-identifier">routine</span>})
+  }
+  <span class="ruby-identifier">ar</span>
+<span class="ruby-keyword">end</span>
+
+<span class="ruby-keyword">def</span> <span class="ruby-identifier">log_error_msg</span> (<span class="ruby-identifier">resp</span>)
+  <span class="ruby-identifier">backtrace</span> = <span class="ruby-identifier">parse_backtrace</span> <span class="ruby-identifier">resp</span>[:<span class="ruby-identifier">backtrace</span>]
+  <span class="ruby-identifier">backtrace_str</span> = <span class="ruby-identifier">backtrace</span>[<span class="ruby-value">0</span>][:<span class="ruby-identifier">file_base</span>] <span class="ruby-operator">+</span> <span class="ruby-string">&#39;:&#39;</span> <span class="ruby-operator">+</span> <span class="ruby-identifier">backtrace</span>[<span class="ruby-value">0</span>][:<span class="ruby-identifier">line_num</span>] <span class="ruby-operator">+</span> <span class="ruby-string">&#39; &#39;</span> <span class="ruby-operator">+</span> <span class="ruby-identifier">backtrace</span>[<span class="ruby-value">0</span>][:<span class="ruby-identifier">routine</span>]
+  <span class="ruby-identifier">msg</span> = <span class="ruby-identifier">resp</span>[:<span class="ruby-identifier">error</span>] <span class="ruby-operator">+</span> <span class="ruby-string">&quot; at &quot;</span> <span class="ruby-operator">+</span> <span class="ruby-identifier">backtrace_str</span>
+  <span class="ruby-identifier">$LOG</span>.<span class="ruby-identifier">error</span> <span class="ruby-identifier">msg</span>
+<span class="ruby-keyword">end</span>
+
+<span class="ruby-keyword">def</span> <span class="ruby-identifier">create_error_html</span> (<span class="ruby-identifier">resp</span>)
+  <span class="ruby-identifier">template_file</span> = <span class="ruby-string">&#39;views/error.erb&#39;</span>
+  <span class="ruby-identifier">template</span> = <span class="ruby-constant">File</span>.<span class="ruby-identifier">read</span>(<span class="ruby-identifier">template_file</span>)
+  <span class="ruby-ivar">@error</span> = <span class="ruby-identifier">resp</span>[:<span class="ruby-identifier">error</span>]
+  <span class="ruby-ivar">@backtrace</span> = <span class="ruby-identifier">parse_backtrace</span> <span class="ruby-identifier">resp</span>[:<span class="ruby-identifier">backtrace</span>]
+  <span class="ruby-ivar">@env</span> = <span class="ruby-constant">ENV</span>.<span class="ruby-identifier">to_hash</span>
+  <span class="ruby-identifier">renderer</span> = <span class="ruby-constant">ERB</span>.<span class="ruby-identifier">new</span>(<span class="ruby-identifier">template</span>)
+  <span class="ruby-identifier">renderer</span>.<span class="ruby-identifier">result</span>(<span class="ruby-identifier">binding</span>)
+<span class="ruby-keyword">end</span>
+
+<span class="ruby-keyword">def</span> <span class="ruby-identifier">create_device_id</span> (<span class="ruby-identifier">user_agent</span>)
+  <span class="ruby-identifier">require</span> <span class="ruby-string">&#39;securerandom&#39;</span>
+  <span class="ruby-identifier">device_id</span> = <span class="ruby-constant">SecureRandom</span>.<span class="ruby-identifier">uuid</span>
+  <span class="ruby-identifier">$LOG</span>.<span class="ruby-identifier">info</span> <span class="ruby-identifier">device_id</span>
+  <span class="ruby-identifier">$LOG</span>.<span class="ruby-identifier">debug</span> (<span class="ruby-identifier">user_agent</span>)
+  <span class="ruby-keyword">begin</span>
+    <span class="ruby-identifier">device_record</span> = <span class="ruby-constant">Device</span>.<span class="ruby-identifier">new</span>(<span class="ruby-identifier">device_id</span><span class="ruby-operator">:</span> <span class="ruby-identifier">device_id</span>,
+                               <span class="ruby-identifier">user_agent</span><span class="ruby-operator">:</span> <span class="ruby-identifier">user_agent</span>)
+    <span class="ruby-identifier">device_record</span>.<span class="ruby-identifier">save</span>
+  <span class="ruby-keyword">rescue</span> =<span class="ruby-operator">&gt;</span> <span class="ruby-identifier">err</span>
+    <span class="ruby-identifier">$LOG</span>.<span class="ruby-identifier">error</span> (<span class="ruby-identifier">err</span>)
+  <span class="ruby-keyword">end</span>
+  <span class="ruby-identifier">$LOG</span>.<span class="ruby-identifier">debug</span> (<span class="ruby-identifier">device_record</span>)
+  <span class="ruby-identifier">device_id</span>
+<span class="ruby-keyword">end</span>
+
+<span class="ruby-keyword">def</span> <span class="ruby-identifier">get_device_id</span> (<span class="ruby-identifier">params</span>)
+  <span class="ruby-keyword">if</span> (<span class="ruby-identifier">request</span>.<span class="ruby-identifier">cookies</span>[<span class="ruby-string">&#39;device_id&#39;</span>])
+    <span class="ruby-identifier">request</span>.<span class="ruby-identifier">cookies</span>[<span class="ruby-string">&#39;device_id&#39;</span>]
+  <span class="ruby-keyword">else</span>
+    <span class="ruby-identifier">device_id</span> = <span class="ruby-identifier">create_device_id</span>(<span class="ruby-identifier">request</span>.<span class="ruby-identifier">user_agent</span>)
+    <span class="ruby-identifier">response</span>.<span class="ruby-identifier">set_cookie</span>(<span class="ruby-string">&#39;device_id&#39;</span>,
+                        { :<span class="ruby-identifier">value</span>   =<span class="ruby-operator">&gt;</span> <span class="ruby-identifier">device_id</span>,
+                          :<span class="ruby-identifier">domain</span>  =<span class="ruby-operator">&gt;</span> <span class="ruby-string">&#39;geopeers.com&#39;</span>,
+                          :<span class="ruby-identifier">expires</span> =<span class="ruby-operator">&gt;</span> <span class="ruby-constant">Time</span>.<span class="ruby-identifier">new</span>(<span class="ruby-value">2038</span>,<span class="ruby-value">1</span>,<span class="ruby-value">17</span>),
+                        })
+    <span class="ruby-identifier">device_id</span>
+  <span class="ruby-keyword">end</span>
+<span class="ruby-keyword">end</span>
+
+<span class="ruby-identifier">get</span> <span class="ruby-string">&#39;/api&#39;</span> <span class="ruby-keyword">do</span>
+  <span class="ruby-identifier">params</span>[<span class="ruby-string">&#39;device_id&#39;</span>] = <span class="ruby-identifier">get_device_id</span> <span class="ruby-identifier">params</span>
+  <span class="ruby-identifier">params</span>[<span class="ruby-string">&#39;user_agent&#39;</span>] = <span class="ruby-identifier">request</span>.<span class="ruby-identifier">user_agent</span>
+  <span class="ruby-identifier">resp</span> = <span class="ruby-constant">Protocol</span>.<span class="ruby-identifier">process_request</span> <span class="ruby-identifier">params</span>
+  <span class="ruby-keyword">if</span> (<span class="ruby-identifier">resp</span>[:<span class="ruby-identifier">error</span>])
+    <span class="ruby-identifier">html</span> = <span class="ruby-identifier">create_error_html</span> (<span class="ruby-identifier">resp</span>)
+    <span class="ruby-identifier">halt</span> <span class="ruby-value">500</span>, {<span class="ruby-string">&#39;Content-Type&#39;</span> =<span class="ruby-operator">&gt;</span> <span class="ruby-string">&#39;text/html&#39;</span>}, <span class="ruby-identifier">html</span>
+  <span class="ruby-keyword">else</span>
+    <span class="ruby-identifier">content_type</span> :<span class="ruby-identifier">json</span>
+    <span class="ruby-identifier">resp</span>.<span class="ruby-identifier">to_json</span>
+  <span class="ruby-keyword">end</span>
+<span class="ruby-keyword">end</span>
+
+<span class="ruby-identifier">post</span> <span class="ruby-string">&#39;/api&#39;</span> <span class="ruby-keyword">do</span>
+  <span class="ruby-identifier">params</span>[<span class="ruby-string">&#39;device_id&#39;</span>] = <span class="ruby-identifier">get_device_id</span> <span class="ruby-identifier">params</span>
+  <span class="ruby-identifier">params</span>[<span class="ruby-string">&#39;user_agent&#39;</span>] = <span class="ruby-identifier">request</span>.<span class="ruby-identifier">user_agent</span>
+  <span class="ruby-identifier">resp</span> = <span class="ruby-constant">Protocol</span>.<span class="ruby-identifier">process_request</span> <span class="ruby-identifier">params</span>
+  <span class="ruby-identifier">$LOG</span>.<span class="ruby-identifier">debug</span> (<span class="ruby-identifier">resp</span>)
+  <span class="ruby-keyword">if</span> (<span class="ruby-identifier">resp</span> <span class="ruby-operator">&amp;&amp;</span> <span class="ruby-identifier">resp</span>[:<span class="ruby-identifier">error</span>])
+    <span class="ruby-comment"># Don&#39;t send JSON to 500 ajax response</span>
+    <span class="ruby-comment"># resp[:error_html] = create_error_html (resp)</span>
+    <span class="ruby-comment"># content_type :json</span>
+    <span class="ruby-comment"># resp.to_json</span>
+    <span class="ruby-identifier">log_error_msg</span> (<span class="ruby-identifier">resp</span>)
+    <span class="ruby-identifier">status</span> <span class="ruby-value">500</span>
+  <span class="ruby-keyword">else</span>
+    <span class="ruby-identifier">content_type</span> :<span class="ruby-identifier">json</span>
+    <span class="ruby-identifier">resp</span>.<span class="ruby-identifier">to_json</span>
+  <span class="ruby-keyword">end</span>
+<span class="ruby-keyword">end</span>
+
+<span class="ruby-identifier">get</span> <span class="ruby-string">&#39;/geo&#39;</span> <span class="ruby-keyword">do</span>
+  <span class="ruby-comment"># we don&#39;t need the device_id to build the page</span>
+  <span class="ruby-comment"># but we do want to make sure the client gets a device_id</span>
+  <span class="ruby-comment"># in case they don&#39;t have one</span>
+  <span class="ruby-identifier">params</span>[<span class="ruby-string">&#39;device_id&#39;</span>] = <span class="ruby-identifier">get_device_id</span> <span class="ruby-identifier">params</span>
+  <span class="ruby-identifier">erb</span> :<span class="ruby-identifier">index</span>
+<span class="ruby-keyword">end</span>
+</pre>
+
+<p>end</p>
+
+<p>init()</p>
+</main>
+
+
+
+<footer id="validator-badges" role="contentinfo">
+  <p><a href="http://validator.w3.org/check/referer">Validate</a>
+  <p>Generated by <a href="http://rdoc.rubyforge.org">RDoc</a> 4.1.1.
+  <p>Based on <a href="http://deveiate.org/projects/Darkfish-Rdoc/">Darkfish</a> by <a href="http://deveiate.org">Michael Granger</a>.
+</footer>
+
