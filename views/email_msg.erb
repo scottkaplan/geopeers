@@ -1,0 +1,9 @@
+<%= name %> shared this <a href='<%= url %>'>location link</a> with you.
+When you click on it, you will see <%= name %>'s current location.
+
+<% if expire_time %>
+<p>
+The link will expire <%= expire_time %>.
+Until then, the link will show you <%= name %>'s current position.
+After that, the link will display <%= name %>'s position <%= expire_time %>
+<% end %>
