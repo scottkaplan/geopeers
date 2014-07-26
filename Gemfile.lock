@@ -92,6 +92,8 @@ GEM
     sdoc (0.4.0)
       json (~> 1.8)
       rdoc (~> 4.0, < 5.0)
+    shotgun (0.9)
+      rack (>= 1.0)
     sinatra (1.4.5)
       rack (~> 1.4)
       rack-protection (~> 1.4)
@@ -144,6 +146,7 @@ DEPENDENCIES
   rails (= 4.0.4)
   sass-rails (~> 4.0.2)
   sdoc
+  shotgun
   sinatra
   sinatra-activerecord
   sinatra-contrib

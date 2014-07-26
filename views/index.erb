@@ -15,9 +15,12 @@
     <script src="https://prod1.magtogo.com/library/jminit.js"></script>
     <script src="https://prod1.magtogo.com/library/jquery.mobile-1.4.2.min.js"></script>
     <script src="geo.js"></script>
+    <script src="markerwithlabel.js"></script>
     <link type="text/css"
 	  rel ="stylesheet"
 	  href="geo.css" />
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jstimezonedetect/1.0.4/jstz.min.js"></script>
 
   </head>
 
@@ -32,7 +35,7 @@
           </div>
           <div class="overlap_div">
             <div class="icon_div">
-              <img src="images/pin.png"
+              <img src="images/pin_wings.png"
                    class="icon_img"
                    onclick="share_location_popup()">
             </div>
@@ -40,7 +43,7 @@
               <img src="images/bookmark.png"
                    class="icon_img"
 		   id="register_button"
-		   onclick="view_beacon_page()"
+		   onclick="manage_beacons()"
 		   >
 	    </div>
             <div style="clear:both"></div>
@@ -50,118 +53,9 @@
 	<div id="geo_error" class="error"></div>
       </div>
 
-      <!-- popup registration box -->
-      <div id="registration_popup"
-	   data-role="popup"
-	   >
-	<div style="margin:10px">
-	  <div style="background-color:#3eb1dd; color:#404040; padding: 10px 10px 15px 10px; text-shadow:0 0; text-align:center; font-size:18px">
-	    Register your device
-	  <div style="position:absolute; right:13px; top:13px"
-	       onclick="$('#registration_popup').popup('close')">
-	    <img src="images/x.png">
-	  </div>
-	  </div>
-	  <div style="padding-top:5px; background-color:#d2e9ff">
-	    <form id="registration_form">
-	      <div id="registration_form_info" class="info"></div>
-	      <div id="registration_form_spinner" style="display:none; text-align:center">
-	      <img src="images/ajax-loader.gif">
-	      </div>
-
-	      <label for="name" class="ui-hidden-accessible">Name</label>
-	      <input type="text"
-		     name="name"
-		     id="name"
-		     placeholder="Name"
-		     >
-	      <label for="email" class="ui-hidden-accessible">Email</label>
-	      <input type="text"
-		     name="email"
-		     id="email"
-		     placeholder="Email"
-		     >
-	      <input type="hidden" name="method" value="register_device">
-	      <button style="background-color:#3eb1dd; color:white; text-shadow:0 0; font-weight:normal"
-		      type="button"
-		      onclick="send_registration()">Send</button>
-	    </form>
-	  </div>
-	</div>
-      </div>
-
-      <!-- popup share_location box -->
-      <div id="share_location_popup"
-	   data-role="popup"
-	   >
-	<div style="margin:10px">
-	  <div style="background-color:#3eb1dd; color:#404040; padding: 10px 10px 15px 10px; text-shadow:0 0; text-align:center; font-size:18px">
-	    Share your Location
-	  <div style="position:absolute; right:13px; top:13px"
-	       onclick="$('#share_location_popup').popup('close')">
-	    <img src="images/x.png">
-	  </div>
-	  </div>
-	  <div style="padding-top:5px; background-color:#d2e9ff">
-	  <form id="share_location_form">
-	  <div id="share_location_form_info" class="info"></div>
-	  <div id="share_location_form_spinner" style="text-align:center; display:none">
-	  <img src="images/ajax-loader.gif">
-	  </div>
-	  <div style="padding:5px">
-	    <div style="font-size:18px">Share via:</div>
-
-	    <div style="border-style:solid; border-width:1px; -moz-border-radius:10px; -webkit-border-radius:10px; border-radius:10px">
-	    <div style="padding:5px">
-	    <select name="share_via" style="padding:5px">
-	    <option value="sms">Text/SMS Message</option>
-	    <option value="email">Email</option>
-	    <option value="twitter">Twitter</option>
-	    <option value="facebook">Facebook</option>
-	    </select>
-
-	    <label for="share_to" class="ui-hidden-accessible">Share To</label>
-	    <input type="text"
-		   name="share_to"
-		   id="share_to"
-		   placeholder="Share To"
-		   style="padding:5px"
-		   >
-	    </div>
-	    </div>
-	  </div>
-	  <div style="padding:5px">
-	  <div style="font-size:18px">Share how long?</div>
-	  <div style="border-style:solid; border-width:1px; -moz-border-radius:10px; -webkit-border-radius:10px; border-radius:10px">
-	    <div style="width:28%; float:left; margin-left:3px; padding-top:3px">
-	    <input type="text"
-		   name="share_duration_number"
-		   id="share_duration_number"
-		   value="1"
-		   placeholder="number"
-		   >
-	    </div>
-	    <div style="width:68%; float:right; margin-right:3px">
-	    <select name="share_duration_unit">
-	    <option value="minute">minute</option>
-	    <option value="hour">hour</option>
-	    <option value="day">day</option>
-	    <option value="week">week</option>
-	    <option value="manual">forever</option>
-	    </select>
-	    </div>
-	    <div style="clear:both"></div>
-	  </div>
-	  </div>
-	  <input type="hidden" name="method" value="share_location">
-	  <button style="background-color:#3eb1dd; color:white; text-shadow:0 0; font-weight:normal"
-		  type="button"
-		  onclick="share_location()">Send</button>
-	  </form>
-	  </div>
-	</div>
-      </div>
-
+      <%= ERB.new(File.read('views/popup_register.erb'), nil, "%").result(binding) %>
+      <%= ERB.new(File.read('views/popup_share_location.erb'), nil, "%").result(binding) %>
+      <%= ERB.new(File.read('views/popup_alert.erb'), nil, "%").result(binding) %>
 
       <!-- map -->
       <div data-role="content" id="content">

@@ -17,6 +17,8 @@ bin/rails generate scaffold Beacon expire_time:datetime seen_device_id:string se
 bin/rails generate scaffold Beacon expire_time:datetime seen_device_id:string seer_device_id:string
 bin/rails generate migration RemoveThisFromBeacons beacon:string
 bin/rails generate migration AddIndexToDevices device_name:string:uniq:index
+
+bin/rails generate migration AddIndexToBeacons share_cred:string:uniq:index
 bundle exec rake db:migrate
 
 shotgun --port 4567 --host 0.0.0.0
