@@ -1,6 +1,9 @@
 <html>
 
   <head>
+    <meta content="width = device-width" name="viewport" />
+    <link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" />
+    <link rel="apple-touch-icon" href="/images/pin_wings_128x128_whitebg.png" />
     <title>
       Geopeers
     </title>
@@ -14,11 +17,18 @@
     <script src="//code.jquery.com/ui/1.11.0/jquery-ui.js"></script>
     <script src="https://prod1.magtogo.com/library/jminit.js"></script>
     <script src="https://prod1.magtogo.com/library/jquery.mobile-1.4.2.min.js"></script>
-    <script src="geo.js"></script>
+    <script src="/jqm_map/ui/jquery.ui.map.js"></script>
     <script src="markerwithlabel.js"></script>
+    <script src="geo.js"></script>
+    <script src="md5.js"></script>
     <link type="text/css"
 	  rel ="stylesheet"
 	  href="geo.css" />
+    <link type="text/css"
+          rel="stylesheet"
+          href="dataTables.css" />
+    <script src="dataTables.js"></script>
+    <script src="jquery-ui-timepicker-addon.js"></script>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jstimezonedetect/1.0.4/jstz.min.js"></script>
 
@@ -27,11 +37,11 @@
   <body>
     <div data-role="page" id="index">
 
-      <!-- the header contains the title and buttons -->
       <div data-theme="a" data-role="header">
         <div class="header_content">
           <div id="header_title" class="overlap_div">
-            Geopeers
+            <div>Geopeers</div>
+	    <div id="geo_info" class="info"></div>
           </div>
           <div class="overlap_div">
             <div class="icon_div">
@@ -49,13 +59,12 @@
             <div style="clear:both"></div>
           </div>
         </div>
-	<div id="geo_info" class="info"></div>
-	<div id="geo_error" class="error"></div>
       </div>
 
-      <%= ERB.new(File.read('views/popup_register.erb'), nil, "%").result(binding) %>
+      <%= ERB.new(File.read('views/popup_register.erb'),       nil, "%").result(binding) %>
       <%= ERB.new(File.read('views/popup_share_location.erb'), nil, "%").result(binding) %>
-      <%= ERB.new(File.read('views/popup_alert.erb'), nil, "%").result(binding) %>
+      <%= ERB.new(File.read('views/popup_alert.erb'),          nil, "%").result(binding) %>
+      <%= ERB.new(File.read('views/popup_manage.erb'),         nil, "%").result(binding) %>
 
       <!-- map -->
       <div data-role="content" id="content">

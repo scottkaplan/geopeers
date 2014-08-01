@@ -1,9 +1,26 @@
-<%= name %> shared this <a href='<%= url %>'>location link</a> with you.
+Content-Type: multipart/alternative; boundary=<%= boundary_random %>
+
+--<%= boundary_random %>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed; delsp=yes
+
+<%= name %> shared this url:
+
+  <%= url %>'>
+
+with you.
+
 When you click on it, you will see <%= name %>'s current location.
 
 <% if expire_time %>
 <p>
 The link will expire <%= expire_time %>.
 Until then, the link will show you <%= name %>'s current position.
-After that, the link will display <%= name %>'s position <%= expire_time %>
+After that, you will no longer see <%= name %>'s position.
 <% end %>
+
+--<%= boundary_random %>
+Content-Type: text/html; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
+
+<%= quoted_html_body %>
+--<%= boundary_random %>--

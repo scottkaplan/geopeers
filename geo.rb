@@ -11,17 +11,21 @@ require 'uri'
 
 # TODO
 
-#   View Beacons table - Name, Status (active, unopened, expires), Last Viewed, Expires
-
 #   create test plan w/multiple devices
 
 #   spin up eng1.geopeers.com
 #   setup on port 80 through apache/passenger
+#   SSL cert
 
 #   Use HTML5 web workers to send position in background
 
-#   app with webview and send_position in background
+#   phonegap app with webview and send_position in background
 #   select contact from list
+
+#   flying pin favicon
+#   add button to change registration
+#   slider at bottom w/beacons for quickpan
+#   put expire time in tooltip
 
 #   make beacon.share_cred UNIQUE
 #   Permissions:
@@ -29,7 +33,16 @@ require 'uri'
 #     allow seen to view seer viewed history
 #     allow seer to know that seen is watching
 #   share location via facebook and twitter
+#   allow editing share_location msg
 #   use symbols instead of strings in hashs
+
+# USES
+#   parent track child
+#   groups tracking each other
+#     skiing, hiking, camping, vacation, evening out, amusement park
+#   track self
+#     where did I leave my car?
+#   employers track employees
 
 set :public_folder, 'public'
 class Sighting < ActiveRecord::Base
@@ -71,12 +84,19 @@ def init
     "[#{datetime.strftime($LOG.datetime_format)} #{severity} #{file}:#{line}]: #{msg.inspect}\n"
   }
   db_config = YAML::load_file('config/database.yml')
-  set :database, "#{db_config['adapter']}://#{db_config['username']}:#{db_config['password']}@#{db_config['host']}:#{db_config['port']}/#{db_config['database']}"
-
+  db_str = "#{db_config['adapter']}://#{db_config['username']}:#{db_config['password']}@#{db_config['host']}:#{db_config['port']}/#{db_config['database']}"
+  set :database, db_str
+#  ActiveRecord::Base.establish_connection(
+#                                          :adapter  => db_config.adapter,
+#                                          :database => 'geopeers',
+#                                          :host     => 'db.geopeers.com',
+#                                          :username => 'geopeers',
+#                                          :password => 'ullamco1'
+#                                          )
+#  $DB_SPEC = ActiveRecord::Base.specification
 end
 
 class Protocol
-
   private
 
   def Protocol.compute_expire_time (params)
@@ -125,6 +145,13 @@ class Protocol
     if (beacon.share_via == 'sms')
       template_file = 'views/text_msg.erb'
     else
+      require 'securerandom'
+      boundary_random = SecureRandom.base64(21)
+      template_file = 'views/email_body.erb'
+      msg_erb = File.read(template_file)
+      html_body = ERB.new(msg_erb).result(binding)
+      require 'mail'
+      quoted_html_body = Mail::Encodings::QuotedPrintable.encode(html_body)
       template_file = 'views/email_msg.erb'
     end
     msg_erb = File.read(template_file)
@@ -147,10 +174,12 @@ class Protocol
     $LOG.debug params
     device = Device.where("device_id=?", params['device_id']).first
     $LOG.debug device
+
+    
     subject = "#{device.name} shared a location with you"
     from = "#{device.name} <#{device.email}>"
     to = beacon.share_to
-    msg = "From: #{from}\nTo: #{to}\nSubject: #{subject}\nContent-type: text/html\n\n"
+    msg = "From: #{from}\nTo: #{to}\nSubject: #{subject}\n"
     msg += Protocol.create_share_msg(beacon, params)
     begin
       Net::SMTP.start('127.0.0.1') do |smtp|
@@ -223,12 +252,12 @@ class Protocol
              GROUP BY sightings.device_id"
       elems = []
       Sighting.find_by_sql(sql).each { |row|
-        device = Device.where("device_id=?", params['device_id']).first
         elems.push ({ 'name'          => row.name,
                       'device_id'     => row.device_id,
                       'gps_longitude' => row.gps_longitude,
                       'gps_latitude'  => row.gps_latitude,
                       'sighting_time' => row.max_updated_at,
+                      # 'expire_time'   => beacon.expire_time,
                     })
       }
       {'sightings' => elems }
@@ -262,7 +291,7 @@ class Protocol
       device.name = params['name']
       device.email = params['email']
       device.save
-      {'message' => 'Device Registered', 'style' => {'color' => 'blue'}}
+      {'message' => 'Device Registered<br>You can share your location now by pressing the flying pin', 'style' => {'color' => 'blue'}}
     else
       # This shouldn't happen.  If there is a device_id, it should be in the DB
       # Script kiddies?
@@ -309,16 +338,18 @@ class Protocol
   def Protocol.process_request_cred (params)
     # a share URL has been clicked
     # assign the seer's device_id to the beacon for that cred
-    beacon = Beacon.where("share_cred=? AND seer_device_id IS NULL",params["cred"]).first
+    beacon = Beacon.where("share_cred=?",params["cred"]).first
     $LOG.debug beacon
-    redirect_url = 'http://www.geopeers.com:4567/geo'
-    if ( beacon )
-      beacon.seer_device_id = params['device_id']
-      beacon.save
-    else
-      msg = "That link has already been used, but you can still use GeoPeers"
+    redirect_url = 'http://geopeers.com'
+
+    if ((defined? beacon) && (! beacon.nil?) && (! beacon.seer_device_id.nil?) && (beacon.seer_device_id != params['device_id']))
+      $LOG.debug params['device_id']
+      msg = "That link has already been used. You can't view the location.  You can still use the other features of GeoPeers"
       msg = URI.escape (msg)
       redirect_url += "?alert=#{msg}"
+    else
+      beacon.seer_device_id = params['device_id']
+      beacon.save
     end
     {:redirect_url => redirect_url}
   end
@@ -365,7 +396,7 @@ end
 class ProtocolEngine < Sinatra::Base
   set :static, true
 
-  def get_device_id (params)
+  def get_device_id ()
     if (request.cookies['device_id'])
       request.cookies['device_id']
     else
@@ -421,7 +452,7 @@ class ProtocolEngine < Sinatra::Base
   end
 
   get '/api' do
-    params['device_id'] = get_device_id params
+    params['device_id'] = get_device_id()
     params['user_agent'] = request.user_agent
     resp = Protocol.process_request params
     if (resp[:error])
@@ -436,7 +467,7 @@ class ProtocolEngine < Sinatra::Base
   end
 
   post '/api' do
-    params['device_id'] = get_device_id params
+    params['device_id'] = get_device_id()
     params['user_agent'] = request.user_agent
     resp = Protocol.process_request params
     $LOG.debug (resp)
@@ -453,13 +484,20 @@ class ProtocolEngine < Sinatra::Base
     end
   end
 
-  get '/geo' do
-    # we don't need the device_id to build the page
-    # but we do want to make sure the client gets a device_id
-    # in case they don't have one
-    params['device_id'] = get_device_id params
-    erb :index
+  ['/', '/geo/?'].each do |path|
+    get path do
+      # we don't need the device_id to build the page
+      # but we do want to make sure the client gets a device_id
+      # in case they don't have one
+      params['device_id'] = get_device_id()
+      erb :index
+    end
   end
+
+  after do
+    ActiveRecord::Base.clear_active_connections!
+  end
+
 end
 
 init()

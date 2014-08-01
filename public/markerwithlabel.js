@@ -280,6 +280,7 @@ MarkerLabel_.prototype.onAdd = function () {
     }),
     google.maps.event.addListener(this.marker_, "position_changed", function () {
       me.setPosition();
+      me.setContent();
     }),
     google.maps.event.addListener(this.marker_, "zindex_changed", function () {
       me.setZIndex();

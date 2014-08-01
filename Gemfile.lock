@@ -142,6 +142,7 @@ DEPENDENCIES
   eztexting
   jbuilder (~> 1.2)
   jquery-rails
+  mail
   mysql2
   rails (= 4.0.4)
   sass-rails (~> 4.0.2)

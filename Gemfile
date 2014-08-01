@@ -7,6 +7,7 @@ gem "sinatra-activerecord"
 gem "sinatra-contrib"
 gem "eztexting"
 gem "shotgun"
+gem "mail"
 
 # Bundle edge Rails instead: gem 'rails', github: 'rails/rails'
 gem 'rails', '4.0.4'
