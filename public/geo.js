@@ -236,6 +236,64 @@ function update_markers (data, textStatus, jqXHR) {
     return;
 }
 
+
+
+function ajax_request (request_parms, success_callback, failure_callback) {
+    var url = "/api";
+    $.ajax({type:  "POST",
+	    async: true,
+	    url:   url,
+	    data:  request_parms,
+	  })
+	.done(success_callback)
+	.fail(failure_callback);
+    return;
+}
+
+
+// SEND_POSITION
+
+function send_position_callback (data, textStatus, jqXHR) {
+    if (! data) {
+	return;
+    }
+    console.log ("data="+data);
+    return;
+}
+
+function send_position_failure_callback (jqXHR, textStatus, errorThrown) {
+    console.log ("failed ajax call: "+textStatus+", errorThrown="+errorThrown);
+}
+
+function send_position_request (position) {
+    if (! position)
+	return;
+
+    var device_id = get_cookie('device_id');
+    console.log("sending device_id "+device_id+" position data");
+    if (! device_id)
+	return;
+
+    // don't send the same co-ordinates again
+    if (send_position_request.last_position &&
+    	(send_position_request.last_position.coords.longitude == position.coords.longitude) &&
+    	(send_position_request.last_position.coords.latitude == position.coords.latitude))
+    	return;
+
+    var request_parms = { gps_longitude: position.coords.longitude,
+			  gps_latitude:  position.coords.latitude,
+			  method:        'send_position',
+			  device_id:     device_id,
+			  uuid:          uuid,
+    };
+    ajax_request (request_parms, send_position_callback, send_position_failure_callback);
+    send_position_request.last_position = position;
+    return;
+}
+
+
+// SHARE_LOCATION
+
 function share_location_popup () {
     if (registration.status == 'REGISTERED') {
 	if (no_geo_message.geo_down) {
@@ -257,7 +315,8 @@ function share_location_popup () {
 
 function share_location_callback (data, textStatus, jqXHR) {
     $('#share_location_form_spinner').hide();
-    display_in_div (data.message, 'share_location_form_info', data.style);
+    display_message(data.message, 'message_success');
+    $('#share_location_popup').popup('close')
     return;
 }
 
@@ -284,17 +343,7 @@ function share_location () {
     var params = $('#share_location_form').serialize();
     var tz = jstz.determine();
     params += '&tz='+tz.name();
-    ajax_request (params, share_location_callback);
-}
-
-function geo_ajax_success_callback (data, textStatus, jqXHR) {
-    if (data.message) {
-	display_message (data.message, 'message_info');
-    }
-    if (data.js) {
-	eval (data.js);
-    }
-    return;
+    ajax_request (params, share_location_callback, geo_ajax_fail_callback);
 }
 
 function geo_ajax_fail_callback (data, textStatus, jqXHR) {
@@ -307,42 +356,6 @@ function geo_ajax_fail_callback (data, textStatus, jqXHR) {
     display_message (error_html, 'message_error');
     $('#registration_form_spinner').hide();
     $('#share_location_form_spinner').hide();
-    return;
-}
-
-function ajax_request (request_parms, success_callback) {
-    var url = "/api";
-    $.ajax({type:  "POST",
-	    async: true,
-	    url:   url,
-	    data:  request_parms,
-	  })
-	.done(success_callback)
-	.fail(geo_ajax_fail_callback);
-    return;
-}
-
-function send_position_request (position) {
-    if (! position)
-	return;
-
-    var device_id = get_cookie('device_id');
-    if (! device_id)
-	return;
-
-    // don't send the same co-ordinates again
-    if (send_position_request.last_position &&
-    	(send_position_request.last_position.coords.longitude == position.coords.longitude) &&
-    	(send_position_request.last_position.coords.latitude == position.coords.latitude))
-    	return;
-
-    var request_parms = { gps_longitude: position.coords.longitude,
-			  gps_latitude:  position.coords.latitude,
-			  method:        'send_position',
-			  device_id:     device_id,
-    };
-    ajax_request (request_parms, geo_ajax_success_callback);
-	send_position_request.last_position = position;
     return;
 }
 
@@ -363,7 +376,7 @@ function get_positions () {
 	return
     var request_parms = { method: 'get_positions',
 			  device_id: device_id};
-    ajax_request (request_parms, update_markers);
+    ajax_request (request_parms, update_markers, geo_ajax_fail_callback);
     return;
 }
 
@@ -450,7 +463,7 @@ function manage_beacons () {
 	return
     var request_parms = { method: 'get_beacons',
 			  device_id: device_id};
-    ajax_request (request_parms, manage_beacons_callback);
+    ajax_request (request_parms, manage_beacons_callback, geo_ajax_fail_callback);
     return;
 }
 
@@ -475,7 +488,8 @@ function registration_callback (data, textStatus, jqXHR) {
     $('#registration_form_spinner').hide();
     if (data) {
 	registration.status = 'REGISTERED';
-	display_in_div (data.message, 'registration_form_info', data.style);
+	display_message(data.message, 'message_success');
+	$('#registration_popup').popup('close')
     } else {
 	display_in_div ('No data', 'registration_form_info', {color:'red'});
     }
@@ -509,7 +523,7 @@ function send_registration () {
     }
     $('#registration_form_spinner').show();
     var params = $('#registration_form').serialize();
-    ajax_request (params, registration_callback);
+    ajax_request (params, registration_callback, geo_ajax_fail_callback);
 }
 
 var registration = {
@@ -523,7 +537,7 @@ var registration = {
 	if (device_id) {
 	    var request_parms = { method: 'get_registration',
 				  device_id: device_id};
-	    ajax_request (request_parms, registration.callback);
+	    ajax_request (request_parms, registration.callback, geo_ajax_fail_callback);
 	    // while the request/response is in the air, we're in an indeterminant state
 	    // Anyone who cares about the registration status should assume that the popup 
 	    // has been filled out and is in the air.
@@ -555,10 +569,13 @@ function heartbeat () {
     // things that should happen periodically
     period_minutes = 1;
 
-    // tell the server where we are
-    run_position_function (function(position) {
-	    send_position_request (position);
-	});
+    if (! WORKER_RUNNING) {
+	// No worker support, we have to do this in our thread
+	// tell the server where we are
+	run_position_function (function(position) {
+		send_position_request (position);
+	    });
+    }
 
     // refresh the sightings for our beacons
     get_positions();
@@ -590,6 +607,9 @@ $(document).ready(function(e,data){
 
 	// server has redirected to us and has a message to popup
 	display_message(getParameterByName('alert'), 'message_error');
+
+	// Workers don't have access to geolocation
+	// start_worker();
 	
 	// This is a bad hack.
 	// If the map isn't ready when the last display_message fired, the reposition will be wrong
