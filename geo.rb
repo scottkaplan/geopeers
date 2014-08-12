@@ -17,13 +17,12 @@ require 'uri'
 #   setup on port 80 through apache/passenger
 #   SSL cert
 
-#   Use HTML5 web workers to send position in background
+#   Settings button:
+#     change registration
 
 #   phonegap app with webview and send_position in background
 #   select contact from list
 
-#   flying pin favicon
-#   add button to change registration
 #   slider at bottom w/beacons for quickpan
 #   put expire time in tooltip
 
@@ -397,6 +396,9 @@ class ProtocolEngine < Sinatra::Base
   set :static, true
 
   def get_device_id ()
+    # The device_id is stored in the client's cookie
+    # retrieve it if one already has been assigned,
+    # create and send a new device_id if one was not sent by the client
     if (request.cookies['device_id'])
       request.cookies['device_id']
     else
