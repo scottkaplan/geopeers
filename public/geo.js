@@ -116,7 +116,7 @@ function create_map (position) {
     $('#map_canvas').gmap({center: initial_location, zoom: zoom});
     if (position) {
 	var image = 'images/green_star_32x32.png';
-	$('#map_canvas').gmap('addMarker', {icon: image, position: initial_location});
+	$('#map_canvas').gmap('addMarker', {marker_id: 'my_pos', icon: image, position: initial_location});
     }
 }
 
@@ -257,7 +257,7 @@ function send_position_callback (data, textStatus, jqXHR) {
     if (! data) {
 	return;
     }
-    console.log ("data="+data);
+    console.log ("data="+data.inspect);
     return;
 }
 
@@ -284,7 +284,6 @@ function send_position_request (position) {
 			  gps_latitude:  position.coords.latitude,
 			  method:        'send_position',
 			  device_id:     device_id,
-			  uuid:          uuid,
     };
     ajax_request (request_parms, send_position_callback, send_position_failure_callback);
     send_position_request.last_position = position;
@@ -565,17 +564,30 @@ function getParameterByName(name) {
     return results == null ? "" : decodeURIComponent(results[1].replace(/\+/g, " "));
 }
 
+function update_current_pos () {
+    run_position_function (function(position) {
+	    $('#map_canvas').gmap('find', 'markers',
+				  { 'property': 'marker_id', 'value': 'my_pos' },
+				  function(marker, found) {
+				      if (found) {
+					  var my_pos = new google.maps.LatLng(position.coords.latitude,
+									      position.coords.longitude)
+					  console.log ("Updating my position to "+my_pos);
+					  marker.setPosition(my_pos);
+				      }
+				  });
+	});
+    var period_sec = 5;
+    setTimeout(update_current_pos, period_sec * 1000);
+}
+
 function heartbeat () {
     // things that should happen periodically
-    period_minutes = 1;
+    var period_minutes = 1;
 
-    if (! WORKER_RUNNING) {
-	// No worker support, we have to do this in our thread
-	// tell the server where we are
-	run_position_function (function(position) {
-		send_position_request (position);
-	    });
-    }
+    run_position_function (function(position) {
+	    send_position_request (position);
+	});
 
     // refresh the sightings for our beacons
     get_positions();
@@ -616,4 +628,5 @@ $(document).ready(function(e,data){
 	setTimeout(function(){update_map_canvas_pos()}, 500);
 
 	heartbeat();
+	update_current_pos();
     });
