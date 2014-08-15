@@ -1,3 +1,4 @@
+
 require 'sinatra'
 require 'sinatra/activerecord'
 require 'json'
@@ -8,40 +9,6 @@ require 'date'
 require 'eztexting'
 require 'net/smtp'
 require 'uri'
-
-# TODO
-
-#   create test plan w/multiple devices
-
-#   spin up eng1.geopeers.com
-#   setup on port 80 through apache/passenger
-#   SSL cert
-
-#   Settings button:
-#     change registration
-
-#   phonegap app with webview and send_position in background
-#   select contact from list
-
-#   slider at bottom w/beacons for quickpan
-#   put expire time in tooltip
-
-#   make beacon.share_cred UNIQUE
-#   Permissions:
-#     allow seer to view seen history
-#     allow seen to view seer viewed history
-#     allow seer to know that seen is watching
-#   share location via facebook and twitter
-#   allow editing share_location msg
-#   use symbols instead of strings in hashs
-
-# USES
-#   parent track child
-#   groups tracking each other
-#     skiing, hiking, camping, vacation, evening out, amusement park
-#   track self
-#     where did I leave my car?
-#   employers track employees
 
 set :public_folder, 'public'
 class Sighting < ActiveRecord::Base
@@ -113,7 +80,7 @@ class Protocol
   end
 
   def Protocol.create_share_url (beacon, params)
-    "http://geopeers.com/api?cred="+beacon.share_cred
+    "http://www.geopeers.com/api?cred="+beacon.share_cred
   end
 
   def Protocol.format_expire_time (beacon, params)
@@ -339,7 +306,7 @@ class Protocol
     # assign the seer's device_id to the beacon for that cred
     beacon = Beacon.where("share_cred=?",params["cred"]).first
     $LOG.debug beacon
-    redirect_url = 'http://geopeers.com'
+    redirect_url = 'http://www.geopeers.com'
 
     if ((defined? beacon) && (! beacon.nil?) && (! beacon.seer_device_id.nil?) && (beacon.seer_device_id != params['device_id']))
       $LOG.debug params['device_id']
