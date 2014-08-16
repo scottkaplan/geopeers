@@ -30,7 +30,7 @@ function display_message (message, css_class) {
 	    .css('right','16px')
 	    .css('top','40px')
 	    .css('text-align','right');
-	x_div.append ('<img src="/images/x_black.png">');
+	x_div.append ('<img src="https://eng.geopeers.com/images/x_black.png">');
 	var msg_div = $('<div></div>')
 	    .html(message)
 	    .addClass(css_class);
@@ -115,7 +115,7 @@ function create_map (position) {
     }
     $('#map_canvas').gmap({center: initial_location, zoom: zoom});
     if (position) {
-	var image = 'images/green_star_32x32.png';
+	var image = 'https://eng.geopeers.com/images/green_star_32x32.png';
 	$('#map_canvas').gmap('addMarker', {marker_id: 'my_pos', icon: image, position: initial_location});
     }
 }
@@ -269,7 +269,7 @@ function send_position_request (position) {
     if (! position)
 	return;
 
-    var device_id = get_cookie('device_id');
+    var device_id = get_device_id();
     console.log("sending device_id "+device_id+" position data");
     if (! device_id)
 	return;
@@ -358,19 +358,24 @@ function geo_ajax_fail_callback (data, textStatus, jqXHR) {
     return;
 }
 
-function get_cookie(cname) {
-    var name = cname + "=";
-    var ca = document.cookie.split(';');
-    for(var i=0; i<ca.length; i++) {
-        var c = ca[i];
-        while (c.charAt(0)==' ') c = c.substring(1);
-        if (c.indexOf(name) != -1) return c.substring(name.length,c.length);
+function get_device_id(cname) {
+    if (typeof(device) === 'undefined') {
+	var cname = 'device_id';
+	var name = cname + "=";
+	var ca = document.cookie.split(';');
+	for(var i=0; i<ca.length; i++) {
+	    var c = ca[i];
+	    while (c.charAt(0)==' ') c = c.substring(1);
+	    if (c.indexOf(name) != -1) return c.substring(name.length,c.length);
+	}
+	return;
+    } else {
+	return (device.uuid);
     }
-    return;
 }
 
 function get_positions () {
-    var device_id = get_cookie('device_id');
+    var device_id = get_device_id();
     if (! device_id)
 	return
     var request_parms = { method: 'get_positions',
@@ -457,7 +462,7 @@ function manage_beacons_callback (data, textStatus, jqXHR) {
 }
 
 function manage_beacons () {
-    var device_id = get_cookie('device_id');
+    var device_id = get_device_id();
     if (! device_id)
 	return
     var request_parms = { method: 'get_beacons',
@@ -474,11 +479,12 @@ function manage_display () {
 }
 
 function run_position_function (post_func) {
+    // post_func should be prepared to be called with 0 (gps failed) or 1 (position) parameter
     if(navigator.geolocation) {
 	navigator.geolocation.getCurrentPosition(function (position) {post_func(position); manage_display()},
 						 function (err) {post_func();
 								 no_geo_message.display(err)},
-                                                 {timeout:3000});
+                                                 {timeout:3000, enableHighAccuracy: true});
     }
     return;
 }
@@ -532,7 +538,7 @@ var registration = {
     init: function () {
 	if (registration.status == 'REGISTERED' || registration.status == 'CHECKING')
 	    return;
-	var device_id = get_cookie('device_id');
+	var device_id = get_device_id();
 	if (device_id) {
 	    var request_parms = { method: 'get_registration',
 				  device_id: device_id};
@@ -566,6 +572,9 @@ function getParameterByName(name) {
 
 function update_current_pos () {
     run_position_function (function(position) {
+	    if (! position) {
+		return;
+	    }
 	    $('#map_canvas').gmap('find', 'markers',
 				  { 'property': 'marker_id', 'value': 'my_pos' },
 				  function(marker, found) {
