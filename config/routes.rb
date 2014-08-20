@@ -1,4 +1,8 @@
 Show::Application.routes.draw do
+  resources :redeems
+
+  resources :shares
+
   resources :beacons
 
   resources :devices
