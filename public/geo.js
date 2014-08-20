@@ -4,9 +4,43 @@
 //           }
 var MARKERS = {};
 
+var device_id_mgr = {
+    device_id: null,
+    phonegap:  null,
+    init: function () {
+	try {
+	    device_id_mgr.device_id = device.uuid;
+	}
+	catch(err) {
+	    console.log (err);
+	    device_id_mgr.phonegap = false;
+	    return;
+	}
+	device_id_mgr.phonegap = true;
+    },
+    get: function () {
+	if (device_id_mgr.device_id) {
+	    return (device_id_mgr.device_id);
+	} else {
+	    var cname = 'device_id';
+	    var name = cname + "=";
+	    var ca = document.cookie.split(';');
+	    for(var i=0; i<ca.length; i++) {
+		var c = ca[i];
+		while (c.charAt(0)==' ') c = c.substring(1);
+		if (c.indexOf(name) != -1) {
+		    device_id_mgr.device_id = c.substring(name.length,c.length);
+		    return device_id_mgr.device_id;
+		}
+	    }
+	    return;
+	}
+    },
+}
+
 function update_map_canvas_pos () {
     var height = $('#geo_info').height();
-    var header_title_height = height + 50;
+    var header_title_height = height + 60;
     var content_height = height + 70;
     $('#header_title').css('height', header_title_height+'px');
     $('#content').css('top', content_height+'px');
@@ -56,29 +90,42 @@ function display_in_div (msg, div_id, style) {
     return;
 }
 
-var no_geo_message = {
+var display_mgr = {
     new_orleans:   new google.maps.LatLng(29.9667,  -90.0500),
     san_francisco: new google.maps.LatLng(37.7833, -122.4167),
     new_york:      new google.maps.LatLng(40.7127,  -74.0059),
     us_center:     new google.maps.LatLng(39.8282,  -98.5795),
-    last_msg:      null,
-    geo_down:      null,
-    message_displayed: null,
+
+    geo_down:               null,
+    message_displayed:      null,
+
+    // used to prevent putting up the same message repeatedly
+    // display_message prevents putting up the same message that is already visible
+    // but this prevents opening a message box that the user just closed
+    last_msg:               null,
+
+    // The timeout warning is closed when the GPS is retrieved
     showed_timeout_warning: null,
-    display: function(err) {
+    timeout_warning_md5:    null,
+
+    // was the position available when the map was created
+    // if not, pan to it as soon as the position becomes available
+    initial_pan:            null,
+
+    display_err: function(err) {
 	// always run the panning check
 	// if gmap has been created, but at (0,0), pan to a predefined location
 	var map = $('#map_canvas').gmap('get','map');
 	if (map) {
 	    map_pos = map.getCenter();
 	    if (map_pos.lat() == 0 && map_pos.lng() == 0) {
-		map.panTo(no_geo_message.us_center);
+		map.panTo(display_mgr.us_center);
 		$('#map_canvas').gmap('option', 'zoom', 4)
 	    }
 	}
 
 	// some messages should only be displayed once
-	if (no_geo_message.message_displayed) {
+	if (display_mgr.message_displayed) {
 	    return;
 	}
 
@@ -90,16 +137,31 @@ var no_geo_message = {
 	    msg = "Your current location is not available.";
 	} else if (err.code === 3) {
 	    msg = "Getting your current location timed out.  We'll keep trying.";
-	    no_geo_message.showed_timeout_warning = 1;
+	    // store the div id for this message so we can hide it when the position becomes available
+	    display_mgr.timeout_warning_md5 = md5(msg);
 	} else {
 	    msg = "There was an unknown error getting your current location.";
 	}
-	no_geo_message.geo_down = 1;
-	no_geo_message.message_displayed = 1;
+	display_mgr.geo_down = true;
+	display_mgr.message_displayed = true;
 	msg += "<br>You can view others, but you cannot share your location";
-	no_geo_message.last_msg = msg;
+	display_mgr.last_msg = msg;
 	display_message (msg, 'message_warning');
     },
+    display_ok: function(position) {
+	if (! display_mgr.initial_pan) {
+	    display_mgr.initial_pan = true;
+	    var map = $('#map_canvas').gmap('get','map');
+	    var location = new google.maps.LatLng(position.coords.latitude,
+						  position.coords.longitude);
+	    map.panTo(location);
+	}
+	if (display_mgr.showed_timeout_warning) {
+	    $('#'+display_mgr.timeout_warning_md5).hide();
+	    display_mgr.showed_timeout_warning = null;
+	    display_message ('Your GPS is now available','message_info');
+	}
+    }
 }
 
 //
@@ -115,6 +177,7 @@ function create_map (position) {
     }
     $('#map_canvas').gmap({center: initial_location, zoom: zoom});
     if (position) {
+	console.log ("lat=" + position.coords.latitude + ", lng=" + position.coords.longitude);
 	var image = 'https://eng.geopeers.com/images/green_star_32x32.png';
 	$('#map_canvas').gmap('addMarker', {marker_id: 'my_pos', icon: image, position: initial_location});
     }
@@ -181,6 +244,16 @@ function update_marker_view (marker_info) {
     return;
 }
 
+function popup_share_location_with_email () {
+    $('#share_via option[value="email"]')
+	.prop('selected', false)
+	.filter('[value="email"]')
+	.prop('selected', true);
+    $('#share_to').val('scott@kaplans.com');
+    $('#share_location_popup').popup('open');
+    return;
+}
+
 function create_marker (sighting) {
     var label_text = create_label_text (sighting);
     marker = $('#map_canvas').gmap('addMarker', {
@@ -189,7 +262,7 @@ function create_marker (sighting) {
 	    'marker':       MarkerWithLabel,
 	    'icon':         '/images/pin_wings.png',
 	    'labelAnchor':  new google.maps.Point(60, 0),
-	    'labelContent': label_text});
+	    'labelContent': label_text}).click(function() {popup_share_location_with_email()});
     return ({marker: marker});
 }
 
@@ -239,7 +312,7 @@ function update_markers (data, textStatus, jqXHR) {
 
 
 function ajax_request (request_parms, success_callback, failure_callback) {
-    var url = "/api";
+    var url = "https://eng.geopeers.com/api";
     $.ajax({type:  "POST",
 	    async: true,
 	    url:   url,
@@ -269,7 +342,7 @@ function send_position_request (position) {
     if (! position)
 	return;
 
-    var device_id = get_device_id();
+    var device_id = device_id_mgr.get();
     console.log("sending device_id "+device_id+" position data");
     if (! device_id)
 	return;
@@ -295,8 +368,8 @@ function send_position_request (position) {
 
 function share_location_popup () {
     if (registration.status == 'REGISTERED') {
-	if (no_geo_message.geo_down) {
-	    display_message (no_geo_message.last_msg, 'message_warning');
+	if (display_mgr.geo_down) {
+	    display_message (display_mgr.last_msg, 'message_warning');
 	} else {
 	    $('#share_location_popup').popup('open');
 	}
@@ -358,24 +431,8 @@ function geo_ajax_fail_callback (data, textStatus, jqXHR) {
     return;
 }
 
-function get_device_id(cname) {
-    if (typeof(device) === 'undefined') {
-	var cname = 'device_id';
-	var name = cname + "=";
-	var ca = document.cookie.split(';');
-	for(var i=0; i<ca.length; i++) {
-	    var c = ca[i];
-	    while (c.charAt(0)==' ') c = c.substring(1);
-	    if (c.indexOf(name) != -1) return c.substring(name.length,c.length);
-	}
-	return;
-    } else {
-	return (device.uuid);
-    }
-}
-
 function get_positions () {
-    var device_id = get_device_id();
+    var device_id = device_id_mgr.get();
     if (! device_id)
 	return
     var request_parms = { method: 'get_positions',
@@ -416,7 +473,7 @@ function format_expire_time (expire_time) {
     return (expires);
 }
 
-function manage_beacons_callback (data, textStatus, jqXHR) {
+function manage_shares_callback (data, textStatus, jqXHR) {
     // create markup for a table, loaded with data
     // table is of the form:
     // <table>
@@ -432,24 +489,24 @@ function manage_beacons_callback (data, textStatus, jqXHR) {
     head.append($('<th></th>').text('Shared Via'));
     head.append($('<th></th>').text('Shared To'));
     head.append($('<th></th>').text('Name'));
-    head.append($('<th></th>').text('Status'));
+    head.append($('<th></th>').text('Redeem Name'));
     head.append($('<th></th>').text('Expires'));
     table.append($('<thead></thead>').append(head));
     var tbody = $('<tbody></tbody>');
-    for(var i=0,len=data.beacons.length; i<len; i++){
-	var beacon = data.beacons[i];
-	var status = beacon.created_at === beacon.activate_time ? 'Unopened' : 'Active';
+    for(var i=0,len=data.shares.length; i<len; i++){
+	var share = data.shares[i];
+	redeem_name = share.redeem_name ? share.redeem_name : '<Unopened>';
 	var expires;
-	if (beacon.expire_time) {
-	    expires = format_expire_time(beacon.expire_time);
+	if (share.expire_time) {
+	    expires = format_expire_time(share.expire_time);
 	} else {
 	    expires = 'Never';
 	}
 	var row = $('<tr></tr>');
-	row.append($('<td></td>').text(beacon.share_via));
-	row.append($('<td></td>').text(beacon.share_to));
-	row.append($('<td></td>').text(beacon.name));
-	row.append($('<td></td>').text(status));
+	row.append($('<td></td>').text(share.share_via));
+	row.append($('<td></td>').text(share.share_to));
+	row.append($('<td></td>').text(share.name));
+	row.append($('<td></td>').text(redeem_name));
 	row.append($('<td></td>').text(expires));
 	tbody.append(row);
     }
@@ -461,29 +518,23 @@ function manage_beacons_callback (data, textStatus, jqXHR) {
     
 }
 
-function manage_beacons () {
-    var device_id = get_device_id();
+function manage_shares () {
+    var device_id = device_id_mgr.get();
     if (! device_id)
 	return
-    var request_parms = { method: 'get_beacons',
+    var request_parms = { method: 'get_shares',
 			  device_id: device_id};
-    ajax_request (request_parms, manage_beacons_callback, geo_ajax_fail_callback);
+    ajax_request (request_parms, manage_shares_callback, geo_ajax_fail_callback);
     return;
-}
-
-function manage_display () {
-    if (no_geo_message.showed_timeout_warning) {
-	display_message ('Your GPS is now available','message_info');
-	no_geo_message.showed_timeout_warning = null;
-    }
 }
 
 function run_position_function (post_func) {
     // post_func should be prepared to be called with 0 (gps failed) or 1 (position) parameter
     if(navigator.geolocation) {
-	navigator.geolocation.getCurrentPosition(function (position) {post_func(position); manage_display()},
-						 function (err) {post_func();
-								 no_geo_message.display(err)},
+	navigator.geolocation.getCurrentPosition(function (position) {post_func(position);
+		                                                      display_mgr.display_ok(position)},
+						 function (err)      {post_func();
+						                      display_mgr.display_err(err)},
                                                  {timeout:3000, enableHighAccuracy: true});
     }
     return;
@@ -538,7 +589,7 @@ var registration = {
     init: function () {
 	if (registration.status == 'REGISTERED' || registration.status == 'CHECKING')
 	    return;
-	var device_id = get_device_id();
+	var device_id = device_id_mgr.get();
 	if (device_id) {
 	    var request_parms = { method: 'get_registration',
 				  device_id: device_id};
@@ -581,13 +632,10 @@ function update_current_pos () {
 				      if (found) {
 					  var my_pos = new google.maps.LatLng(position.coords.latitude,
 									      position.coords.longitude)
-					  console.log ("Updating my position to "+my_pos);
 					  marker.setPosition(my_pos);
 				      }
 				  });
 	});
-    var period_sec = 5;
-    setTimeout(update_current_pos, period_sec * 1000);
 }
 
 function heartbeat () {
@@ -598,8 +646,10 @@ function heartbeat () {
 	    send_position_request (position);
 	});
 
-    // refresh the sightings for our beacons
+    // refresh the sightings for our shares
     get_positions();
+
+    update_current_pos();
 
     // if we get here, schedule the next iteration
     setTimeout(heartbeat, period_minutes * 60 * 1000);
@@ -619,23 +669,31 @@ function display_alert (alert_msg) {
     return;
 }
 
+function init () {
+    device_id_mgr.init ();
+
+    if (device_id_mgr.phonegap) {
+	// Wait for device API libraries to load
+	document.addEventListener("deviceready", init_background_gps, false);
+    }
+
+    run_position_function (function(position) {create_map(position)});
+
+    // sets registeration.status
+    // used by popups to see if they should put up the registration screen instead
+    registration.init();
+
+    // server has redirected to us and has a message to popup
+    display_message(getParameterByName('alert'), 'message_error');
+
+    // This is a bad hack.
+    // If the map isn't ready when the last display_message fired, the reposition will be wrong
+    setTimeout(function(){update_map_canvas_pos()}, 500);
+
+    heartbeat();
+    update_current_pos();
+}
+
 $(document).ready(function(e,data){
-	run_position_function (function(position) {create_map(position)});
-
-	// sets registeration.status
-	// used by popups to see if they should put up the registration screen instead
-	registration.init();
-
-	// server has redirected to us and has a message to popup
-	display_message(getParameterByName('alert'), 'message_error');
-
-	// Workers don't have access to geolocation
-	// start_worker();
-	
-	// This is a bad hack.
-	// If the map isn't ready when the last display_message fired, the reposition will be wrong
-	setTimeout(function(){update_map_canvas_pos()}, 500);
-
-	heartbeat();
-	update_current_pos();
+	init();
     });
