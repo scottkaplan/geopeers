@@ -18,6 +18,10 @@ class Device < ActiveRecord::Base
 end
 class Beacon < ActiveRecord::Base
 end
+class Share < ActiveRecord::Base
+end
+class Redeem < ActiveRecord::Base
+end
 
 class Sms
   def initialize
@@ -80,13 +84,13 @@ class Protocol
     multiplier[params['share_duration_unit']] * params['share_duration_number'].to_i * 60
   end
 
-  def Protocol.create_share_url (beacon, params)
-    "http://www.geopeers.com/api?cred="+beacon.share_cred
+  def Protocol.create_share_url (share, params)
+    "http://www.geopeers.com/api?cred="+share.share_cred
   end
 
-  def Protocol.format_expire_time (beacon, params)
-    return unless beacon.expire_time
-    expire_time = beacon.expire_time.in_time_zone(params['tz'])
+  def Protocol.format_expire_time (share, params)
+    return unless share.expire_time
+    expire_time = share.expire_time.in_time_zone(params['tz'])
     now = Time.now.in_time_zone(params['tz'])
 
     if (expire_time.year != now.year)
@@ -104,12 +108,12 @@ class Protocol
     end
   end
 
-  def Protocol.create_share_msg (beacon, params)
+  def Protocol.create_share_msg (share, params)
     device = Device.where("device_id=?", params['device_id']).first
-    url = Protocol.create_share_url(beacon, params)
-    expire_time = Protocol.format_expire_time(beacon, params)
+    url = Protocol.create_share_url(share, params)
+    expire_time = Protocol.format_expire_time(share, params)
     name = device.name
-    if (beacon.share_via == 'sms')
+    if (share.share_via == 'sms')
       template_file = 'views/text_msg.erb'
     else
       require 'securerandom'
@@ -125,10 +129,10 @@ class Protocol
     ERB.new(msg_erb).result(binding)
   end
 
-  def Protocol.send_beacon_sms (beacon, params)
+  def Protocol.send_share_sms (share, params)
     sms_obj = Sms.new;
-    msg = Protocol.create_share_msg(beacon, params)
-    err = sms_obj.send(beacon.share_to, msg)
+    msg = Protocol.create_share_msg(share, params)
+    err = sms_obj.send(share.share_to, msg)
     if (err)
       {'message' => err, 'style' => {'color' => 'red'}}
     else
@@ -136,8 +140,8 @@ class Protocol
     end
   end
 
-  def Protocol.send_beacon_email (beacon, params)
-    $LOG.debug beacon
+  def Protocol.send_share_email (share, params)
+    $LOG.debug share
     $LOG.debug params
     device = Device.where("device_id=?", params['device_id']).first
     $LOG.debug device
@@ -145,12 +149,12 @@ class Protocol
     
     subject = "#{device.name} shared a location with you"
     from = "#{device.name} <#{device.email}>"
-    to = beacon.share_to
+    to = share.share_to
     msg = "From: #{from}\nTo: #{to}\nSubject: #{subject}\n"
-    msg += Protocol.create_share_msg(beacon, params)
+    msg += Protocol.create_share_msg(share, params)
     begin
       Net::SMTP.start('127.0.0.1') do |smtp|
-        smtp.send_message msg, device.email, beacon.share_to
+        smtp.send_message msg, device.email, share.share_to
       end
     rescue Exception => e  
       $LOG.error e
@@ -159,19 +163,19 @@ class Protocol
     {'message' => 'Email sent', 'style' => {'color' => 'blue'}}
   end
 
-  def Protocol.send_beacon_facebook (beacon, params)
-    {message: "Facebook beacons are not implemented yet"}
+  def Protocol.send_share_facebook (share, params)
+    {message: "Facebook shares are not implemented yet"}
   end
 
-  def Protocol.send_beacon_twitter (beacon, params)
-    {message: "Twitter beacons are not implemented yet"}
+  def Protocol.send_share_twitter (share, params)
+    {message: "Twitter shares are not implemented yet"}
   end
 
-  def Protocol.send_beacon (beacon, params)
-    $LOG.debug (beacon)
-    procname = 'send_beacon_' + beacon['share_via']
+  def Protocol.send_share (share, params)
+    $LOG.debug (share)
+    procname = 'send_share_' + share['share_via']
     if (defined? procname)
-      (method procname).call(beacon, params)
+      (method procname).call(share, params)
     else
       error_response "Bad method " + procname
     end
@@ -186,9 +190,17 @@ class Protocol
     # parms: device_id, gps_*
     # returns: OK/ERROR
     begin
+      if (params['location'])
+        longitude = params['location']['longitude']
+        latitude  = params['location']['latitude']
+      else
+        longitude = params['gps_longitude']
+        latitude = params['gps_latitude']
+      end
+
       sighting = Sighting.new(device_id:     params['device_id'],
-                              gps_longitude: params['gps_longitude'],
-                              gps_latitude:  params['gps_latitude'],
+                              gps_longitude: longitude,
+                              gps_latitude:  latitude,
                               )
       sighting.save
       {}
@@ -202,15 +214,19 @@ class Protocol
     # returns: [{name_1, latest gps_*_1, sighting_time_1},
     #           {name_2, latest gps_*_2, sighting_time_2}, ...]
     return (error_response "No device ID") unless params.has_key?('device_id')
-    # Go through all the beacons with our seer_device_id
-    # get the seen_device_ids the seer_device_id has current beacons for
+    # Go through all the redeems with our device_id
+    # get the associated shares and the device_id in the shares
+    # return sightings of that device_id
+    sql = "SELECT shares.device_id
+           FROM shares, redeems
+           WHERE redeems.device_id = '#{params["device_id"]}' AND shares.id = redeems.share_id"
     device_ids = []
-    Beacon.where("(expire_time IS NULL OR expire_time > NOW()) AND seer_device_id=?",params["device_id"]).each { |beacon|
-      device_ids.push(beacon.seen_device_id)
+    Redeem.find_by_sql(sql).each { |redeem|
+      device_ids.push(redeem.device_id)
     }
     return if (device_ids.length == 0)
     begin
-      device_ids_str = device_ids.collect {|did| "'" + did + "'"}.join(',')
+      device_ids_str = device_ids.collect {|did| "'" + quote_value(did) + "'"}.join(',')
       sql = "SELECT devices.name, sightings.device_id, sightings.gps_longitude, sightings.gps_latitude, MAX(sightings.updated_at) AS max_updated_at
              FROM sightings, devices
              WHERE sightings.device_id IN (#{device_ids_str}) AND
@@ -224,7 +240,7 @@ class Protocol
                       'gps_longitude' => row.gps_longitude,
                       'gps_latitude'  => row.gps_latitude,
                       'sighting_time' => row.max_updated_at,
-                      # 'expire_time'   => beacon.expire_time,
+                      # 'expire_time'   => share.expire_time,
                     })
       }
       {'sightings' => elems }
@@ -268,7 +284,7 @@ class Protocol
   end
 
   def Protocol.process_request_share_location (params)
-    # create a beacon and send it
+    # create a share and send it
     begin
       raise ArgumentError.new("No share via") unless params.has_key?("share_via") && params["share_via"].length > 0
       raise ArgumentError.new("No device ID")  unless params.has_key?("device_id")
@@ -292,46 +308,71 @@ class Protocol
     share_cred = SecureRandom.urlsafe_base64(10)
     expire_time = compute_expire_time params
     expire_time = Time.now + expire_time if expire_time
-    beacon = Beacon.new(expire_time:    expire_time,
-                        seen_device_id: params["device_id"],
-                        share_via:      params["share_via"],
-                        share_to:       params["share_to"],
-                        share_cred:     share_cred,
-                        )
-    beacon.save
-    Protocol.send_beacon(beacon, params)
+    share = Share.new(expire_time:  expire_time,
+                      device_id:    params["device_id"],
+                      share_via:    params["share_via"],
+                      share_to:     params["share_to"],
+                      share_cred:   share_cred,
+                      num_uses_max: params["num_uses"],
+                      )
+    share.save
+    Protocol.send_share(share, params)
   end
 
   def Protocol.process_request_cred (params)
     # a share URL has been clicked
-    # assign the seer's device_id to the beacon for that cred
-    beacon = Beacon.where("share_cred=?",params["cred"]).first
-    $LOG.debug beacon
-    redirect_url = 'http://www.geopeers.com'
+    # assign the seer's device_id to the share for that cred
+    share = Share.where("share_cred=?",params["cred"]).first
+    $LOG.debug share
+    redirect_url = 'https://geopeers.com'
 
-    if ((defined? beacon) && (! beacon.nil?) && (! beacon.seer_device_id.nil?) && (beacon.seer_device_id != params['device_id']))
+    if ((defined? share) && (! share.nil?))
       $LOG.debug params['device_id']
-      msg = "That link has already been used. You can't view the location.  You can still use the other features of GeoPeers"
+      msg = "That credential is not valid.  You can't view the location.  You can still use the other features of GeoPeers"
       msg = URI.escape (msg)
       redirect_url += "?alert=#{msg}"
-    else
-      beacon.seer_device_id = params['device_id']
-      beacon.save
+    elsif (! share.num_uses_max || share.num_uses < share.num_uses_max)
+      # null num_uses_max -> unlimited uses
+      redeem = Redeem.new(share_id:  share.id,
+                          device_id: params["device_id"])
+      redeem.save
+      share.num_uses += 1
+      share.save
     end
     {:redirect_url => redirect_url}
   end
 
-  def Protocol.process_request_get_beacons (params)
+  def Protocol.process_request_get_shares (params)
     begin
-      sql = "SELECT beacons.share_to, beacons.share_via, devices.name, beacons.expire_time, beacons.seer_device_id IS NOT NULL AS activated, beacons.updated_at AS activate_time, beacons.created_at
-             FROM beacons
-             LEFT JOIN devices ON beacons.seen_device_id = devices.device_id
-             WHERE seen_device_id = '#{params['device_id']}'"
+      # get a list of device_ids that are registered with the same device.email as params['device_id']
+      device = Device.find_by(device_id: params['device_id'])
+      devices = Device.select("device_id").where(email: device.email)
+      $LOG.debug devices
+      device_ids = devices.map { |device_row| device_row.device_id }
+      $LOG.debug device_ids
+      device_ids_str = device_ids.collect {|did| "'" + quote_value(did) + "'"}.join(',')
+      $LOG.debug device_id_str
+
+      # get all the shares with those device_ids
+      # and a list of the redeems for those shares
+      sql = "SELECT shares.share_to, shares.share_via, devices.name, shares.expire_time,
+                    shares.updated_at, shares.created_at, redeems.id AS redeem_id
+             FROM shares
+             LEFT JOIN devices ON shares.device_id = devices.device_id
+             LEFT JOIN redeems ON shares.id = redeems.share_id
+             WHERE share.device_id IN (#{device_ids_str})
+            "
       elems = []
-      Beacon.find_by_sql(sql).each { |row|
+      Share.find_by_sql(sql).each { |row|
+        if (row.redeem_id)
+          sql = "SELECT devices.name FROM devices, redeems WHERE redeems.id " + row.redeem_id
+          device = Device.find_by_sql(sql).first
+          row['redeem_name'] = device.name
+        end
         elems.push (row)
       }
-      {'beacons' => elems }
+      $LOG.debug elems
+      {'shares' => elems }
     rescue => err
       error_response err.to_s
     end
@@ -422,7 +463,7 @@ class ProtocolEngine < Sinatra::Base
   end
 
   get '/api' do
-    params['device_id'] = get_device_id()
+    params['device_id'] = params['device_id'] ? params['device_id'] : get_device_id()
     params['user_agent'] = request.user_agent
     resp = Protocol.process_request params
     if (resp[:error])
@@ -437,10 +478,12 @@ class ProtocolEngine < Sinatra::Base
   end
 
   post '/api' do
-    params['device_id'] = get_device_id()
+    if (request.content_type == 'application/json')
+        params.merge!(JSON.parse(request.body.read))
+    end
+    params['device_id'] = params['device_id'] ? params['device_id'] : get_device_id()
     params['user_agent'] = request.user_agent
     resp = Protocol.process_request params
-    $LOG.debug (resp)
     if (resp && resp.class == 'Hash' && resp[:error])
       # Don't send JSON to 500 ajax response
       # resp[:error_html] = create_error_html (resp)
@@ -456,15 +499,21 @@ class ProtocolEngine < Sinatra::Base
 
   ['/', '/geo/?'].each do |path|
     get path do
-      # we don't need the device_id to build the page
-      # but we do want to make sure the client gets a device_id
-      # in case they don't have one
-      params['device_id'] = get_device_id()
-      erb :index
+      if request.secure?
+        # we don't need the device_id to build the page
+        # but we do want to make sure the client gets a device_id
+        # in case they don't have one
+        params['device_id'] = get_device_id()
+        erb :index
+      else
+        redirect request.url.gsub(/^http/, "https")
+      end
     end
   end
 
   after do
+    # if we don't do this,
+    # bad things when we run under passenger
     ActiveRecord::Base.clear_active_connections!
   end
 
