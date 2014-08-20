@@ -11,7 +11,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20140723054625) do
+ActiveRecord::Schema.define(version: 20140818201954) do
 
   create_table "beacons", force: true do |t|
     t.datetime "expire_time"
@@ -32,6 +32,27 @@ ActiveRecord::Schema.define(version: 20140723054625) do
     t.datetime "created_at"
     t.datetime "updated_at"
   end
+
+  create_table "redeems", force: true do |t|
+    t.integer  "share_id"
+    t.string   "device_id"
+    t.datetime "created_at"
+    t.datetime "updated_at"
+  end
+
+  create_table "shares", force: true do |t|
+    t.datetime "expire_time"
+    t.string   "device_id"
+    t.string   "share_via"
+    t.string   "share_to"
+    t.string   "share_cred"
+    t.integer  "num_uses"
+    t.integer  "num_uses_max"
+    t.datetime "created_at"
+    t.datetime "updated_at"
+  end
+
+  add_index "shares", ["share_cred"], name: "index_shares_on_share_cred", unique: true, using: :btree
 
   create_table "sightings", force: true do |t|
     t.string   "device_id"
