@@ -217,22 +217,29 @@ class Protocol
     # Go through all the redeems with our device_id
     # get the associated shares and the device_id in the shares
     # return sightings of that device_id
-    sql = "SELECT shares.device_id
+    sql = "SELECT shares.device_id, shares.id
            FROM shares, redeems
-           WHERE redeems.device_id = '#{params["device_id"]}' AND shares.id = redeems.share_id"
+           WHERE redeems.device_id = '#{params["device_id"]}' AND
+                 shares.id = redeems.share_id AND
+                 NOW() < shares.expire_time
+          "
     device_ids = []
-    Redeem.find_by_sql(sql).each { |redeem|
-      device_ids.push(redeem.device_id)
+    Share.find_by_sql(sql).each { |share|
+      $LOG.debug share.id
+      device_ids.push(share.device_id)
     }
+
     return if (device_ids.length == 0)
     begin
-      device_ids_str = device_ids.collect {|did| "'" + quote_value(did) + "'"}.join(',')
+      device_ids_str = device_ids.collect {|did| Share.sanitize(did)}.join(',')
+      $LOG.debug device_ids_str
       sql = "SELECT devices.name, sightings.device_id, sightings.gps_longitude, sightings.gps_latitude, MAX(sightings.updated_at) AS max_updated_at
              FROM sightings, devices
              WHERE sightings.device_id IN (#{device_ids_str}) AND
                    sightings.device_id = devices.device_id AND
                    devices.name IS NOT NULL
              GROUP BY sightings.device_id"
+      $LOG.debug sql
       elems = []
       Sighting.find_by_sql(sql).each { |row|
         elems.push ({ 'name'          => row.name,
@@ -243,6 +250,7 @@ class Protocol
                       # 'expire_time'   => share.expire_time,
                     })
       }
+      $LOG.debug elems
       {'sightings' => elems }
     rescue => err
       error_response err.to_s
@@ -321,22 +329,47 @@ class Protocol
 
   def Protocol.process_request_cred (params)
     # a share URL has been clicked
-    # assign the seer's device_id to the share for that cred
+    # using the cred, create a redeem
     share = Share.where("share_cred=?",params["cred"]).first
     $LOG.debug share
     redirect_url = 'https://geopeers.com'
 
-    if ((defined? share) && (! share.nil?))
-      $LOG.debug params['device_id']
+    if (! share)
       msg = "That credential is not valid.  You can't view the location.  You can still use the other features of GeoPeers"
       msg = URI.escape (msg)
       redirect_url += "?alert=#{msg}"
-    elsif (! share.num_uses_max || share.num_uses < share.num_uses_max)
-      # null num_uses_max -> unlimited uses
-      redeem = Redeem.new(share_id:  share.id,
-                          device_id: params["device_id"])
+    elsif (! share.num_uses_max || share.num_uses < share.num_uses_max)	# null num_uses_max -> unlimited uses
+      # it's a good share
+
+      # does params['device_id'] (seer) already have access to a share for share.device_id (seen)
+      sql = "SELECT shares.expire_time, redeems.id AS redeem_id FROM shares, redeems
+             WHERE shares.device_id  = '#{share.device_id}' AND
+                   redeems.device_id = '#{params['device_id']}' AND
+                   redeems.share_id  = shares.id AND
+                   NOW() < shares.expire_time
+            "
+      current_share = Share.find_by_sql(sql).first
+      $LOG.debug current_share
+      $LOG.debug sql
+      if (current_share)
+        if ( ! current_share.expire_time ||
+             current_share.expire_time >= share.expire_time)
+          # this current_share expires after the new share, ignore the new share
+          $LOG.debug "using existing share"
+          return {:redirect_url => redirect_url}
+        else
+          # the new share expires after the current share, update the redeem with the new share
+          $LOG.debug "updating redeem with new share"
+          redeem = Redeem.find (current_share.redeem_id)
+        end
+      else
+        $LOG.debug "no existing share"
+        redeem = Redeem.new(share_id:  share.id,
+                            device_id: params["device_id"])
+      end
+      $LOG.debug redeem
       redeem.save
-      share.num_uses += 1
+      share.num_uses = share.num_uses ? share.num_uses+1 : 1
       share.save
     end
     {:redirect_url => redirect_url}
@@ -345,33 +378,36 @@ class Protocol
   def Protocol.process_request_get_shares (params)
     begin
       # get a list of device_ids that are registered with the same device.email as params['device_id']
+      # and create a comma-separate list, suitable for putting in the SQL IN clause
       device = Device.find_by(device_id: params['device_id'])
       devices = Device.select("device_id").where(email: device.email)
-      $LOG.debug devices
       device_ids = devices.map { |device_row| device_row.device_id }
-      $LOG.debug device_ids
-      device_ids_str = device_ids.collect {|did| "'" + quote_value(did) + "'"}.join(',')
-      $LOG.debug device_id_str
+      device_ids_str = device_ids.collect {|did| Device.sanitize(did)}.join(',')
+      $LOG.debug device_ids_str
 
       # get all the shares with those device_ids
-      # and a list of the redeems for those shares
+      # and a list of the device_id that redeemed the shares
       sql = "SELECT shares.share_to, shares.share_via, devices.name, shares.expire_time,
-                    shares.updated_at, shares.created_at, redeems.id AS redeem_id
+                    shares.updated_at, shares.created_at,
+                    redeems.id AS redeem_id,
+                    redeems.device_id AS redeem_name,
+                    redeems.created_at AS redeem_time
              FROM shares
              LEFT JOIN devices ON shares.device_id = devices.device_id
              LEFT JOIN redeems ON shares.id = redeems.share_id
-             WHERE share.device_id IN (#{device_ids_str})
+             WHERE shares.device_id IN (#{device_ids_str})
             "
+      # Find the names associated with the redeemed device_ids
       elems = []
       Share.find_by_sql(sql).each { |row|
-        if (row.redeem_id)
-          sql = "SELECT devices.name FROM devices, redeems WHERE redeems.id " + row.redeem_id
-          device = Device.find_by_sql(sql).first
-          row['redeem_name'] = device.name
+        if (row.redeem_name)
+          # at this point, it is not redeem_name, it's really the device_id
+          device = Device.find_by(device_id: row.redeem_name)
+          # Now it's the redeem name :-)
+          row[:redeem_name] = device.name
         end
         elems.push (row)
       }
-      $LOG.debug elems
       {'shares' => elems }
     rescue => err
       error_response err.to_s
