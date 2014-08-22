@@ -3,6 +3,7 @@
 //            device_id_2: {sighting: sighting_2, marker: marker_2, label: label_2}, ...
 //           }
 var MARKERS = {};
+var DT;
 
 var device_id_mgr = {
     device_id: null,
@@ -41,7 +42,7 @@ var device_id_mgr = {
 function update_map_canvas_pos () {
     var height = $('#geo_info').height();
     var header_title_height = height + 60;
-    var content_height = height + 70;
+    var content_height = height + 80;
     $('#header_title').css('height', header_title_height+'px');
     $('#content').css('top', content_height+'px');
 }
@@ -441,36 +442,46 @@ function get_positions () {
     return;
 }
 
-function format_expire_time (expire_time) {
+function format_time (time) {
     // JS version of same routine in geo.rb on server
-    var expire_date = new Date(expire_time);
+
+    // date will be in the browser's TZ
+    var date = new Date(time);
+    console.log (date.toString());
+
     var now = new Date();
+    console.log (now.toString());
+
     var date_format_str, time_format_str;
-    if (expire_date.getFullYear() !== now.getFullYear()) {
+    if (date.getFullYear() !== now.getFullYear()) {
 	date_format_str = "MM d, yy";
 	time_format_str = " 'at' h:mm tt";
-    } else if (expire_date.getMonth() !== now.getMonth()) {
+    } else if (date.getMonth() !== now.getMonth()) {
 	date_format_str = "MM d";
 	time_format_str = " 'at' h:mm tt";
-    } else if (expire_date.getDate() !== now.getDate()) {
+    } else if (date.getDate() !== now.getDate()) {
 	date_format_str = "MM d";
 	time_format_str = " 'at' h:mm tt";
     } else {
 	time_format_str = "'Today at' h:mm tt";
     }
 
-    var expires;
+    var time_str;
     if (date_format_str) {
-	expires = $.datepicker.formatDate(date_format_str, expire_date);
-	expires += $.datepicker.formatTime(time_format_str,
-					   {hour: expire_date.getHours(),
-					    minute: expire_date.getMinutes()});
+	time_str = $.datepicker.formatDate(date_format_str, date);
+	time_str += $.datepicker.formatTime(time_format_str,
+					    {hour: date.getHours(),
+					    minute: date.getMinutes()});
     } else {
-	expires += $.datepicker.formatTime(time_format_str,
-					   {hour: expire_date.getHours(),
-					    minute: expire_date.getMinutes()});
+	time_str = $.datepicker.formatTime(time_format_str,
+					  {hour: date.getHours(),
+					   minute: date.getMinutes()});
     }
-    return (expires);
+    var time_zone_str = /\((.*)\)/.exec(date.toTimeString())[0];
+    var matches = time_zone_str.match(/\b(\w)/g);
+    var time_zone_acronym = matches.join('');
+    time_str += ' ' + time_zone_acronym;
+    return (time_str);
 }
 
 function manage_shares_callback (data, textStatus, jqXHR) {
@@ -486,34 +497,67 @@ function manage_shares_callback (data, textStatus, jqXHR) {
     // </table>
     var table = $('<table></table>').attr('id','manage_table').addClass('display');
     var head = $('<tr></tr>');
-    head.append($('<th></th>').text('Shared Via'));
+    head.append($('<th></th>').text('redeem_time'));
+    head.append($('<th></th>').text('expire_time'));
     head.append($('<th></th>').text('Shared To'));
-    head.append($('<th></th>').text('Name'));
-    head.append($('<th></th>').text('Redeem Name'));
+    head.append($('<th></th>').text('Used'));
     head.append($('<th></th>').text('Expires'));
     table.append($('<thead></thead>').append(head));
     var tbody = $('<tbody></tbody>');
     for(var i=0,len=data.shares.length; i<len; i++){
 	var share = data.shares[i];
-	redeem_name = share.redeem_name ? share.redeem_name : '<Unopened>';
-	var expires;
-	if (share.expire_time) {
-	    expires = format_expire_time(share.expire_time);
+
+	var redeem_name = share.redeem_name ? share.redeem_name : '<Unopened>';
+	var expires = share.expire_time ? format_time(share.expire_time) : 'Never';
+	console.log (share.expire_time);
+	var expire_time = new Date(share.expire_time);
+	var now = Date.now();
+
+	var expired;
+	if (share.expire_time && (expire_time.getTime() < now)) {
+	    expired = true;
 	} else {
-	    expires = 'Never';
+	    expired = false;
 	}
+	var share_to = share.name ? share.name + ' (' + share.share_to + ')' : share.share_to;
+	var redeemed;
+	if (share.redeem_time) {
+	    var redeem_time = format_time(share.redeem_time);
+	    if (share.redeem_name) {
+		redeemed = 'By '+share.redeem_name+', '+redeem_time;
+	    } else {
+		redeemed = redeem_time;
+	    }
+	} else {
+	    redeemed = "Not yet";
+	}
+	
 	var row = $('<tr></tr>');
-	row.append($('<td></td>').text(share.share_via));
-	row.append($('<td></td>').text(share.share_to));
-	row.append($('<td></td>').text(share.name));
-	row.append($('<td></td>').text(redeem_name));
+	if (expired) {
+	    row.css('color', 'red');
+	    row.css('text-decoration', 'line-through');
+	}
+	row.append($('<td></td>').text(share.redeem_time));
+	row.append($('<td></td>').text(share.expire_time));
+	row.append($('<td></td>').text(share_to));
+	row.append($('<td></td>').text(redeemed));
 	row.append($('<td></td>').text(expires));
 	tbody.append(row);
     }
-    table.append(tbody)
+    table.append(tbody);
 
     $('#manage_info').replaceWith(table);
-    $('#manage_table').dataTable();
+    if (!  $.fn.dataTable.isDataTable( '#manage_table' ) ) {
+	DT = $('#manage_table').DataTable( {
+		retrieve:     true,
+		aoColumnDefs: [ { "iDataSort": 0, "aTargets": [ 3 ] },
+	                        { "iDataSort": 1, "aTargets": [ 4 ] },
+				],
+		order:        [ 4, 'desc' ]
+	    } );
+	DT.column(0).visible(false);
+	DT.column(1).visible(false);
+    }
     $('#manage_popup').popup('open');
     
 }
@@ -523,7 +567,8 @@ function manage_shares () {
     if (! device_id)
 	return
     var request_parms = { method: 'get_shares',
-			  device_id: device_id};
+			  device_id: device_id,
+    };
     ajax_request (request_parms, manage_shares_callback, geo_ajax_fail_callback);
     return;
 }
