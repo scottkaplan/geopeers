@@ -186,27 +186,31 @@ class Protocol
     { 'message' => error_msg, 'style' => {'color' => 'red'}}
   end
 
+  def Protocol.process_request_config (params)
+    # params: device_id, version
+    # returns: js
+    if (params[:version].to_i < 1)
+      {js: "alert('If we had an upgrade, this would be it')"}
+    end
+  end
+
   def Protocol.process_request_send_position (params)
     # parms: device_id, gps_*
     # returns: OK/ERROR
-    begin
-      if (params['location'])
-        longitude = params['location']['longitude']
-        latitude  = params['location']['latitude']
-      else
-        longitude = params['gps_longitude']
-        latitude = params['gps_latitude']
-      end
-
-      sighting = Sighting.new(device_id:     params['device_id'],
-                              gps_longitude: longitude,
-                              gps_latitude:  latitude,
-                              )
-      sighting.save
-      {}
-    rescue => err
-      error_response err.to_s
+    if (params['location'])
+      longitude = params['location']['longitude']
+      latitude  = params['location']['latitude']
+    else
+      longitude = params['gps_longitude']
+      latitude = params['gps_latitude']
     end
+
+    sighting = Sighting.new(device_id:     params['device_id'],
+                            gps_longitude: longitude,
+                            gps_latitude:  latitude,
+                            )
+    sighting.save
+    {}
   end
 
   def Protocol.process_request_get_positions (params)
@@ -271,7 +275,6 @@ class Protocol
   end
 
   def Protocol.process_request_register_device (params)
-    $LOG.debug (params.inspect)
     return (error_response "Please supply your name")  unless params.has_key?('name') && params['name'].length > 0
     return (error_response "Please supply your email") unless params.has_key?('email') && params['email'].length > 0
     return (error_response "No device ID")             unless params.has_key?('device_id') && params['device_id'].length > 0
@@ -293,24 +296,19 @@ class Protocol
 
   def Protocol.process_request_share_location (params)
     # create a share and send it
-    begin
-      raise ArgumentError.new("No share via") unless params.has_key?("share_via") && params["share_via"].length > 0
-      raise ArgumentError.new("No device ID")  unless params.has_key?("device_id")
-      
-      raise ArgumentError.new("Please supply the address to send the share to") unless params.has_key?("share_to") && (params["share_to"].length > 0)
+    raise ArgumentError.new("No share via") unless params.has_key?("share_via") && params["share_via"].length > 0
+    raise ArgumentError.new("No device ID")  unless params.has_key?("device_id")
+    
+    raise ArgumentError.new("Please supply the address to send the share to") unless params.has_key?("share_to") && (params["share_to"].length > 0)
 
-      if params["share_via"] == 'sms'
-        raise ArgumentError.new("The phone number (share to) must be 10 digits") unless /^\d{10}$/.match(params["share_to"])
-      end
+    if params["share_via"] == 'sms'
+      raise ArgumentError.new("The phone number (share to) must be 10 digits") unless /^\d{10}$/.match(params["share_to"])
+    end
 
-      if params["share_via"] == 'email'
-        # In general, RFC-822 email validation can't be done with regex
-        # For now, just make sure it has an '@'
-        raise ArgumentError.new("Email should be in the form 'fred@company.com'") unless /.+@.+/.match(params["share_to"])
-      end
-    rescue ArgumentError => e
-      $LOG.debug e
-      return (error_response(e.message))
+    if params["share_via"] == 'email'
+      # In general, RFC-822 email validation can't be done with regex
+      # For now, just make sure it has an '@'
+      raise ArgumentError.new("Email should be in the form 'fred@company.com'") unless /.+@.+/.match(params["share_to"])
     end
     require 'securerandom'
     share_cred = SecureRandom.urlsafe_base64(10)

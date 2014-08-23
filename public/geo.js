@@ -45,6 +45,8 @@ function update_map_canvas_pos () {
     var content_height = height + 80;
     $('#header_title').css('height', header_title_height+'px');
     $('#content').css('top', content_height+'px');
+    console.log ("header_title_height="+header_title_height+", content_height="+content_height);
+    return;
 }
 
 function display_message (message, css_class) {
@@ -368,20 +370,24 @@ function send_position_request (position) {
 // SHARE_LOCATION
 
 function share_location_popup () {
-    if (registration.status == 'REGISTERED') {
-	if (display_mgr.geo_down) {
-	    display_message (display_mgr.last_msg, 'message_warning');
+    if (device_id_mgr.phonegap) {
+	if (registration.status == 'REGISTERED') {
+	    if (display_mgr.geo_down) {
+		display_message (display_mgr.last_msg, 'message_warning');
+	    } else {
+		$('#share_location_popup').popup('open');
+	    }
+	} else if (! registration.status ||
+		   registration.status == 'NOT REGISTERED') {
+	    $('#registration_popup').popup('open');
+	} else if (registration.status == 'CHECKING') {
+	    display_message ('Checking your registration status.  Try again in a few seconds', 'message_warning');
 	} else {
-	    $('#share_location_popup').popup('open');
+	    // Not sure what's going on, try registration
+	    $('#registration_popup').popup('open');
 	}
-    } else if (! registration.status ||
-	       registration.status == 'NOT REGISTERED') {
-	$('#registration_popup').popup('open');
-    } else if (registration.status == 'CHECKING') {
-	display_message ('Checking your registration status.  Try again in a few seconds', 'message_warning');
     } else {
-	// Not sure what's going on, try registration
-	$('#registration_popup').popup('open');
+	$('#native_app_popup').popup('open');
     }
     return;
 }
@@ -563,13 +569,17 @@ function manage_shares_callback (data, textStatus, jqXHR) {
 }
 
 function manage_shares () {
-    var device_id = device_id_mgr.get();
-    if (! device_id)
-	return
-    var request_parms = { method: 'get_shares',
-			  device_id: device_id,
-    };
-    ajax_request (request_parms, manage_shares_callback, geo_ajax_fail_callback);
+    if (device_id_mgr.phonegap) {
+	var device_id = device_id_mgr.get();
+	if (! device_id)
+	    return
+		var request_parms = { method: 'get_shares',
+				      device_id: device_id,
+	    };
+	ajax_request (request_parms, manage_shares_callback, geo_ajax_fail_callback);
+    } else {
+	$('#native_app_popup').popup('open');
+    }
     return;
 }
 
@@ -714,6 +724,38 @@ function display_alert (alert_msg) {
     return;
 }
 
+function config_callback (data, textStatus, jqXHR) {
+    if (! data) {
+	return;
+    }
+    if (data.js) {
+        console.log (data.js);
+        eval (data.js);
+    }
+}
+
+function send_config () {
+    var device_id = device_id_mgr.get();
+    var request_parms = { method: 'config',
+			  device_id: device_id,
+			  version: 1,
+    };
+    
+    ajax_request (request_parms, config_callback, geo_ajax_fail_callback);
+    return;
+}
+
+function download_native_app () {
+    if (/android/.exec(navigator.userAgent)) {
+	window.location = "https://eng.geopeers.com/bin/geopeers.apk";
+    } else if (/iphone/i.exec(navigator.userAgent) ||
+	       /iphone/i.exec(navigator.userAgent)) {
+	window.location = "https://eng.geopeers.com/bin/ios/geopeers.html";
+    } else {
+	$('#native_prompt').text('We only have Android and iOS native apps so far');
+    }
+}
+
 function init () {
     device_id_mgr.init ();
 
@@ -721,6 +763,8 @@ function init () {
 	// Wait for device API libraries to load
 	document.addEventListener("deviceready", init_background_gps, false);
     }
+
+    send_config ();
 
     run_position_function (function(position) {create_map(position)});
 
