@@ -746,7 +746,7 @@ function send_config () {
 }
 
 function download_native_app () {
-    if (/android/.exec(navigator.userAgent)) {
+    if (/android/i.exec(navigator.userAgent)) {
 	window.location = "https://eng.geopeers.com/bin/geopeers.apk";
     } else if (/iphone/i.exec(navigator.userAgent) ||
 	       /iphone/i.exec(navigator.userAgent)) {
