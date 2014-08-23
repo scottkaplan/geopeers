@@ -64,6 +64,7 @@
       <%= ERB.new(File.read('views/popup_share_location.erb'), nil, "%").result(binding) %>
       <%= ERB.new(File.read('views/popup_alert.erb'),          nil, "%").result(binding) %>
       <%= ERB.new(File.read('views/popup_manage.erb'),         nil, "%").result(binding) %>
+      <%= ERB.new(File.read('views/popup_native_app.erb'),         nil, "%").result(binding) %>
 
       <!-- map -->
       <div data-role="content" id="content">
