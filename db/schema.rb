@@ -11,9 +11,31 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20140818201954) do
+ActiveRecord::Schema.define(version: 20140824185854) do
 
-  create_table "beacons", force: true do |t|
+  create_table "accounts", force: true do |t|
+    t.string   "name"
+    t.string   "email"
+    t.string   "mobile"
+    t.integer  "email_verified"
+    t.integer  "mobile_verified"
+    t.datetime "created_at"
+    t.datetime "updated_at"
+  end
+
+  create_table "auths", force: true do |t|
+    t.string   "account_id"
+    t.string   "auth_type"
+    t.string   "cred"
+    t.datetime "issue_time"
+    t.datetime "auth_time"
+    t.datetime "created_at"
+    t.datetime "updated_at"
+  end
+
+  add_index "auths", ["cred"], name: "cred", using: :btree
+
+  create_table "beacons_KILLME", force: true do |t|
     t.datetime "expire_time"
     t.string   "seen_device_id"
     t.string   "seer_device_id"
@@ -31,6 +53,7 @@ ActiveRecord::Schema.define(version: 20140818201954) do
     t.string   "email"
     t.datetime "created_at"
     t.datetime "updated_at"
+    t.string   "account_id"
   end
 
   create_table "redeems", force: true do |t|
@@ -39,6 +62,9 @@ ActiveRecord::Schema.define(version: 20140818201954) do
     t.datetime "created_at"
     t.datetime "updated_at"
   end
+
+  add_index "redeems", ["device_id"], name: "device_id", using: :btree
+  add_index "redeems", ["share_id"], name: "share_id", using: :btree
 
   create_table "shares", force: true do |t|
     t.datetime "expire_time"
