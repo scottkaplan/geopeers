@@ -1,4 +1,8 @@
 Show::Application.routes.draw do
+  resources :auths
+
+  resources :accounts
+
   resources :redeems
 
   resources :shares
