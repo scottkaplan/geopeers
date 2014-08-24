@@ -135,7 +135,7 @@ var display_mgr = {
 	console.log (err);
 	var msg;
 	if        (err.code === 1) {
-	    msg = "You have blocked your current location.";
+	    msg = "Your current location is blocked.";
 	} else if (err.code === 2) {
 	    msg = "Your current location is not available.";
 	} else if (err.code === 3) {
@@ -145,9 +145,20 @@ var display_mgr = {
 	} else {
 	    msg = "There was an unknown error getting your current location.";
 	}
+	if (err.code) {
+	    var client_type = get_client_type ();
+	    if (device_id_mgr.phonegap) {
+		msg = "It looks like you don't have location enabled.<br>"
+		if (client_type == 'android') {
+		    msg += "Fix this in <i>Settings -> Location</i>";
+		} else if (client_type == 'ios') {
+		    msg += "Fix this in <i>Settings -> Privacy -> Location Services</i>";
+		}
+	    }
+	}
 	display_mgr.geo_down = true;
 	display_mgr.message_displayed = true;
-	msg += "<br>You can view others, but you cannot share your location";
+	msg += "<p>You can view others, but your shares will not display your location";
 	display_mgr.last_msg = msg;
 	display_message (msg, 'message_warning');
     },
@@ -697,13 +708,16 @@ function heartbeat () {
     // things that should happen periodically
     var period_minutes = 1;
 
-    run_position_function (function(position) {
-	    send_position_request (position);
-	});
+    // In phonegap, this is done in gps_background
+    // In webapp, we don't send positions anymore
+    // run_position_function (function(position) {
+    // send_position_request (position);
+    // });
 
     // refresh the sightings for our shares
     get_positions();
 
+    // keep the green star in the right spot
     update_current_pos();
 
     // if we get here, schedule the next iteration
@@ -745,25 +759,46 @@ function send_config () {
     return;
 }
 
-function download_native_app () {
+function get_client_type () {
     if (/android/i.exec(navigator.userAgent)) {
-	window.location = "https://eng.geopeers.com/bin/geopeers.apk";
+	return ('android');
     } else if (/iphone/i.exec(navigator.userAgent) ||
-	       /iphone/i.exec(navigator.userAgent)) {
+	       /ipad/i.exec(navigator.userAgent)) {
+	return ('ios');
+    } else {
+	return;
+    }
+}
+
+function download_native_app () {
+    var client_type = get_client_type ();
+    if (client_type == 'android') {
+	window.location = "https://eng.geopeers.com/bin/geopeers.apk";
+    } else if (client_type == 'ios') {
 	window.location = "https://eng.geopeers.com/bin/ios/geopeers.html";
     } else {
 	$('#native_prompt').text('We only have Android and iOS native apps so far');
     }
 }
 
-function init () {
+function phonegap_init () {
     device_id_mgr.init ();
+    init_background_gps ();
+}
 
-    if (device_id_mgr.phonegap) {
+function webapp_init () {
+    device_id_mgr.init ();
+}
+
+function init () {
+    // This is called after we are .ready
+
+    if (window.cordova) {
 	// Wait for device API libraries to load
-	document.addEventListener("deviceready", init_background_gps, false);
+	document.addEventListener("deviceready", phonegap_init, false);
+    } else {
+	webapp_init ();
     }
-
     send_config ();
 
     run_position_function (function(position) {create_map(position)});
