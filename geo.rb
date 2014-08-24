@@ -518,6 +518,7 @@ class ProtocolEngine < Sinatra::Base
     params['device_id'] = params['device_id'] ? params['device_id'] : get_device_id()
     params['user_agent'] = request.user_agent
     resp = Protocol.process_request params
+    resp.headers['Access-Control-Allow-Origin'] = '*'
     if (resp && resp.class == 'Hash' && resp[:error])
       # Don't send JSON to 500 ajax response
       # resp[:error_html] = create_error_html (resp)
