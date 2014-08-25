@@ -11,7 +11,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20140824185854) do
+ActiveRecord::Schema.define(version: 20140825004552) do
 
   create_table "accounts", force: true do |t|
     t.string   "name"
@@ -35,22 +35,9 @@ ActiveRecord::Schema.define(version: 20140824185854) do
 
   add_index "auths", ["cred"], name: "cred", using: :btree
 
-  create_table "beacons_KILLME", force: true do |t|
-    t.datetime "expire_time"
-    t.string   "seen_device_id"
-    t.string   "seer_device_id"
-    t.datetime "created_at"
-    t.datetime "updated_at"
-    t.string   "share_to"
-    t.string   "share_via",      limit: 8
-    t.string   "share_cred"
-  end
-
   create_table "devices", force: true do |t|
     t.string   "device_id"
     t.string   "user_agent"
-    t.string   "name"
-    t.string   "email"
     t.datetime "created_at"
     t.datetime "updated_at"
     t.string   "account_id"
