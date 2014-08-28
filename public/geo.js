@@ -158,7 +158,8 @@ var display_mgr = {
 	}
 	display_mgr.geo_down = true;
 	display_mgr.message_displayed = true;
-	msg += "<p>You can view others, but your shares will not display your location";
+	// Don't do this anymore.  It does not make in the webapp (need native to share)
+	// msg += "<p>You can view others, but your shares will not display your location";
 	display_mgr.last_msg = msg;
 	display_message (msg, 'message_warning');
     },
@@ -398,7 +399,7 @@ function share_location_popup () {
 	    $('#registration_popup').popup('open');
 	}
     } else {
-	$('#native_app_popup').popup('open');
+	$('#registration_popup').popup('open');
     }
     return;
 }
@@ -579,6 +580,10 @@ function manage_shares_callback (data, textStatus, jqXHR) {
     
 }
 
+function display_register_popup () {
+    alert ("display_register_popup");
+}
+
 function manage_shares () {
     if (device_id_mgr.phonegap) {
 	var device_id = device_id_mgr.get();
@@ -589,7 +594,7 @@ function manage_shares () {
 	    };
 	ajax_request (request_parms, manage_shares_callback, geo_ajax_fail_callback);
     } else {
-	$('#native_app_popup').popup('open');
+	$('#registration_popup').popup('open');
     }
     return;
 }
@@ -610,8 +615,7 @@ function registration_callback (data, textStatus, jqXHR) {
     $('#registration_form_spinner').hide();
     if (data) {
 	registration.status = 'REGISTERED';
-	display_message(data.message, 'message_success');
-	$('#registration_popup').popup('close')
+	display_in_div (data.message, 'registration_form_info', data.style);
     } else {
 	display_in_div ('No data', 'registration_form_info', {color:'red'});
     }
@@ -626,12 +630,20 @@ function validate_registration_form () {
 	return;
     }
     var email = $('#registration_form #email').val();
-    if (email.length == 0) {
-	display_in_div ("Please supply your email",
+    var mobile = $('#registration_form #mobile').val();
+    if ((email.length == 0) &&
+	(mobile.length == 0)) {
+	display_in_div ("Please supply either your email or mobile number",
 			'registration_form_info', {color:'red'});
 	return;
     }
-    if (! email.match(/.+@.+/)) {
+    if (mobile.length > 0 && ! mobile.match(/^\d{10}$/)) {
+	display_in_div ("The mobile number must be 10 digits",
+			'registration_form_info', {color:'red'});
+	return;
+    }
+
+    if (email.length > 0 && ! email.match(/.+@.+/)) {
 	display_in_div ("Email should be in the form 'fred@company.com'",
 			'registration_form_info', {color:'red'});
 	return;
@@ -722,19 +734,6 @@ function heartbeat () {
 
     // if we get here, schedule the next iteration
     setTimeout(heartbeat, period_minutes * 60 * 1000);
-    return;
-}
-
-function display_alert (alert_msg) {
-    if (! alert_msg) {
-	alert_msg = getParameterByName('alert');
-    }
-    if (! alert_msg) {
-	return;
-    }
-
-    $('#alert_popup').popup('open');
-    display_in_div (alert_msg, 'alert_form_info', {color:'red'});
     return;
 }
 
