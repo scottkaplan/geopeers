@@ -1,41 +1,21 @@
-      <!-- popup registration box -->
-      <div id="registration_popup"
-	   data-role="popup"
-	   >
-	<div style="margin:10px">
-	  <div style="background-color:#3eb1dd; color:#404040; padding: 10px 10px 15px 10px; text-shadow:0 0; text-align:center; font-size:18px">
-	    Register your device<br>
-	    to use that feature
-	  <div style="position:absolute; right:13px; top:13px"
-	       onclick="$('#registration_popup').popup('close')">
-	    <img src="images/x.png">
-	  </div>
-	  </div>
-	  <div style="padding-top:5px; background-color:#d2e9ff">
-	    <form id="registration_form">
-	      <div id="registration_form_info" class="info"></div>
-	      <div id="registration_form_spinner" style="display:none; text-align:center">
-	      <img src="images/ajax-loader.gif">
-	      </div>
-
-	      <label for="name" class="ui-hidden-accessible">Name</label>
-	      <input type="text"
-		     name="name"
-		     id="name"
-		     placeholder="Name"
-		     >
-	      <label for="email" class="ui-hidden-accessible">Email</label>
-	      <input type="text"
-		     name="email"
-		     id="email"
-		     placeholder="Email"
-		     >
-	      <input type="hidden" name="method" value="register_device">
-	      <button style="background-color:#3eb1dd; color:white; text-shadow:0 0; font-weight:normal"
-		      type="button"
-		      onclick="send_registration()">Send</button>
-	    </form>
-	  </div>
-	</div>
+<!-- popup registration box -->
+<div id="registration_popup"
+     data-role="popup"
+     >
+  <div style="margin:10px">
+    <div style="background-color:#3eb1dd; color:#404040; padding: 10px 10px 15px 10px; text-shadow:0 0; text-align:center; font-size:18px">
+      Native App
+      <div style="font-size:12px">
+	To share your location, you need the native app.
+	Please provide your name and either your email or mobile number (or both).
+	This will allow us to make sure your shared locations wind up in your app.
       </div>
+      <div style="position:absolute; right:13px; top:13px"
+	   onclick="$('#registration_popup').popup('close')">
+	<img src="images/x.png">
+      </div>
+      <%= ERB.new(File.read('views/registration_form.erb'), nil, "%").result(binding) %>
+    </div>
+  </div>
+</div>
 
