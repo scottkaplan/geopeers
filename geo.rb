@@ -10,6 +10,7 @@ require 'date'
 require 'eztexting'
 require 'net/smtp'
 require 'uri'
+require 'securerandom'
 
 set :public_folder, 'public'
 class Sighting < ActiveRecord::Base
@@ -21,6 +22,10 @@ end
 class Share < ActiveRecord::Base
 end
 class Redeem < ActiveRecord::Base
+end
+class Account < ActiveRecord::Base
+end
+class Auth < ActiveRecord::Base
 end
 
 class Sms
@@ -67,6 +72,18 @@ def init
 #  $DB_SPEC = ActiveRecord::Base.specification
 end
 
+def get_client_type (user_agent)
+  if (/android/.match(user_agent))
+    :android
+  elsif (/iphone/.match(user_agent) ||
+         /ipad/.match(user_agent))
+    :ios
+  else
+    nil
+  end
+  
+end
+
 class Protocol
   private
 
@@ -86,6 +103,10 @@ class Protocol
 
   def Protocol.create_share_url (share, params)
     "http://www.geopeers.com/api?cred="+share.share_cred
+  end
+
+  def Protocol.create_verification_url (params)
+    "http://www.geopeers.com/api?method=verify&code=#{params['cred']}&device_id=#{params['device_id']}"
   end
 
   def Protocol.format_expire_time (share, params)
@@ -114,17 +135,35 @@ class Protocol
     expire_time = Protocol.format_expire_time(share, params)
     name = device.name
     if (share.share_via == 'sms')
-      template_file = 'views/text_msg.erb'
+      template_file = 'views/share_text_msg.erb'
     else
-      require 'securerandom'
       boundary_random = SecureRandom.base64(21)
-      template_file = 'views/email_body.erb'
+      template_file = 'views/share_email_body.erb'
       msg_erb = File.read(template_file)
       html_body = ERB.new(msg_erb).result(binding)
       require 'mail'
       quoted_html_body = Mail::Encodings::QuotedPrintable.encode(html_body)
-      template_file = 'views/email_msg.erb'
+      template_file = 'views/share_email_msg.erb'
     end
+    msg_erb = File.read(template_file)
+    ERB.new(msg_erb).result(binding)
+  end
+
+  def Protocol.create_verification_email (params)
+    device = Device.where("device_id=?", params['device_id']).first
+    auth = Auth.new(account_id: device.account_id,
+                    auth_type:  'email',
+                    cred:       params['cred'],
+                    issue_time: Time.now,
+                    )
+    url = Protocol.create_verification_url(params)
+    boundary_random = SecureRandom.base64(21)
+    template_file = 'views/verify_email_body.erb'
+    msg_erb = File.read(template_file)
+    html_body = ERB.new(msg_erb).result(binding)
+    require 'mail'
+    quoted_html_body = Mail::Encodings::QuotedPrintable.encode(html_body)
+    template_file = 'views/verify_email_msg.erb'
     msg_erb = File.read(template_file)
     ERB.new(msg_erb).result(binding)
   end
@@ -140,27 +179,32 @@ class Protocol
     end
   end
 
-  def Protocol.send_share_email (share, params)
-    $LOG.debug share
-    $LOG.debug params
-    device = Device.where("device_id=?", params['device_id']).first
-    $LOG.debug device
-
-    
-    subject = "#{device.name} shared a location with you"
-    from = "#{device.name} <#{device.email}>"
-    to = share.share_to
-    msg = "From: #{from}\nTo: #{to}\nSubject: #{subject}\n"
-    msg += Protocol.create_share_msg(share, params)
+  def Protocol.send_email (msg, from_email, from_name, to_email, subject)
+    from = "#{from_name} <#{from_email}>"
+    msg = "From: #{from}\nTo: #{to_email}\nSubject: #{subject}\n" + msg
     begin
       Net::SMTP.start('127.0.0.1') do |smtp|
-        smtp.send_message msg, device.email, share.share_to
+        smtp.send_message msg, from_email, to_email
       end
     rescue Exception => e  
       $LOG.error e
+      return true
+    end
+    nil
+  end
+
+  def Protocol.send_share_email (share, params)
+    $LOG.debug share
+    device = Device.where("device_id=?", params['device_id']).first
+    
+    subject = "#{device.name} shared a location with you"
+    msg += Protocol.create_share_msg(share, params)
+    err = Protocol.send_email(msg, device.email, device.name, share.share_to, subject)
+    if (err)
       {'message' => 'There was a problem sending your email.  Support has been contacted', 'style' => {'color' => 'red'}}
-    end  
-    {'message' => 'Email sent', 'style' => {'color' => 'blue'}}
+    else
+      {'message' => 'Email sent', 'style' => {'color' => 'blue'}}
+    end
   end
 
   def Protocol.send_share_facebook (share, params)
@@ -189,6 +233,7 @@ class Protocol
   def Protocol.process_request_config (params)
     # params: device_id, version
     # returns: js
+
     if (params[:version].to_i < 1)
       {js: "alert('If we had an upgrade, this would be it')"}
     end
@@ -274,24 +319,98 @@ class Protocol
     end
   end
 
+  def Protocol.validate_register_params (params)
+    if (! params.has_key?('name') || params['name'].length == 0)
+      return ("Please supply your name")
+    end
+    if (! params.has_key?('device_id') || params['device_id'].length == 0)
+      return ("No device ID")
+    end
+    if (params.has_key?('email') && params['email'].length > 0)
+      if (! /.+@.+/.match(params["email"]))
+        return ("Email should be in the form 'fred@company.com'")
+      end
+      has_email_or_mobile = true
+    end
+    if (params.has_key?('mobile') && params['mobile'].length > 0)
+      if (! /^\d{10}$/.match(params["mobile"]))
+        return ("The mobile number must be 10 digits")
+      end
+      has_email_or_mobile = true
+    end
+    return ("Please supply your email or mobile number") unless (has_email_or_mobile)
+    return
+  end
+
+  def Protocol.send_verification (params)
+    if (params.has_key?('email'))
+      params['cred'] = SecureRandom.urlsafe_base64(10)
+      msg = Protocol.create_verification_email (params)
+      err = Protocol.send_email(msg, 'sherpa@geopeers.com', 'Geopeers Helper', params['email'], "Please verify your email with Geopeers")
+      if (err)
+        return ("There was a problem sending your verification email.  Support has been contacted")
+      end
+      auth = Auth.new(account_id: params['account_id'],
+                      auth_type:  'email',
+                      cred:       params['cred'],
+                      issue_time: Time.now,
+                      )
+      auth.save
+    end
+  end
+
+  def get_existing_account (params)
+    if (params.has_key?('email'))
+      account_email = Account.where("email=", params['email]']).first
+    end
+    if (params.has_key?('mobile'))
+      account_mobile = Account.where("mobile=", params['mobile]']).first
+    end
+
+    # we haven't seen this email or mobile yet
+    return nil            if ! account_mobile.nil? && ! account_email.nil?
+
+    # we have an account for one of the parms
+    return account_mobile if ! account_mobile.nil? &&   account_email.nil?
+    return account_email  if   account_mobile.nil? && ! account_email.nil?
+
+    
+    # both parameters point to the same account
+    return account_mobile if account_mobile.id  account_email.id
+
+    # this is a problem - the user supplied both an email and a mobile
+    #
+    
+  end
+
   def Protocol.process_request_register_device (params)
-    return (error_response "Please supply your name")  unless params.has_key?('name') && params['name'].length > 0
-    return (error_response "Please supply your email") unless params.has_key?('email') && params['email'].length > 0
-    return (error_response "No device ID")             unless params.has_key?('device_id') && params['device_id'].length > 0
+    # register name/email/mobile with an account
+    # send the verification
+    # 
+    err = Protocol.validate_register_params (params)
+    return (error_response err) if (err)
 
     device = Device.where("device_id=?", params['device_id']).first
     $LOG.debug device
-    if defined? device
-      device.name = params['name']
-      device.email = params['email']
-      device.save
-      {'message' => 'Device Registered<br>You can share your location now by pressing the flying pin', 'style' => {'color' => 'blue'}}
-    else
-      # This shouldn't happen.  If there is a device_id, it should be in the DB
-      # Script kiddies?
-      $LOG.error ("No record for "+params['device_id'])
-      error_response "Unknown device ID"
+    if device.nil?
+      # This shouldn't happen
+      # The device_id should have been INSERTed when it was created and assigned
+      # INSERT it here and log the error
+      $LOG.warning ("No record for "+params['device_id'])
+      device = Device.new(device_id: params['device_id'],
+                          user_agent: params['user_agent'])
     end
+
+    account = get_existing_account (params)
+    account = Account.new(name:   params['name'],
+                          email:  params['email'],
+                          mobile: params['mobile'])
+    account.save
+    device[:account_id] = account.id
+    params['account_id'] = account.id
+    device.save
+
+    Protocol.send_verification (params)
   end
 
   def Protocol.process_request_share_location (params)
@@ -310,7 +429,6 @@ class Protocol
       # For now, just make sure it has an '@'
       raise ArgumentError.new("Email should be in the form 'fred@company.com'") unless /.+@.+/.match(params["share_to"])
     end
-    require 'securerandom'
     share_cred = SecureRandom.urlsafe_base64(10)
     expire_time = compute_expire_time params
     expire_time = Time.now + expire_time if expire_time
@@ -512,13 +630,18 @@ class ProtocolEngine < Sinatra::Base
   end
 
   post '/api' do
+    # If the client sent a JSON object in the body of the request,
+    # merge that object with any parms that were passed in the request
     if (request.content_type == 'application/json')
         params.merge!(JSON.parse(request.body.read))
     end
+
+    # parameters to add
     params['device_id'] = params['device_id'] ? params['device_id'] : get_device_id()
     params['user_agent'] = request.user_agent
+
     resp = Protocol.process_request params
-    resp.headers['Access-Control-Allow-Origin'] = '*'
+    $LOG.debug resp
     if (resp && resp.class == 'Hash' && resp[:error])
       # Don't send JSON to 500 ajax response
       # resp[:error_html] = create_error_html (resp)
@@ -527,6 +650,7 @@ class ProtocolEngine < Sinatra::Base
       log_error_msg (resp)
       status 500
     else
+      response.headers['Access-Control-Allow-Origin'] = '*'
       content_type :json
       resp.to_json
     end
