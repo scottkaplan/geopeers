@@ -807,7 +807,8 @@ function init () {
     registration.init();
 
     // server has redirected to us and has a message to popup
-    display_message(getParameterByName('alert'), 'message_error');
+    var message_type = getParameterByName('message_type') ? getParameterByName('message_type') : 'message_error'
+    display_message(getParameterByName('alert'), message_type);
 
     // This is a bad hack.
     // If the map isn't ready when the last display_message fired, the reposition will be wrong
