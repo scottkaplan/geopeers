@@ -44,6 +44,11 @@ class Sms
   end
 end
 
+def log_dos(msg)
+  $LOG.error msg
+  return
+end
+
 def init
   $LOG = Logger.new(STDOUT)
   # $LOG = Logger.new(log_file, 'daily')
@@ -106,7 +111,7 @@ class Protocol
   end
 
   def Protocol.create_verification_url (params)
-    "http://www.geopeers.com/api?method=verify&code=#{params['cred']}&device_id=#{params['device_id']}"
+    "http://www.geopeers.com/api?method=verify&cred=#{params['cred']}&device_id=#{params['device_id']}"
   end
 
   def Protocol.format_expire_time (share, params)
@@ -130,7 +135,7 @@ class Protocol
   end
 
   def Protocol.create_share_msg (share, params)
-    device = Device.where("device_id=?", params['device_id']).first
+    device = Device.find_by(device_id: params['device_id'])
     url = Protocol.create_share_url(share, params)
     expire_time = Protocol.format_expire_time(share, params)
     name = device.name
@@ -149,23 +154,26 @@ class Protocol
     ERB.new(msg_erb).result(binding)
   end
 
-  def Protocol.create_verification_email (params)
-    device = Device.where("device_id=?", params['device_id']).first
-    auth = Auth.new(account_id: device.account_id,
-                    auth_type:  'email',
-                    cred:       params['cred'],
-                    issue_time: Time.now,
-                    )
+  def Protocol.send_msg (params, type)
+    device = Device.find_by(device_id: params['device_id'])
     url = Protocol.create_verification_url(params)
-    boundary_random = SecureRandom.base64(21)
-    template_file = 'views/verify_email_body.erb'
-    msg_erb = File.read(template_file)
-    html_body = ERB.new(msg_erb).result(binding)
-    require 'mail'
-    quoted_html_body = Mail::Encodings::QuotedPrintable.encode(html_body)
-    template_file = 'views/verify_email_msg.erb'
-    msg_erb = File.read(template_file)
-    ERB.new(msg_erb).result(binding)
+    if (type == 'email')
+      boundary_random = SecureRandom.base64(21)
+      template_file = 'views/verify_email_body.erb'
+      msg_erb = File.read(template_file)
+      html_body = ERB.new(msg_erb).result(binding)
+      require 'mail'
+      quoted_html_body = Mail::Encodings::QuotedPrintable.encode(html_body)
+      template_file = 'views/verify_email_msg.erb'
+      msg_erb = File.read(template_file)
+      ERB.new(msg_erb).result(binding)
+      Protocol.send_email(msg, 'sherpa@geopeers.com', 'Geopeers Helper', params['email'], "Please verify your email with Geopeers")
+    elsif (type == 'mobile')
+      $LOG.debug url
+      msg = "Press this #{url} to verify your Geopeers account"
+      sms_obj = Sms.new;
+      err = sms_obj.send(params['mobile'], msg)
+    end
   end
 
   def Protocol.send_share_sms (share, params)
@@ -173,7 +181,7 @@ class Protocol
     msg = Protocol.create_share_msg(share, params)
     err = sms_obj.send(share.share_to, msg)
     if (err)
-      {'message' => err, 'style' => {'color' => 'red'}}
+      error_response err
     else
       {'message' => 'Location Shared', 'style' => {'color' => 'blue'}}
     end
@@ -195,7 +203,7 @@ class Protocol
 
   def Protocol.send_share_email (share, params)
     $LOG.debug share
-    device = Device.where("device_id=?", params['device_id']).first
+    device = Device.find_by(device_id: params['device_id'])
     
     subject = "#{device.name} shared a location with you"
     msg += Protocol.create_share_msg(share, params)
@@ -309,7 +317,7 @@ class Protocol
   def Protocol.process_request_get_registration (params)
     return (error_response "No device ID") unless params.has_key?('device_id')
       
-    device = Device.where("device_id=?", params['device_id']).first
+    device = Device.find_by(device_id: params['device_id'])
     if defined? device
       device
     else
@@ -343,44 +351,56 @@ class Protocol
   end
 
   def Protocol.send_verification (params)
-    if (params.has_key?('email'))
-      params['cred'] = SecureRandom.urlsafe_base64(10)
-      msg = Protocol.create_verification_email (params)
-      err = Protocol.send_email(msg, 'sherpa@geopeers.com', 'Geopeers Helper', params['email'], "Please verify your email with Geopeers")
-      if (err)
-        return ("There was a problem sending your verification email.  Support has been contacted")
+    $LOG.debug params
+    account = Account.find(params['account_id'])
+
+    ['mobile','email'].each do | type |
+      if (params.has_key?(type) && params[type].length > 0)
+        # Have we already tried to verify this email?
+        return if account[type+'_verified']
+
+        auth = Auth.find_by(account_id: account.id)
+        if auth
+          $LOG.debug auth
+          $LOG.debug auth['cred']
+          $LOG.debug params
+          # Didn't verify, resend
+          params['cred'] = auth.cred
+          $LOG.debug params
+        else
+          params['cred'] = SecureRandom.urlsafe_base64(10)
+          auth = Auth.new(account_id: params['account_id'],
+                          auth_type:  type,
+                          cred:       params['cred'],
+                          issue_time: Time.now,
+                          )
+          auth.save
+        end
+        err = Protocol.send_msg(params, type)
+        if (err)
+          verification_type = (type == 'email') ? 'email' : 'text msg'
+          return ("There was a problem sending your verification #{verification_type}.  Support has been contacted")
+        end
       end
-      auth = Auth.new(account_id: params['account_id'],
-                      auth_type:  'email',
-                      cred:       params['cred'],
-                      issue_time: Time.now,
-                      )
-      auth.save
     end
   end
 
-  def get_existing_account (params)
-    if (params.has_key?('email'))
-      account_email = Account.where("email=", params['email]']).first
+  def Protocol.get_existing_account (params, type)
+    if (params.has_key?(type) && params[type].length > 0)
+      return Account.where(type+"=?", params[type]).first
     end
-    if (params.has_key?('mobile'))
-      account_mobile = Account.where("mobile=", params['mobile]']).first
+    return
+  end
+
+  def Protocol.get_verified_account (params, type)
+    account = Protocol.get_existing_account(params, type)
+    if account
+      if account[type+'_verified']
+        return account
+      else
+        return [account, "NOT_VERIFIED"]
+      end
     end
-
-    # we haven't seen this email or mobile yet
-    return nil            if ! account_mobile.nil? && ! account_email.nil?
-
-    # we have an account for one of the parms
-    return account_mobile if ! account_mobile.nil? &&   account_email.nil?
-    return account_email  if   account_mobile.nil? && ! account_email.nil?
-
-    
-    # both parameters point to the same account
-    return account_mobile if account_mobile.id  account_email.id
-
-    # this is a problem - the user supplied both an email and a mobile
-    #
-    
   end
 
   def Protocol.process_request_register_device (params)
@@ -390,7 +410,7 @@ class Protocol
     err = Protocol.validate_register_params (params)
     return (error_response err) if (err)
 
-    device = Device.where("device_id=?", params['device_id']).first
+    device = Device.find_by(device_id: params['device_id'])
     $LOG.debug device
     if device.nil?
       # This shouldn't happen
@@ -401,16 +421,51 @@ class Protocol
                           user_agent: params['user_agent'])
     end
 
-    account = get_existing_account (params)
-    account = Account.new(name:   params['name'],
-                          email:  params['email'],
-                          mobile: params['mobile'])
-    account.save
-    device[:account_id] = account.id
-    params['account_id'] = account.id
-    device.save
+    if (params['new_account'] == 'yes')
+      account = Protocol.get_existing_account(params, 'mobile')
+      $LOG.debug account
+      err = ""
+      err = params['mobile']+" is already registered" if account
+      account = Protocol.get_existing_account(params, 'email')
+      $LOG.debug account
+      err = "<br>"+params['email']+" is already registered" if account
+      $LOG.debug err
+      return error_response err if (err && err.length > 0)
+      account = Account.new(name:   params['name'],
+                            email:  params['email'],
+                            mobile: params['mobile'])
+      account.save
+      device[:account_id] = account.id
+      params['account_id'] = account.id
+      device.save
 
-    Protocol.send_verification (params)
+      err = Protocol.send_verification (params)
+    else
+      account_mobile, err_mobile = Protocol.get_verified_account(params, 'mobile')
+      if account_mobile && err_mobile
+        # There is an account, but it has not been verified
+        params['account_id'] = account_mobile.id
+        err = Protocol.send_verification(params)
+        return error_response params['mobile']+" has not been verified yet.  The verification has been re-sent"
+      end
+      # It's OK if there is no account for mobile as long as there is no error
+      # See if there is an account for the email
+      account_email, err_email = Protocol.get_verified_account(params, 'email')
+      $LOG.debug account_email
+      $LOG.debug err_email
+      if account_email && err_email
+        # There is an account, but it has not been verified
+        params['account_id'] = account_email.id
+        err = Protocol.send_verification(params)
+        error_response params['email']+" has not been verified yet.  The verification has been re-sent"
+      else
+        if (params.has_key?('mobile') && params['mobile'].length > 0)
+          error_response params['mobile']+" is not an account"
+        elsif (params.has_key?('email') && params['email'].length > 0)
+          error_response params['email']+" is not an account"
+        end
+      end
+    end
   end
 
   def Protocol.process_request_share_location (params)
@@ -446,7 +501,7 @@ class Protocol
   def Protocol.process_request_cred (params)
     # a share URL has been clicked
     # using the cred, create a redeem
-    share = Share.where("share_cred=?",params["cred"]).first
+    share = Share.find_by(share_cred: params["cred"])
     $LOG.debug share
     redirect_url = 'https://geopeers.com'
 
@@ -491,19 +546,43 @@ class Protocol
     {:redirect_url => redirect_url}
   end
 
+  def Protocol.process_request_verify (params)
+    auth = Auth.find_by(cred: params["cred"])
+    $LOG.debug auth
+    device = Device.find_by(device_id: params['device_id'])
+    $LOG.debug device
+    redirect_url = 'https://geopeers.com'
+    if (! auth || ! device || auth.account_id != device.account_id)
+      log_dos (params)
+      msg = "That credential is not valid.  You can't view the location.  You can still use the other features of GeoPeers"
+    else
+      auth.auth_time = Time.now
+      auth.save
+      account = Account.find(auth.account_id)
+      account[auth.auth_type+'_verified'] = true
+      account.save
+      $LOG.debug account
+      msg = "You are viewing "+account.name+"'s location"
+      message_type = 'message_success'
+    end
+    msg = URI.escape (msg)
+    redirect_url += "?alert=#{msg}"
+    redirect_url += "&message_type=#{message_type}" if message_type
+    return {:redirect_url => redirect_url}
+  end
+  
   def Protocol.process_request_get_shares (params)
-    begin
-      # get a list of device_ids that are registered with the same device.email as params['device_id']
-      # and create a comma-separate list, suitable for putting in the SQL IN clause
-      device = Device.find_by(device_id: params['device_id'])
-      devices = Device.select("device_id").where(email: device.email)
-      device_ids = devices.map { |device_row| device_row.device_id }
-      device_ids_str = device_ids.collect {|did| Device.sanitize(did)}.join(',')
-      $LOG.debug device_ids_str
+    # get a list of device_ids that are registered with the same device.email as params['device_id']
+    # and create a comma-separate list, suitable for putting in the SQL IN clause
+    device = Device.find_by(device_id: params['device_id'])
+    devices = Device.select("device_id").find_by(email: device.email)
+    device_ids = devices.map { |device_row| device_row.device_id }
+    device_ids_str = device_ids.collect {|did| Device.sanitize(did)}.join(',')
+    $LOG.debug device_ids_str
 
-      # get all the shares with those device_ids
-      # and a list of the device_id that redeemed the shares
-      sql = "SELECT shares.share_to, shares.share_via, devices.name, shares.expire_time,
+    # get all the shares with those device_ids
+    # and a list of the device_id that redeemed the shares
+    sql = "SELECT shares.share_to, shares.share_via, devices.name, shares.expire_time,
                     shares.updated_at, shares.created_at,
                     redeems.id AS redeem_id,
                     redeems.device_id AS redeem_name,
@@ -513,21 +592,18 @@ class Protocol
              LEFT JOIN redeems ON shares.id = redeems.share_id
              WHERE shares.device_id IN (#{device_ids_str})
             "
-      # Find the names associated with the redeemed device_ids
-      elems = []
-      Share.find_by_sql(sql).each { |row|
-        if (row.redeem_name)
-          # at this point, it is not redeem_name, it's really the device_id
-          device = Device.find_by(device_id: row.redeem_name)
-          # Now it's the redeem name :-)
-          row[:redeem_name] = device.name
-        end
-        elems.push (row)
-      }
-      {'shares' => elems }
-    rescue => err
-      error_response err.to_s
-    end
+    # Find the names associated with the redeemed device_ids
+    elems = []
+    Share.find_by_sql(sql).each { |row|
+      if (row.redeem_name)
+        # at this point, it is not redeem_name, it's really the device_id
+        device = Device.find_by(device_id: row.redeem_name)
+        # Now it's the redeem name :-)
+        row[:redeem_name] = device.name
+      end
+      elems.push (row)
+    }
+    {'shares' => elems }
   end
 
   public
@@ -535,9 +611,9 @@ class Protocol
     begin
       $LOG.info (params)
 
-      if params.has_key?('cred')
-        return (method 'process_request_cred').call(params)
-      end
+      # if params.has_key?('cred')
+      # return (method 'process_request_cred').call(params)
+      # end
 
       return (error_response "No method") unless params.has_key?('method')
       procname = 'process_request_' + params['method']
