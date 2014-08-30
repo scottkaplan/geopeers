@@ -33,10 +33,14 @@ class Sms
     Eztexting.connect!('magtogo', 'Codacas')
   end
 
+  def Sms.clean_num(num)
+    num.gsub(/[\s\-\(\)]/,'')
+  end
+
   def send (num, msg)
     options = {
       :message => msg,
-      :phonenumber => num,
+      :phonenumber => Sms.clean_num(num),
     }
     msg = Eztexting::Sms.single(options).first
     return if msg == "Message sent"
@@ -47,6 +51,28 @@ end
 def log_dos(msg)
   $LOG.error msg
   return
+end
+
+def parse_backtrace (backtrace) 
+  ar = Array.new
+  backtrace.each { |x|
+    /(?<path>.*?):(?<line_num>\d+):in `(?<routine>.*)'/ =~ x
+    file_base = File.basename(path);
+    ar.push({file_base: file_base, line_num: line_num, routine: routine})
+  }
+  ar
+end
+
+def log_error(err)
+  if (err.respond_to?(:backtrace))
+    msg = err.message + "\n" + err.backtrace.join("\n")
+  else
+    backtrace = parse_backtrace caller
+    backtrace_str = backtrace[0][:file_base] + ':' + backtrace[0][:line_num] + ' ' + backtrace[0][:routine]
+    msg = err.inspect + "\n" + backtrace_str
+  end
+  $LOG.error msg
+  Protocol.send_email(msg, 'support@geopeers.com', 'Geopeers Support', 'support@geopeers.com', 'Geopeers Server Error')
 end
 
 def init
@@ -77,6 +103,11 @@ def init
 #  $DB_SPEC = ActiveRecord::Base.specification
 end
 
+DOWNLOAD_URLS = {
+  ios:     'https://www.geopeers.com/bin/ios',
+  android: 'https://www.geopeers.com/bin/android',
+}
+
 def get_client_type (user_agent)
   if (/android/.match(user_agent))
     :android
@@ -91,6 +122,12 @@ end
 
 class Protocol
   private
+
+  def Protocol.get_account_from_device (device)
+    if (device.account_id)
+      Account.find(device.account_id)
+    end
+  end
 
   def Protocol.compute_expire_time (params)
     multiplier = {
@@ -138,7 +175,8 @@ class Protocol
     device = Device.find_by(device_id: params['device_id'])
     url = Protocol.create_share_url(share, params)
     expire_time = Protocol.format_expire_time(share, params)
-    name = device.name
+    account = Protocol.get_account_from_device (device)
+    name = account ? account.name : 'Geopeers'
     if (share.share_via == 'sms')
       template_file = 'views/share_text_msg.erb'
     else
@@ -166,13 +204,12 @@ class Protocol
       quoted_html_body = Mail::Encodings::QuotedPrintable.encode(html_body)
       template_file = 'views/verify_email_msg.erb'
       msg_erb = File.read(template_file)
-      ERB.new(msg_erb).result(binding)
-      Protocol.send_email(msg, 'sherpa@geopeers.com', 'Geopeers Helper', params['email'], "Please verify your email with Geopeers")
+      msg = ERB.new(msg_erb).result(binding)
+      Protocol.send_email(msg, 'sherpa@geopeers.com', 'Geopeers Helper', params[type], "Please verify your email with Geopeers")
     elsif (type == 'mobile')
-      $LOG.debug url
       msg = "Press this #{url} to verify your Geopeers account"
       sms_obj = Sms.new;
-      err = sms_obj.send(params['mobile'], msg)
+      sms_obj.send(params[type], msg)
     end
   end
 
@@ -183,7 +220,7 @@ class Protocol
     if (err)
       error_response err
     else
-      {'message' => 'Location Shared', 'style' => {'color' => 'blue'}}
+      {message: 'Location Shared', style: {color: 'blue'}}
     end
   end
 
@@ -193,25 +230,34 @@ class Protocol
     begin
       Net::SMTP.start('127.0.0.1') do |smtp|
         smtp.send_message msg, from_email, to_email
+        $LOG.info "Sent email to #{to_email}"
       end
     rescue Exception => e  
-      $LOG.error e
+      log_error e
       return true
     end
     nil
   end
 
   def Protocol.send_share_email (share, params)
-    $LOG.debug share
     device = Device.find_by(device_id: params['device_id'])
-    
-    subject = "#{device.name} shared a location with you"
-    msg += Protocol.create_share_msg(share, params)
-    err = Protocol.send_email(msg, device.email, device.name, share.share_to, subject)
-    if (err)
-      {'message' => 'There was a problem sending your email.  Support has been contacted', 'style' => {'color' => 'red'}}
+    account = Protocol.get_account_from_device (device)
+    if (! account)
+      log_error ("No account")
+      {message: 'There was a problem sending your email.  Support has been contacted', css_class: 'message_error'}
     else
-      {'message' => 'Email sent', 'style' => {'color' => 'blue'}}
+      subject = "#{account.name} shared a location with you"
+      msg = Protocol.create_share_msg(share, params)
+      $LOG.debug account
+      email = account.email ? account.email : 'email_unknown@geopeers.com'
+      $LOG.debug email
+      err = Protocol.send_email(msg, email, account.name, share.share_to, subject)
+      if (err)
+        log_error (err)
+        {message: 'There was a problem sending your email.  Support has been contacted', css_class: 'message_error'}
+      else
+        {message: 'Email sent'}
+      end
     end
   end
 
@@ -224,7 +270,6 @@ class Protocol
   end
 
   def Protocol.send_share (share, params)
-    $LOG.debug (share)
     procname = 'send_share_' + share['share_via']
     if (defined? procname)
       (method procname).call(share, params)
@@ -235,7 +280,7 @@ class Protocol
 
   def Protocol.error_response (error_msg)
     # { error: error_msg, backtrace: caller }
-    { 'message' => error_msg, 'style' => {'color' => 'red'}}
+    { message: error_msg, style: {color: 'red'}}
   end
 
   def Protocol.process_request_config (params)
@@ -322,71 +367,78 @@ class Protocol
       device
     else
       # This shouldn't happen.  If there is a device_id, it should be in the DB
-      $LOG.error ("No record for "+params['device_id'])
+      log_dos ("No record for "+params['device_id'])
       error_response "Unknown device ID"
     end
   end
 
   def Protocol.validate_register_params (params)
-    if (! params.has_key?('name') || params['name'].length == 0)
-      return ("Please supply your name")
-    end
-    if (! params.has_key?('device_id') || params['device_id'].length == 0)
-      return ("No device ID")
-    end
-    if (params.has_key?('email') && params['email'].length > 0)
+    return ("Please supply your name") if (params['new_account'] == 'yes' && (! params['name']))
+    return ("No device ID") unless (params['device_id'])
+
+    if (params['email'])
       if (! /.+@.+/.match(params["email"]))
         return ("Email should be in the form 'fred@company.com'")
       end
       has_email_or_mobile = true
     end
-    if (params.has_key?('mobile') && params['mobile'].length > 0)
-      if (! /^\d{10}$/.match(params["mobile"]))
+
+    if (params['mobile'])
+      # We are not just validating, but actually normalizing (changing) the user input
+      # We have to do this so that (415) 555-1212 matches 415-5551212
+      params['mobile'] = Sms.clean_num(params['mobile'])
+      if (! /^\d{10}$/.match(params['mobile']))
         return ("The mobile number must be 10 digits")
       end
       has_email_or_mobile = true
     end
+
     return ("Please supply your email or mobile number") unless (has_email_or_mobile)
+
     return
   end
 
-  def Protocol.send_verification (params)
-    $LOG.debug params
+  def Protocol.send_verification_by_type (params, type)
     account = Account.find(params['account_id'])
+    $LOG.debug account
+    if (params[type])
+      # Don't send if already verified
+      return if account[type+'_verified']
 
-    ['mobile','email'].each do | type |
-      if (params.has_key?(type) && params[type].length > 0)
-        # Have we already tried to verify this email?
-        return if account[type+'_verified']
-
-        auth = Auth.find_by(account_id: account.id)
-        if auth
-          $LOG.debug auth
-          $LOG.debug auth['cred']
-          $LOG.debug params
-          # Didn't verify, resend
-          params['cred'] = auth.cred
-          $LOG.debug params
-        else
-          params['cred'] = SecureRandom.urlsafe_base64(10)
-          auth = Auth.new(account_id: params['account_id'],
-                          auth_type:  type,
-                          cred:       params['cred'],
-                          issue_time: Time.now,
-                          )
-          auth.save
-        end
-        err = Protocol.send_msg(params, type)
-        if (err)
-          verification_type = (type == 'email') ? 'email' : 'text msg'
-          return ("There was a problem sending your verification #{verification_type}.  Support has been contacted")
-        end
+      auth = Auth.find_by(account_id: account.id)
+      $LOG.debug auth
+      if auth
+        # Didn't verify, resend existing cred
+        params['cred'] = auth.cred
+      else
+        params['cred'] = SecureRandom.urlsafe_base64(10)
+        auth = Auth.new(account_id: params['account_id'],
+                        auth_type:  type,
+                        cred:       params['cred'],
+                        issue_time: Time.now,
+                        )
+        auth.save
+      end
+      err = Protocol.send_msg(params, type)
+      if (err)
+        log_error (err)
+        verification_type = (type == 'email') ? 'email' : 'text msg'
+        return ("There was a problem sending your verification #{verification_type}.  Support has been contacted")
       end
     end
   end
 
+  def Protocol.send_verifications (params)
+    errs = []
+    ['mobile','email'].each do | type |
+      err = send_verification_by_type(params, type)
+      errs.push err if err
+    end
+    return errs.join('<br>') if ! errs.empty?
+  end
+
   def Protocol.get_existing_account (params, type)
-    if (params.has_key?(type) && params[type].length > 0)
+    if (params[type])
       return Account.where(type+"=?", params[type]).first
     end
     return
@@ -403,80 +455,124 @@ class Protocol
     end
   end
 
+  def Protocol.find_account (params, type)
+    # look for the account associated with credential (email | mobile) supplied by user
+    # returns <account, msg>
+    #   nil, msg     => no account, user message
+    #   account, nil => account is verified
+    #   account, msg => account is not verified, user message (info only)
+    return unless params[type]
+
+    account = Protocol.get_existing_account(params, type)
+    $LOG.debug account
+    if account
+      verified_field = "#{type}_verified"
+      if ! account[verified_field]
+        # not verified, resend the verification as a reminder
+        # ignore the error, if it failed, the system error was already logged
+        params['account_id'] = account.id
+        err_msg = Protocol.send_verification_by_type(params, type)
+        if err_msg
+          log_error (err_msg)
+        else
+          user_msg = params[type]+" has not been verified yet.  The verification has been re-sent" if (! err_msg)
+        end
+      end
+    else
+      log_dos ("No account for #{params[type]}")
+      user_msg = params[type]+" is not an account"
+    end
+    return account, user_msg
+  end
+
   def Protocol.process_request_register_device (params)
     # register name/email/mobile with an account
     # send the verification
-    # 
+    #
     err = Protocol.validate_register_params (params)
     return (error_response err) if (err)
 
     device = Device.find_by(device_id: params['device_id'])
-    $LOG.debug device
     if device.nil?
       # This shouldn't happen
       # The device_id should have been INSERTed when it was created and assigned
       # INSERT it here and log the error
-      $LOG.warning ("No record for "+params['device_id'])
+      log_error ("No record for "+params['device_id'])
       device = Device.new(device_id: params['device_id'],
                           user_agent: params['user_agent'])
     end
 
+    user_msgs = []
     if (params['new_account'] == 'yes')
+      # make sure account (email and/or mobile) doesn't already exist
       account = Protocol.get_existing_account(params, 'mobile')
-      $LOG.debug account
-      err = ""
-      err = params['mobile']+" is already registered" if account
+      user_msgs.push (params['mobile']+" is already registered") if account
       account = Protocol.get_existing_account(params, 'email')
-      $LOG.debug account
-      err = "<br>"+params['email']+" is already registered" if account
-      $LOG.debug err
-      return error_response err if (err && err.length > 0)
+      user_msgs.push (params['email']+" is already registered") if account
+      return error_response user_msgs.join('<br>') unless (user_msgs.empty?)
+
+      # no errors, create the account
       account = Account.new(name:   params['name'],
                             email:  params['email'],
                             mobile: params['mobile'])
       account.save
-      device[:account_id] = account.id
       params['account_id'] = account.id
+      device[:account_id] = account.id
       device.save
-
-      err = Protocol.send_verification (params)
+      err_msg = Protocol.send_verifications (params)
+      return error_response err_msg if (err_msg)
     else
-      account_mobile, err_mobile = Protocol.get_verified_account(params, 'mobile')
-      if account_mobile && err_mobile
-        # There is an account, but it has not been verified
-        params['account_id'] = account_mobile.id
-        err = Protocol.send_verification(params)
-        return error_response params['mobile']+" has not been verified yet.  The verification has been re-sent"
+      # associate device_id with an existing account
+      # since we have email and/or mobile, this requires a few twists
+
+      account_mobile, user_msg = find_account(params, 'mobile')
+      user_msgs.push (user_msg)
+      account_email, user_msg = find_account(params, 'email')
+      user_msgs.push (user_msg)
+      # Don't use user_msgs as status
+      # use accounts to determine if there is an existing account
+      if (! account_mobile && ! account_email)
+        return error_response user_msgs.join ('<br>')
       end
-      # It's OK if there is no account for mobile as long as there is no error
-      # See if there is an account for the email
-      account_email, err_email = Protocol.get_verified_account(params, 'email')
-      $LOG.debug account_email
-      $LOG.debug err_email
-      if account_email && err_email
-        # There is an account, but it has not been verified
-        params['account_id'] = account_email.id
-        err = Protocol.send_verification(params)
-        error_response params['email']+" has not been verified yet.  The verification has been re-sent"
-      else
-        if (params.has_key?('mobile') && params['mobile'].length > 0)
-          error_response params['mobile']+" is not an account"
-        elsif (params.has_key?('email') && params['email'].length > 0)
-          error_response params['email']+" is not an account"
+      if (account_mobile && account_email && (account_mobile.id != account_email.id))
+        # This is a problem, the email points to one account and the mobile to another
+        return error_response "The email and mobile are not associated with the same account"
+      end
+      # We can finally get to one account
+      account = account_mobile ? account_mobile : account_email
+      params['account_id'] = account.id
+      device[:account_id] = account.id
+      device.save
+    end
+
+    # If we get to here there is an account which may or may not be verified
+    # redirect to the native app download URL
+    if (params['download_app'])
+      client_type = get_client_type ()
+      redirect_url = DOWNLOAD_URLS[client_type]
+      if (redirect_url)
+        if ! user_msgs.empty?
+          msg = URI.escape (user_msgs.join('<br>'))
+          redirect_url += "?alert=#{msg}"
         end
+        {redirect_url: redirect_url}
+      else
+        user_msgs.push "There is no native app available for your device"
+        {message: user_msgs.join('<br>'), style: {color:"red"}}
       end
     end
   end
 
   def Protocol.process_request_share_location (params)
     # create a share and send it
-    raise ArgumentError.new("No share via") unless params.has_key?("share_via") && params["share_via"].length > 0
-    raise ArgumentError.new("No device ID")  unless params.has_key?("device_id")
+    raise ArgumentError.new("No share via") unless params['share_via']
+    raise ArgumentError.new("No device ID")  unless params['device_id']
     
-    raise ArgumentError.new("Please supply the address to send the share to") unless params.has_key?("share_to") && (params["share_to"].length > 0)
+    raise ArgumentError.new("Please supply the address to send the share to") unless params['share_to']
 
     if params["share_via"] == 'sms'
-      raise ArgumentError.new("The phone number (share to) must be 10 digits") unless /^\d{10}$/.match(params["share_to"])
+      sms_num = Sms.clean_num(params["share_to"])
+      raise ArgumentError.new("The phone number (share to) must be 10 digits") unless /^\d{10}$/.match(sms_num)
     end
 
     if params["share_via"] == 'email'
@@ -502,7 +598,6 @@ class Protocol
     # a share URL has been clicked
     # using the cred, create a redeem
     share = Share.find_by(share_cred: params["cred"])
-    $LOG.debug share
     redirect_url = 'https://geopeers.com'
 
     if (! share)
@@ -521,7 +616,6 @@ class Protocol
             "
       current_share = Share.find_by_sql(sql).first
       $LOG.debug current_share
-      $LOG.debug sql
       if (current_share)
         if ( ! current_share.expire_time ||
              current_share.expire_time >= share.expire_time)
@@ -562,11 +656,12 @@ class Protocol
       account[auth.auth_type+'_verified'] = true
       account.save
       $LOG.debug account
-      msg = "You are viewing "+account.name+"'s location"
+      msg = account.name+" has been registered"
       message_type = 'message_success'
     end
     msg = URI.escape (msg)
     redirect_url += "?alert=#{msg}"
+    redirect_url += "&download_app=1&device_id=#{device.device_id}"
     redirect_url += "&message_type=#{message_type}" if message_type
     return {:redirect_url => redirect_url}
   end
@@ -578,7 +673,6 @@ class Protocol
     devices = Device.select("device_id").find_by(email: device.email)
     device_ids = devices.map { |device_row| device_row.device_id }
     device_ids_str = device_ids.collect {|did| Device.sanitize(did)}.join(',')
-    $LOG.debug device_ids_str
 
     # get all the shares with those device_ids
     # and a list of the device_id that redeemed the shares
@@ -599,7 +693,8 @@ class Protocol
         # at this point, it is not redeem_name, it's really the device_id
         device = Device.find_by(device_id: row.redeem_name)
         # Now it's the redeem name :-)
-        row[:redeem_name] = device.name
+        account = Protocol.get_account_from_device (device)
+        row[:redeem_name] = account.name if (account)
       end
       elems.push (row)
     }
@@ -611,19 +706,22 @@ class Protocol
     begin
       $LOG.info (params)
 
-      # if params.has_key?('cred')
-      # return (method 'process_request_cred').call(params)
-      # end
-
-      return (error_response "No method") unless params.has_key?('method')
+      if (!params.has_key?('method'))
+        log_dos "No method"
+        return (error_response "No method")
+      end
       procname = 'process_request_' + params['method']
       if (defined? procname)
-        (method procname).call(params)
+        resp = (method procname).call(params)
+        $LOG.info resp
+        resp
       else
-        error_response "Bad method " + procname
+        log_dos "Bad method " + procname
+        error_response "There was a problem with your request.  Support has been contacted"
       end
     rescue Exception => e
-      $LOG.error e
+      log_error e
+      $LOG.debug e.backtrace
       error_response "There was a problem with your request.  Support has been contacted"
     end
   end
@@ -649,23 +747,6 @@ class ProtocolEngine < Sinatra::Base
     end
   end
 
-  def parse_backtrace (backtrace) 
-    ar = Array.new
-    backtrace.each { |x|
-      /(?<path>.*?):(?<line_num>\d+):in `(?<routine>.*)'/ =~ x
-      file_base = File.basename(path);
-      ar.push({file_base: file_base, line_num: line_num, routine: routine})
-    }
-    ar
-  end
-
-  def log_error_msg (resp)
-    backtrace = parse_backtrace resp[:backtrace]
-    backtrace_str = backtrace[0][:file_base] + ':' + backtrace[0][:line_num] + ' ' + backtrace[0][:routine]
-    msg = resp[:error] + " at " + backtrace_str
-    $LOG.error msg
-  end
-
   def create_error_html (resp)
     template_file = 'views/error.erb'
     template = File.read(template_file)
@@ -679,15 +760,21 @@ class ProtocolEngine < Sinatra::Base
   def create_device_id (user_agent)
     require 'securerandom'
     device_id = SecureRandom.uuid
-    $LOG.debug device_id
     begin
       device_record = Device.new(device_id: device_id,
                                  user_agent: user_agent)
       device_record.save
     rescue => err
-      $LOG.error (err)
+      log_error (err)
     end
     device_id
+  end
+
+  before do
+    # empty form variables are empty strings, not nil
+    params.each do |key, val|
+      params[key] = nil if (val.length == 0)
+    end
   end
 
   get '/api' do
@@ -707,6 +794,7 @@ class ProtocolEngine < Sinatra::Base
 
   post '/api' do
     # If the client sent a JSON object in the body of the request,
+    # (typically used to send a >1 layer parms in a request)
     # merge that object with any parms that were passed in the request
     if (request.content_type == 'application/json')
         params.merge!(JSON.parse(request.body.read))
@@ -717,13 +805,12 @@ class ProtocolEngine < Sinatra::Base
     params['user_agent'] = request.user_agent
 
     resp = Protocol.process_request params
-    $LOG.debug resp
     if (resp && resp.class == 'Hash' && resp[:error])
       # Don't send JSON to 500 ajax response
       # resp[:error_html] = create_error_html (resp)
       # content_type :json
       # resp.to_json
-      log_error_msg (resp)
+      log_error (resp[:error])
       status 500
     else
       response.headers['Access-Control-Allow-Origin'] = '*'
