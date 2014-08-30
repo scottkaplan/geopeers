@@ -1,0 +1,55 @@
+<div style="padding:5px; background-color:#d2e9ff">
+  <form id="registration_form">
+    <div id="registration_form_info" class="info"></div>
+    <div id="registration_form_spinner"
+	 style="display:none; text-align:center">
+      <img src="images/ajax-loader.gif">
+    </div>
+    <div id="new_account_div" data-role="fieldcontain">
+      <fieldset data-role="controlgroup" data-type="horizontal">
+	<legend>New Account?</legend>
+	<label for="new_account_yes">
+	  <input type="radio" name="new_account" id="new_account_yes" value="yes" checked="checked" />
+	  Yes</label>
+	<label for="new_account_no">
+	  <input type="radio" name="new_account" id="new_account_no" value="no" />
+	  No</label>
+      </fieldset>
+    </div>
+    <div id="name_div">
+      <label for="name" class="ui-hidden-accessible">Name</label>
+      <input type="text"
+	     name="name"
+	     id="name"
+	     placeholder="Name (required)"
+	     >
+      <hr>
+    </div>
+    <label for="email" class="ui-hidden-accessible">Email</label>
+    <input type="text"
+	   name="email"
+	   id="email"
+	   placeholder="fred_friendly@gmail.com"
+	   >
+    - or -
+    <label for="mobile" class="ui-hidden-accessible">Mobile</label>
+    <input type="text"
+	   name="mobile"
+	   id="mobile"
+	   placeholder="415-555-1212"
+	   >
+    <input type="hidden" name="method"       value="register_device">
+    <input type="hidden" name="download_app" value="1">
+    <button style="background-color:#3eb1dd; color:white; text-shadow:0 0; font-weight:normal"
+	    type="button"
+	    onclick="send_registration()">Download Native App</button>
+  </form>
+</div>
+
+<script>
+ $(document).ready(function(e,data){
+   $("input:radio").click(function() {
+     $('#name_div').toggle();
+  })
+})
+</script>
