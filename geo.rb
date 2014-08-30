@@ -104,8 +104,9 @@ def init
 end
 
 DOWNLOAD_URLS = {
-  ios:     'https://www.geopeers.com/bin/ios',
-  android: 'https://www.geopeers.com/bin/android',
+  ios:     'https://www.geopeers.com/bin/ios/index.html',
+  android: 'https://www.geopeers.com/bin/android/index.html',
+  web:     'https://www.geopeers.com/bin/android/index.html',
 }
 
 def get_client_type (user_agent)
@@ -115,7 +116,7 @@ def get_client_type (user_agent)
          /ipad/.match(user_agent))
     :ios
   else
-    nil
+    :web
   end
   
 end

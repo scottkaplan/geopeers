@@ -4,8 +4,9 @@
 //           }
 var MARKERS = {};
 var DT;
-var DOWNLOAD_URLS = { ios:     'https://www.geopeers.com/bin/ios',
-		      android: 'https://www.geopeers.com/bin/android',
+var DOWNLOAD_URLS = { ios:     'https://www.geopeers.com/bin/ios/index.html',
+		      android: 'https://www.geopeers.com/bin/android/index.html',
+		      web:     'https://www.geopeers.com/bin/android/index.html',
 }
 
 var device_id_mgr = {
@@ -151,11 +152,11 @@ var display_mgr = {
 	if (err.code) {
 	    var client_type = get_client_type ();
 	    if (device_id_mgr.phonegap) {
-		msg = "It looks like you don't have location enabled.<br>"
+		msg = "It looks like you don't have location enabled."
 		if (client_type == 'android') {
-		    msg += "Fix this in <i>Settings -> Location</i>";
+		    msg += "<br>Fix this in <i>Settings -> Location</i>";
 		} else if (client_type == 'ios') {
-		    msg += "Fix this in <i>Settings -> Privacy -> Location Services</i>";
+		    msg += "<br>Fix this in <i>Settings -> Privacy -> Location Services</i>";
 		}
 	    }
 	}
@@ -783,11 +784,11 @@ function get_client_type () {
 	       /ipad/i.exec(navigator.userAgent)) {
 	return ('ios');
     } else {
-	return;
+	return ('web');
     }
 }
 
-function download_native_app () {
+function download_native_app_KILLME () {
     var client_type = get_client_type ();
     if (client_type == 'android') {
 	window.location = "https://eng.geopeers.com/bin/geopeers.apk";
