@@ -4,6 +4,9 @@
 //           }
 var MARKERS = {};
 var DT;
+var DOWNLOAD_URLS = { ios:     'https://www.geopeers.com/bin/ios',
+		      android: 'https://www.geopeers.com/bin/android',
+}
 
 var device_id_mgr = {
     device_id: null,
@@ -399,6 +402,7 @@ function share_location_popup () {
 	    $('#registration_popup').popup('open');
 	}
     } else {
+	// $('#share_location_popup').popup('open');
 	$('#registration_popup').popup('open');
     }
     return;
@@ -406,7 +410,8 @@ function share_location_popup () {
 
 function share_location_callback (data, textStatus, jqXHR) {
     $('#share_location_form_spinner').hide();
-    display_message(data.message, 'message_success');
+    var css_class = data.css_class ? data.css_class : 'message_success'
+    display_message(data.message, css_class);
     $('#share_location_popup').popup('close')
     return;
 }
@@ -425,6 +430,8 @@ function share_location () {
 			'share_location_form_info', {color:'red'});
 	return;
     }
+    share_to.replace(/[\s\-\(\)]/, null);
+    console.log (share_to);
     if (share_via == 'sms' && ! share_to.match(/^\d{10}$/)) {
 	display_in_div ("The phone number (share to) must be 10 digits",
 			'share_location_form_info', {color:'red'});
@@ -624,11 +631,13 @@ function registration_callback (data, textStatus, jqXHR) {
 
 function validate_registration_form () {
     var name = $('#registration_form #name').val();
-    if (name.length == 0) {
+    var new_account = $("input[type='radio'][name='new_account']:checked").val();
+    if (name.length == 0 && new_account == 'yes') {
 	display_in_div ("Please supply your name",
 			'registration_form_info', {color:'red'});
 	return;
     }
+
     var email = $('#registration_form #email').val();
     var mobile = $('#registration_form #mobile').val();
     if ((email.length == 0) &&
@@ -637,6 +646,8 @@ function validate_registration_form () {
 			'registration_form_info', {color:'red'});
 	return;
     }
+
+    mobile = mobile.replace(/[\s\-\(\)]/g, '');
     if (mobile.length > 0 && ! mobile.match(/^\d{10}$/)) {
 	display_in_div ("The mobile number must be 10 digits",
 			'registration_form_info', {color:'red'});
@@ -648,15 +659,22 @@ function validate_registration_form () {
 			'registration_form_info', {color:'red'});
 	return;
     }
-    return 1;
+
+    if (new_account == 'no' && email && mobile) {
+	display_in_div ("To register an existing account, please only supply email *OR* mobile",
+			'registration_form_info', {color:'red'});
+	return;
+    }
+    return true;
 }
 
 function send_registration () {
+    $('#registration_form_info').html('');
     if (! validate_registration_form()) {
 	return;
     }
-    $('#registration_form_spinner').show();
     var params = $('#registration_form').serialize();
+    $('#registration_form_spinner').show();
     ajax_request (params, registration_callback, geo_ajax_fail_callback);
 }
 
@@ -789,6 +807,15 @@ function webapp_init () {
     device_id_mgr.init ();
 }
 
+function download_app () {
+    var client_type = get_client_type();
+    var download_url = DOWNLOAD_URLS[client_type];
+    if (download_url) {
+	window.location = download_url;
+    }
+    return;
+}
+
 function init () {
     // This is called after we are .ready
 
@@ -806,16 +833,21 @@ function init () {
     // used by popups to see if they should put up the registration screen instead
     registration.init();
 
-    // server has redirected to us and has a message to popup
+    // server can pass parameters when it redirected to us
     var message_type = getParameterByName('message_type') ? getParameterByName('message_type') : 'message_error'
     display_message(getParameterByName('alert'), message_type);
+    if (getParameterByName('download_app')) {
+	download_app();
+    }
+
+    heartbeat();
+    update_current_pos();
 
     // This is a bad hack.
     // If the map isn't ready when the last display_message fired, the reposition will be wrong
     setTimeout(function(){update_map_canvas_pos()}, 500);
 
-    heartbeat();
-    update_current_pos();
+    return;
 }
 
 $(document).ready(function(e,data){
