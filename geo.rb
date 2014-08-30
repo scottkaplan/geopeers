@@ -526,9 +526,9 @@ class Protocol
       # since we have email and/or mobile, this requires a few twists
 
       account_mobile, user_msg = find_account(params, 'mobile')
-      user_msgs.push (user_msg)
+      user_msgs.push (user_msg) if user_msg
       account_email, user_msg = find_account(params, 'email')
-      user_msgs.push (user_msg)
+      user_msgs.push (user_msg) if user_msg
       # Don't use user_msgs as status
       # use accounts to determine if there is an existing account
       if (! account_mobile && ! account_email)
