@@ -203,8 +203,8 @@ function create_map (position) {
 }
 
 function create_time_elem_str (num, unit) {
-    if (num === 0) {    
-	return ;
+    if (num == 0) {    
+	return '';
     }
     var str = num + ' ' + unit;
     if (num > 1) {
@@ -215,6 +215,7 @@ function create_time_elem_str (num, unit) {
 
 function create_elapsed_str (sighting) {
     var elapsed_sec = Math.round ((Date.now() - Date.parse(sighting.sighting_time)) / 1000);
+    var elapsed_str;
     if (elapsed_sec < 60) {
 	elapsed_str = elapsed_sec + ' seconds';
     } else {
@@ -403,8 +404,8 @@ function share_location_popup () {
 	    $('#registration_popup').popup('open');
 	}
     } else {
-	// $('#share_location_popup').popup('open');
-	$('#registration_popup').popup('open');
+	$('#share_location_popup').popup('open');
+	// $('#registration_popup').popup('open');
     }
     return;
 }
@@ -593,7 +594,7 @@ function display_register_popup () {
 }
 
 function manage_shares () {
-    if (device_id_mgr.phonegap) {
+    if (1 || device_id_mgr.phonegap) {
 	var device_id = device_id_mgr.get();
 	if (! device_id)
 	    return
@@ -819,6 +820,25 @@ function download_app () {
 
 function init () {
     // This is called after we are .ready
+
+    $(function() {
+	    $("#menu").menu({
+		    theme: 'theme-theme3',
+			transition: 'fade-in-falling-down'
+			}); 
+      });
+    /* 
+       transition: 'inside-slide-fade-left'
+       transition: 'inside-slide-fade-left-out'
+       transition: 'fade-out-scale-down',
+       transition: 'fade-in-scale-up'
+       transition: 'fade-out-fall-down'
+       transition: 'fade-in-rise-up'
+       transition: 'fade-out-rising-up'
+       transition: 'fade-in-falling-down'
+       transition: 'fade-in-rising-up'
+       transition: 'fade-out-fall-down2'
+    */
 
     if (window.cordova) {
 	// Wait for device API libraries to load
