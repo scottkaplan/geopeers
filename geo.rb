@@ -145,11 +145,11 @@ class Protocol
   end
 
   def Protocol.create_share_url (share, params)
-    "http://www.geopeers.com/api?cred="+share.share_cred
+    "https://eng.geopeers.com/api?method=cred&cred="+share.share_cred
   end
 
   def Protocol.create_verification_url (params)
-    "http://www.geopeers.com/api?method=verify&cred=#{params['cred']}&device_id=#{params['device_id']}"
+    "https://eng.geopeers.com/api?method=verify&cred=#{params['cred']}&device_id=#{params['device_id']}"
   end
 
   def Protocol.format_expire_time (share, params)
@@ -317,47 +317,41 @@ class Protocol
     # returns: [{name_1, latest gps_*_1, sighting_time_1},
     #           {name_2, latest gps_*_2, sighting_time_2}, ...]
     return (error_response "No device ID") unless params.has_key?('device_id')
-    # Go through all the redeems with our device_id
-    # get the associated shares and the device_id in the shares
-    # return sightings of that device_id
-    sql = "SELECT shares.device_id, shares.id
-           FROM shares, redeems
-           WHERE redeems.device_id = '#{params["device_id"]}' AND
-                 shares.id = redeems.share_id AND
-                 NOW() < shares.expire_time
-          "
-    device_ids = []
-    Share.find_by_sql(sql).each { |share|
-      $LOG.debug share.id
-      device_ids.push(share.device_id)
-    }
+    device = Device.find_by(device_id: params['device_id'])
 
-    return if (device_ids.length == 0)
-    begin
-      device_ids_str = device_ids.collect {|did| Share.sanitize(did)}.join(',')
-      $LOG.debug device_ids_str
-      sql = "SELECT devices.name, sightings.device_id, sightings.gps_longitude, sightings.gps_latitude, MAX(sightings.updated_at) AS max_updated_at
-             FROM sightings, devices
-             WHERE sightings.device_id IN (#{device_ids_str}) AND
-                   sightings.device_id = devices.device_id AND
-                   devices.name IS NOT NULL
-             GROUP BY sightings.device_id"
-      $LOG.debug sql
-      elems = []
-      Sighting.find_by_sql(sql).each { |row|
-        elems.push ({ 'name'          => row.name,
-                      'device_id'     => row.device_id,
-                      'gps_longitude' => row.gps_longitude,
-                      'gps_latitude'  => row.gps_latitude,
-                      'sighting_time' => row.max_updated_at,
-                      # 'expire_time'   => share.expire_time,
-                    })
-      }
-      $LOG.debug elems
-      {'sightings' => elems }
-    rescue => err
-      error_response err.to_s
+    if device.account_id
+      device_filter = "devices.account_id = #{device.account_id} AND redeems.device_id = devices.device_id"
+    else
+      device_filter = "redeems.device_id = #{params['device_id']}"
     end
+    sql = "SELECT sightings.device_id, sightings.gps_longitude, sightings.gps_latitude,
+                  MAX(sightings.updated_at) AS max_updated_at,
+                  shares.expire_time,
+                  accounts.name
+           FROM   sightings, devices, shares, redeems, accounts
+           WHERE  #{device_filter} AND
+                  redeems.share_id = shares.id AND
+                  (NOW() < shares.expire_time OR shares.expire_time IS NULL) AND
+                  shares.device_id = sightings.device_id AND
+                  sightings.device_id = devices.device_id AND
+                  devices.account_id = accounts.id AND
+                  ((accounts.email  IS NOT NULL AND accounts.email_verified  IS NOT NULL) OR
+                   (accounts.mobile IS NOT NULL AND accounts.mobile_verified IS NOT NULL))
+           GROUP BY sightings.device_id
+          "
+    $LOG.debug sql
+    elems = []
+    Sighting.find_by_sql(sql).each { |row|
+      elems.push ({ 'name'          => row.name,
+                    'device_id'     => row.device_id,
+                    'gps_longitude' => row.gps_longitude,
+                    'gps_latitude'  => row.gps_latitude,
+                    'sighting_time' => row.max_updated_at,
+                    'expire_time'   => row.expire_time,
+                  })
+    }
+    $LOG.debug elems
+    {'sightings' => elems }
   end
 
   def Protocol.process_request_get_registration (params)
@@ -671,32 +665,27 @@ class Protocol
     # get a list of device_ids that are registered with the same device.email as params['device_id']
     # and create a comma-separate list, suitable for putting in the SQL IN clause
     device = Device.find_by(device_id: params['device_id'])
-    devices = Device.select("device_id").find_by(email: device.email)
-    device_ids = devices.map { |device_row| device_row.device_id }
-    device_ids_str = device_ids.collect {|did| Device.sanitize(did)}.join(',')
+    if device.account_id
+      device_filter = "devices.account_id = #{device.account_id} AND redeems.device_id = devices.device_id"
+      devices_table = ", devices"
+    else
+      device_filter = "redeems.device_id = #{params['device_id']}"
+    end
 
     # get all the shares with those device_ids
     # and a list of the device_id that redeemed the shares
-    sql = "SELECT shares.share_to, shares.share_via, devices.name, shares.expire_time,
+    sql = "SELECT shares.share_to, shares.share_via, shares.expire_time,
                     shares.updated_at, shares.created_at,
                     redeems.id AS redeem_id,
-                    redeems.device_id AS redeem_name,
-                    redeems.created_at AS redeem_time
-             FROM shares
-             LEFT JOIN devices ON shares.device_id = devices.device_id
+                    redeems.created_at AS redeem_time,
+                    accounts.name AS redeem_name
+             FROM accounts #{devices_table}, shares
              LEFT JOIN redeems ON shares.id = redeems.share_id
-             WHERE shares.device_id IN (#{device_ids_str})
+             WHERE  #{device_filter}
             "
     # Find the names associated with the redeemed device_ids
     elems = []
     Share.find_by_sql(sql).each { |row|
-      if (row.redeem_name)
-        # at this point, it is not redeem_name, it's really the device_id
-        device = Device.find_by(device_id: row.redeem_name)
-        # Now it's the redeem name :-)
-        account = Protocol.get_account_from_device (device)
-        row[:redeem_name] = account.name if (account)
-      end
       elems.push (row)
     }
     {'shares' => elems }
