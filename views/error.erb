@@ -16,46 +16,46 @@
 	  href="geo.css" />
   </head>
   <body style="font-family:Helvetica, sans-serif">
-  <div style="color:#981919; font-size:36px; text-align:center">
-  <%= @error %> <a onclick="$('#error_details').toggle()">More details</a>
-  </div>
-  <div id="error_details" style="display:none">
-  <div style="float:left; padding-right:10px">
-  <div style="font-size:24px">
-  Backtrace
-  </div>
-  <table style="table-layout:fixed">
-  <% @backtrace.each do |b| %>
-    <tr>
-      <td>
-	<div>
-	  <%= b[:file_base] %> line: <%= b[:line_num] %> <%= b[:routine] %> 
+    <div style="color:#981919; font-size:36px; text-align:center">
+      <%= @error %> <a onclick="$('#error_details').toggle()">More details</a>
+    </div>
+    <div id="error_details" style="display:none">
+      <div style="float:left; padding-right:10px">
+	<div style="font-size:24px">
+	  Backtrace
 	</div>
-      </td>
-    </tr>
-  <% end %>
-  </table>
-  </div>
-  <div style="float:right">
-  <div style="font-size:24px">
-  Environment
-  </div>
-  <table style="table-layout:fixed; float:right">
-  <% @env.each do |k, v| %>
-    <tr>
-      <td>
-	<%= k %>
-      </td>
-      <td>
-	<div style='width:200px; overflow:hidden'>
-	<%= v %>
+	<table style="table-layout:fixed">
+	  <% @backtrace.each do |b| %>
+	  <tr>
+	    <td>
+	      <div>
+		<%= b[:file_base] %> line: <%= b[:line_num] %> <%= b[:routine] %> 
+	      </div>
+	    </td>
+	  </tr>
+	  <% end %>
+	</table>
+      </div>
+      <div style="float:right">
+	<div style="font-size:24px">
+	  Environment
 	</div>
-      </td>
-    </tr>
-  <% end %>
-  </table>
-  </div>
-  <div style="clear:both">
-  </div>
+	<table style="table-layout:fixed; float:right">
+	  <% @env.each do |k, v| %>
+	  <tr>
+	    <td>
+	      <%= k %>
+	    </td>
+	    <td>
+	      <div style='width:200px; overflow:hidden'>
+		<%= v %>
+	      </div>
+	    </td>
+	  </tr>
+	  <% end %>
+	</table>
+      </div>
+      <div style="clear:both">
+      </div>
   </body>
 </html>
