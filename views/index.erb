@@ -27,9 +27,9 @@
           href="dataTables.css" />
     <script src="dataTables.js"></script>
     <script src="jquery-ui-timepicker-addon.js"></script>
-
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jstimezonedetect/1.0.4/jstz.min.js"></script>
-
+    <script src="/compactmenu.js"></script>
+    <link rel="stylesheet" type="text/css" href="/compactmenu.css" />
   </head>
 
   <body>
@@ -46,12 +46,23 @@
                    class="icon_img"
                    onclick="share_location_popup()">
             </div>
-            <div class="icon_div" class="ui-widget">
-              <img src="images/bookmark.png"
-                   class="icon_img"
-		   id="register_button"
-		   onclick="manage_shares()"
-		   >
+            <div class="icon_div">
+	      <div class="container" style="width:150px;margin-left:-40px;">
+		<div id="menu">
+		  <div class="compactanchor">
+		    <img src="images/mobile-menu-icon.png"
+			 class="icon_img"
+			 >
+		  </div>
+		  <ul>
+		    <li style="text-shadow:none">
+		      <a href="#" onclick="manage_shares()">View Shares</a>
+		      <a href="#" onclick="registration_popup()">Account Settings</a>
+		      <a href="#" onclick="display_support()">Make Us Better</a>
+		    </li>
+		  </ul>
+		</div>
+	      </div>
 	    </div>
             <div style="clear:both"></div>
           </div>
