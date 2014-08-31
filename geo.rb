@@ -178,6 +178,7 @@ class Protocol
     expire_time = Protocol.format_expire_time(share, params)
     account = Protocol.get_account_from_device (device)
     name = account ? account.name : 'Geopeers'
+    message = params['share_message']
     if (share.share_via == 'sms')
       template_file = 'views/share_text_msg.erb'
     else

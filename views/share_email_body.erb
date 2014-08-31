@@ -23,6 +23,14 @@
 	  </tbody>
 	</table>
 
+	<% if message %>
+	<div style="padding-top: 12px">
+	  A message from <%= name %>:
+	  <div style="margin:5px">
+	    <%= message %>
+	  </div>
+	</div>
+	<% end %>
 	<div style="padding-top: 12px">
 	  You can click on 
 	  <span style="font-size: 24px; color: #333;padding-top: 12px;">
