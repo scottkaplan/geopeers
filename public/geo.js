@@ -680,10 +680,28 @@ function send_registration () {
     ajax_request (params, registration_callback, geo_ajax_fail_callback);
 }
 
+function display_registration_popup () {
+    $('#new_account_div').hide();
+    $('#registration_form #name').val(registration.reg_info.name);
+    $('#registration_form #email').val(registration.reg_info.email);
+    $('#registration_form #mobile').val(registration.reg_info.mobile);
+    $('#registration_form #registration_edit').val(1);
+    $('#registration_popup').popup('open');
+    return;
+}
+
+function display_registration () {
+    // This is an ugly hack
+    // so that we popup the registration screen after the menu is closed
+    setTimeout(display_registration_popup, 1 * 1000);
+    return;
+}
+
 var registration = {
     // registration.init() launches request to get registration status
     // manages the callback and the status variable
     status : null,
+    reg_info : null,
     init: function () {
 	if (registration.status == 'REGISTERED' || registration.status == 'CHECKING')
 	    return;
@@ -700,9 +718,10 @@ var registration = {
 	}
     },
     callback: function (data, textStatus, jqXHR) {
-	if (data && data.device_id) {
-	    if (data.name && data.email) {
+	if (data) {
+	    if (data.id) {
 		registration.status = 'REGISTERED';
+		registration.reg_info = data;
 	    } else {
 		registration.status = 'NOT REGISTERED';
 	    }
@@ -710,6 +729,12 @@ var registration = {
 	    registration.status = null;
 	}
     },
+}
+
+function display_support () {
+    alert ("display_support");
+    // $('#registration_popup').popup('open');
+    return;
 }
 
 function getParameterByName(name) {
@@ -786,17 +811,6 @@ function get_client_type () {
 	return ('ios');
     } else {
 	return ('web');
-    }
-}
-
-function download_native_app_KILLME () {
-    var client_type = get_client_type ();
-    if (client_type == 'android') {
-	window.location = "https://eng.geopeers.com/bin/geopeers.apk";
-    } else if (client_type == 'ios') {
-	window.location = "https://eng.geopeers.com/bin/ios/geopeers.html";
-    } else {
-	$('#native_prompt').text('We only have Android and iOS native apps so far');
     }
 }
 
