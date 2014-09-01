@@ -11,17 +11,18 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20140825004552) do
+ActiveRecord::Schema.define(version: 20140901045452) do
 
   create_table "accounts", force: true do |t|
     t.string   "name"
     t.string   "email"
     t.string   "mobile"
-    t.integer  "email_verified"
-    t.integer  "mobile_verified"
     t.datetime "created_at"
     t.datetime "updated_at"
   end
+
+  add_index "accounts", ["email"], name: "email", unique: true, using: :btree
+  add_index "accounts", ["mobile"], name: "mobile", unique: true, using: :btree
 
   create_table "auths", force: true do |t|
     t.string   "account_id"
@@ -31,6 +32,7 @@ ActiveRecord::Schema.define(version: 20140825004552) do
     t.datetime "auth_time"
     t.datetime "created_at"
     t.datetime "updated_at"
+    t.string   "auth_key"
   end
 
   add_index "auths", ["cred"], name: "cred", using: :btree
