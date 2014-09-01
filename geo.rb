@@ -356,15 +356,22 @@ class Protocol
   end
 
   def Protocol.process_request_get_registration (params)
-    return (error_response "No device ID") unless params.has_key?('device_id')
-      
-    device = Device.find_by(device_id: params['device_id'])
-    if defined? device
-      device
+    if params.has_key?('device_id')
+      device = Device.find_by(device_id: params['device_id'])
+      if defined? device
+        if device.account_id
+          Account.find(device.account_id)
+        else
+          {}
+        end
+      else
+        # This shouldn't happen.  If there is a device_id, it should be in the DB
+        log_dos ("No record for "+params['device_id'])
+        error_response "Unknown device ID"
+      end
     else
-      # This shouldn't happen.  If there is a device_id, it should be in the DB
-      log_dos ("No record for "+params['device_id'])
-      error_response "Unknown device ID"
+      log_dos ("No device_id")
+      return (error_response "No device ID")
     end
   end
 
@@ -481,64 +488,60 @@ class Protocol
     return account, user_msg
   end
 
-  def Protocol.process_request_register_device (params)
-    # register name/email/mobile with an account
-    # send the verification
-    #
-    err = Protocol.validate_register_params (params)
-    return (error_response err) if (err)
+  def Protocol.process_new_account (params)
+    # make sure account (email and/or mobile) doesn't already exist
+    account = Protocol.get_existing_account(params, 'mobile')
+    user_msgs.push (params['mobile']+" is already registered") if account
+    account = Protocol.get_existing_account(params, 'email')
+    user_msgs.push (params['email']+" is already registered") if account
+    return error_response user_msgs.join('<br>') unless (user_msgs.empty?)
 
-    device = Device.find_by(device_id: params['device_id'])
-    if device.nil?
-      # This shouldn't happen
-      # The device_id should have been INSERTed when it was created and assigned
-      # INSERT it here and log the error
-      log_error ("No record for "+params['device_id'])
-      device = Device.new(device_id: params['device_id'],
-                          user_agent: params['user_agent'])
-    end
+    # no errors, create the account
+    account = Account.new(name:   params['name'],
+                          email:  params['email'],
+                          mobile: params['mobile'])
+    account.save
+    params['account_id'] = account.id
+    device[:account_id] = account.id
+    device.save
+    err = Protocol.send_verifications (params)
+    return user_msgs, err
+  end
+
+  def Protocol.process_existing_account (params)
+    # associate device_id with an existing account
+    # since we have email and/or mobile, this requires a few twists
 
     user_msgs = []
+    account_mobile, user_msg = find_account(params, 'mobile')
+    user_msgs.push (user_msg) if user_msg
+    account_email, user_msg = find_account(params, 'email')
+    user_msgs.push (user_msg) if user_msg
+    # Don't use user_msgs as status
+    # use accounts to determine if there is an existing account
+    if (! account_mobile && ! account_email)
+      return error_response user_msgs.join ('<br>')
+    end
+    if (account_mobile && account_email && (account_mobile.id != account_email.id))
+      # This is a problem, the email points to one account and the mobile to another
+      return error_response "The email and mobile are not associated with the same account"
+    end
+    # We can finally get to one account
+    account = account_mobile ? account_mobile : account_email
+    params['account_id'] = account.id
+    device[:account_id] = account.id
+    device.save
+
+    user_msgs
+  end
+
+  def Protocol.process_registration (params)
     if (params['new_account'] == 'yes')
-      # make sure account (email and/or mobile) doesn't already exist
-      account = Protocol.get_existing_account(params, 'mobile')
-      user_msgs.push (params['mobile']+" is already registered") if account
-      account = Protocol.get_existing_account(params, 'email')
-      user_msgs.push (params['email']+" is already registered") if account
-      return error_response user_msgs.join('<br>') unless (user_msgs.empty?)
-
-      # no errors, create the account
-      account = Account.new(name:   params['name'],
-                            email:  params['email'],
-                            mobile: params['mobile'])
-      account.save
-      params['account_id'] = account.id
-      device[:account_id] = account.id
-      device.save
-      err_msg = Protocol.send_verifications (params)
-      return error_response err_msg if (err_msg)
+      user_msgs, err = Protocol.process_new_account (params)
+      return error_response err if (err)
     else
-      # associate device_id with an existing account
-      # since we have email and/or mobile, this requires a few twists
-
-      account_mobile, user_msg = find_account(params, 'mobile')
-      user_msgs.push (user_msg) if user_msg
-      account_email, user_msg = find_account(params, 'email')
-      user_msgs.push (user_msg) if user_msg
-      # Don't use user_msgs as status
-      # use accounts to determine if there is an existing account
-      if (! account_mobile && ! account_email)
-        return error_response user_msgs.join ('<br>')
-      end
-      if (account_mobile && account_email && (account_mobile.id != account_email.id))
-        # This is a problem, the email points to one account and the mobile to another
-        return error_response "The email and mobile are not associated with the same account"
-      end
-      # We can finally get to one account
-      account = account_mobile ? account_mobile : account_email
-      params['account_id'] = account.id
-      device[:account_id] = account.id
-      device.save
+      user_msgs, err = Protocol.process_existing_account (params)
+      return error_response err if (err)
     end
 
     # If we get to here there is an account which may or may not be verified
@@ -556,6 +559,53 @@ class Protocol
         user_msgs.push "There is no native app available for your device"
         {message: user_msgs.join('<br>'), style: {color:"red"}}
       end
+    end
+  end
+
+  def Protocol.manage_registration (params, device)
+    device = Device.find_by(device_id: params['device_id'])
+    msgs = []
+    if device.account_id
+      account = Account.find(device.account_id)
+      if account
+        if (params['name'] != account.name)
+          account.name = params['name']
+          account.save
+          msgs.push ("Account name changed to #{account.name}")
+        end
+        ['mobile','email'].each do | type |
+          if (params[type] != account[type])
+            err = send_verification_by_type(params, type)
+            if err
+              msgs.push (err)
+            else
+              msgs.push ("A verification was sent to #{params[type]}")
+            end
+          end
+        end
+      else
+        log_error "No account for #{device.account_id}"
+        msgs.push "No account for #{device.account_id}"
+      end
+    else
+      log_error "No account"
+      msgs.push "No account"
+    end
+  end
+
+  def Protocol.process_request_register_device (params)
+    # register name/email/mobile with an account
+    # send the verification
+    #
+    err = Protocol.validate_register_params (params)
+    return (error_response err) if (err)
+
+    if params['registration_edit']
+      # changes to an existing account
+      Protocol.manage_registration (params)
+    else
+      # standard login (new or existing)
+      Protocol.process_registration (params)
     end
   end
 
