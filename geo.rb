@@ -106,7 +106,7 @@ end
 DOWNLOAD_URLS = {
   ios:     'https://www.geopeers.com/bin/ios/index.html',
   android: 'https://www.geopeers.com/bin/android/index.html',
-  web:     'https://www.geopeers.com/bin/android/index.html',
+#  web:     'https://www.geopeers.com/bin/android/index.html',
 }
 
 def get_client_type (user_agent)
@@ -317,13 +317,20 @@ class Protocol
     # params: device_id
     # returns: [{name_1, latest gps_*_1, sighting_time_1},
     #           {name_2, latest gps_*_2, sighting_time_2}, ...]
-    return (error_response "No device ID") unless params.has_key?('device_id')
+    if ! params.has_key?('device_id')
+      log_dos "No device ID"
+      return (error_response "No device ID")
+    end
     device = Device.find_by(device_id: params['device_id'])
+    if ! device
+      log_dos "No device for #{params['device_id']}"
+      return (error_response "No device for #{params['device_id']}")
+    end
 
     if device.account_id
       device_filter = "devices.account_id = #{device.account_id} AND redeems.device_id = devices.device_id"
     else
-      device_filter = "redeems.device_id = #{params['device_id']}"
+      device_filter = "redeems.device_id = '#{params['device_id']}'"
     end
     sql = "SELECT sightings.device_id, sightings.gps_longitude, sightings.gps_latitude,
                   MAX(sightings.updated_at) AS max_updated_at,
@@ -336,8 +343,7 @@ class Protocol
                   shares.device_id = sightings.device_id AND
                   sightings.device_id = devices.device_id AND
                   devices.account_id = accounts.id AND
-                  ((accounts.email  IS NOT NULL AND accounts.email_verified  IS NOT NULL) OR
-                   (accounts.mobile IS NOT NULL AND accounts.mobile_verified IS NOT NULL))
+                  (accounts.email IS NOT NULL OR accounts.mobile IS NOT NULL)
            GROUP BY sightings.device_id
           "
     $LOG.debug sql
@@ -406,7 +412,7 @@ class Protocol
     $LOG.debug account
     if (params[type])
       # Don't send if already verified
-      return if account[type+'_verified']
+      return if account[type]
 
       auth = Auth.find_by(account_id: account.id)
       $LOG.debug auth
@@ -417,6 +423,7 @@ class Protocol
         params['cred'] = SecureRandom.urlsafe_base64(10)
         auth = Auth.new(account_id: params['account_id'],
                         auth_type:  type,
+                        auth_key:   params[type],
                         cred:       params['cred'],
                         issue_time: Time.now,
                         )
@@ -450,7 +457,7 @@ class Protocol
   def Protocol.get_verified_account (params, type)
     account = Protocol.get_existing_account(params, type)
     if account
-      if account[type+'_verified']
+      if account[type]
         return account
       else
         return [account, "NOT_VERIFIED"]
@@ -469,8 +476,7 @@ class Protocol
     account = Protocol.get_existing_account(params, type)
     $LOG.debug account
     if account
-      verified_field = "#{type}_verified"
-      if ! account[verified_field]
+      if ! account[type]
         # not verified, resend the verification as a reminder
         # ignore the error, if it failed, the system error was already logged
         params['account_id'] = account.id
@@ -478,7 +484,7 @@ class Protocol
         if err_msg
           log_error (err_msg)
         else
-          user_msg = params[type]+" has not been verified yet.  The verification has been re-sent" if (! err_msg)
+          user_msg = params[type]+" has not been verified yet.  The verification has been re-sent"
         end
       end
     else
@@ -489,23 +495,33 @@ class Protocol
   end
 
   def Protocol.process_new_account (params)
+    user_msgs = []
+
+    # Are these credentials already verified
+    device = Device.find_by(device_id: params['device_id'])
+    if (! device)
+      log_dos ("No device")
+      return (["There was a problem with your request."])
+    end
+
+    if ! device.account_id
+      # create the account and bind device_id to it
+      account = Account.new(name: params['name'])
+      account.save
+      device[:account_id] = account.id
+      device.save
+    end
+
     # make sure account (email and/or mobile) doesn't already exist
     account = Protocol.get_existing_account(params, 'mobile')
-    user_msgs.push (params['mobile']+" is already registered") if account
+    user_msgs.push (params['mobile']+" is already registered") if account && account.id != device.account_id
     account = Protocol.get_existing_account(params, 'email')
-    user_msgs.push (params['email']+" is already registered") if account
-    return error_response user_msgs.join('<br>') unless (user_msgs.empty?)
+    user_msgs.push (params['email']+" is already registered") if account && account.id != device.account_id
+    return user_msgs unless (user_msgs.empty?)
 
-    # no errors, create the account
-    account = Account.new(name:   params['name'],
-                          email:  params['email'],
-                          mobile: params['mobile'])
-    account.save
-    params['account_id'] = account.id
-    device[:account_id] = account.id
-    device.save
+    params['account_id'] = device.account_id
     err = Protocol.send_verifications (params)
-    return user_msgs, err
+    return err, user_msgs
   end
 
   def Protocol.process_existing_account (params)
@@ -529,18 +545,20 @@ class Protocol
     # We can finally get to one account
     account = account_mobile ? account_mobile : account_email
     params['account_id'] = account.id
+    device = Device.find_by(device_id: params['device_id'])
     device[:account_id] = account.id
     device.save
 
-    user_msgs
+    return nil, user_msgs
   end
 
   def Protocol.process_registration (params)
+    user_msgs = []
     if (params['new_account'] == 'yes')
-      user_msgs, err = Protocol.process_new_account (params)
+      err, user_msgs = Protocol.process_new_account (params)
       return error_response err if (err)
     else
-      user_msgs, err = Protocol.process_existing_account (params)
+      err, user_msgs = Protocol.process_existing_account (params)
       return error_response err if (err)
     end
 
@@ -562,7 +580,7 @@ class Protocol
     end
   end
 
-  def Protocol.manage_registration (params, device)
+  def Protocol.manage_registration (params)
     device = Device.find_by(device_id: params['device_id'])
     msgs = []
     if device.account_id
@@ -575,6 +593,7 @@ class Protocol
         end
         ['mobile','email'].each do | type |
           if (params[type] != account[type])
+            params['account_id'] = account.id
             err = send_verification_by_type(params, type)
             if err
               msgs.push (err)
@@ -590,6 +609,11 @@ class Protocol
     else
       log_error "No account"
       msgs.push "No account"
+    end
+    if msgs.empty?
+      {message: 'The changes have been made', style: {color:"green"}}
+    else
+      {message: msgs.join('<br>'), style: {color:"red"}}
     end
   end
 
@@ -699,7 +723,7 @@ class Protocol
       auth.auth_time = Time.now
       auth.save
       account = Account.find(auth.account_id)
-      account[auth.auth_type+'_verified'] = true
+      account[auth.auth_type] = auth.auth_key
       account.save
       $LOG.debug account
       msg = account.name+" has been registered"
