@@ -6,7 +6,7 @@ var MARKERS = {};
 var DT;
 var DOWNLOAD_URLS = { ios:     'https://www.geopeers.com/bin/ios/index.html',
 		      android: 'https://www.geopeers.com/bin/android/index.html',
-		      web:     'https://www.geopeers.com/bin/android/index.html',
+		      // web:     'https://www.geopeers.com/bin/android/index.html',
 }
 
 var device_id_mgr = {
@@ -309,15 +309,17 @@ function update_markers (data, textStatus, jqXHR) {
 	update_marker_view (MARKERS[device_id]);
     }
 
-    var bounds = new google.maps.LatLngBounds ();
-    for (var device_id in MARKERS) {
-	var sighting = MARKERS[device_id].sighting;
-	var sighting_location = new google.maps.LatLng(sighting.gps_latitude,
-						       sighting.gps_longitude);
-	bounds.extend (sighting_location);
-    }
     var map = $('#map_canvas').gmap('get','map');
-    map.fitBounds (bounds);
+    if (! jQuery.isEmptyObject(MARKERS)) {
+	var bounds = new google.maps.LatLngBounds ();
+	for (var device_id in MARKERS) {
+	    var sighting = MARKERS[device_id].sighting;
+	    var sighting_location = new google.maps.LatLng(sighting.gps_latitude,
+							   sighting.gps_longitude);
+	    bounds.extend (sighting_location);
+	}
+	map.fitBounds (bounds);
+    }
     var zoom = map.getZoom();
     // if we only have one marker, fitBounds zooms to maximum.
     // Back off to max_zoom
@@ -404,8 +406,8 @@ function share_location_popup () {
 	    $('#registration_popup').popup('open');
 	}
     } else {
-	$('#share_location_popup').popup('open');
-	// $('#registration_popup').popup('open');
+	// $('#share_location_popup').popup('open');
+	$('#registration_popup').popup('open');
     }
     return;
 }
@@ -594,7 +596,7 @@ function display_register_popup () {
 }
 
 function manage_shares () {
-    if (1 || device_id_mgr.phonegap) {
+    if (device_id_mgr.phonegap) {
 	var device_id = device_id_mgr.get();
 	if (! device_id)
 	    return
@@ -616,17 +618,6 @@ function run_position_function (post_func) {
 						 function (err)      {post_func();
 						                      display_mgr.display_err(err)},
                                                  {timeout:3000, enableHighAccuracy: true});
-    }
-    return;
-}
-
-function registration_callback (data, textStatus, jqXHR) {
-    $('#registration_form_spinner').hide();
-    if (data) {
-	registration.status = 'REGISTERED';
-	display_in_div (data.message, 'registration_form_info', data.style);
-    } else {
-	display_in_div ('No data', 'registration_form_info', {color:'red'});
     }
     return;
 }
@@ -670,22 +661,17 @@ function validate_registration_form () {
     return true;
 }
 
-function send_registration () {
-    $('#registration_form_info').html('');
-    if (! validate_registration_form()) {
-	return;
-    }
-    var params = $('#registration_form').serialize();
-    $('#registration_form_spinner').show();
-    ajax_request (params, registration_callback, geo_ajax_fail_callback);
-}
-
-function display_registration_popup () {
+function update_registration_popup () {
     $('#new_account_div').hide();
     $('#registration_form #name').val(registration.reg_info.name);
     $('#registration_form #email').val(registration.reg_info.email);
     $('#registration_form #mobile').val(registration.reg_info.mobile);
     $('#registration_form #registration_edit').val(1);
+    return;
+}
+
+function display_registration_popup () {
+    update_registration_popup();
     $('#registration_popup').popup('open');
     return;
 }
@@ -709,7 +695,7 @@ var registration = {
 	if (device_id) {
 	    var request_parms = { method: 'get_registration',
 				  device_id: device_id};
-	    ajax_request (request_parms, registration.callback, geo_ajax_fail_callback);
+	    ajax_request (request_parms, registration.get_callback, geo_ajax_fail_callback);
 	    // while the request/response is in the air, we're in an indeterminant state
 	    // Anyone who cares about the registration status should assume that the popup 
 	    // has been filled out and is in the air.
@@ -717,17 +703,40 @@ var registration = {
 	    registration.status = 'CHECKING';
 	}
     },
-    callback: function (data, textStatus, jqXHR) {
+    get_callback: function (data, textStatus, jqXHR) {
 	if (data) {
 	    if (data.id) {
 		registration.status = 'REGISTERED';
 		registration.reg_info = data;
+		update_registration_popup();
+		var client_type = get_client_type ();
+		if (client_type == 'web')
+		    $('#flying_pin').hide();
 	    } else {
 		registration.status = 'NOT REGISTERED';
 	    }
 	} else {
 	    registration.status = null;
 	}
+    },
+    send: function () {
+	$('#registration_form_info').html('');
+	if (! validate_registration_form()) {
+	    return;
+	}
+	var params = $('#registration_form').serialize();
+	$('#registration_form_spinner').show();
+	ajax_request (params, registration.send_callback, geo_ajax_fail_callback);
+    },
+    send_callback: function (data, textStatus, jqXHR) {
+	$('#registration_form_spinner').hide();
+	if (data) {
+	    registration.status = 'REGISTERED';
+	    display_in_div (data.message, 'registration_form_info', data.style);
+	} else {
+	    display_in_div ('No data', 'registration_form_info', {color:'red'});
+	}
+	return;
     },
 }
 
@@ -835,25 +844,6 @@ function download_app () {
 function init () {
     // This is called after we are .ready
 
-    $(function() {
-	    $("#menu").menu({
-		    theme: 'theme-theme3',
-			transition: 'fade-in-falling-down'
-			}); 
-      });
-    /* 
-       transition: 'inside-slide-fade-left'
-       transition: 'inside-slide-fade-left-out'
-       transition: 'fade-out-scale-down',
-       transition: 'fade-in-scale-up'
-       transition: 'fade-out-fall-down'
-       transition: 'fade-in-rise-up'
-       transition: 'fade-out-rising-up'
-       transition: 'fade-in-falling-down'
-       transition: 'fade-in-rising-up'
-       transition: 'fade-out-fall-down2'
-    */
-
     if (window.cordova) {
 	// Wait for device API libraries to load
 	document.addEventListener("deviceready", phonegap_init, false);
@@ -876,11 +866,29 @@ function init () {
     }
 
     heartbeat();
-    update_current_pos();
 
     // This is a bad hack.
     // If the map isn't ready when the last display_message fired, the reposition will be wrong
     setTimeout(function(){update_map_canvas_pos()}, 500);
+
+    $(function() {
+	    $("#menu").menu({
+		    theme: 'theme-theme3',
+			transition: 'fade-in-falling-down'
+			}); 
+      });
+    /* 
+       transition: 'inside-slide-fade-left'
+       transition: 'inside-slide-fade-left-out'
+       transition: 'fade-out-scale-down',
+       transition: 'fade-in-scale-up'
+       transition: 'fade-out-fall-down'
+       transition: 'fade-in-rise-up'
+       transition: 'fade-out-rising-up'
+       transition: 'fade-in-falling-down'
+       transition: 'fade-in-rising-up'
+       transition: 'fade-out-fall-down2'
+    */
 
     return;
 }
