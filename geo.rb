@@ -434,17 +434,24 @@ class Protocol
         log_error (err)
         verification_type = (type == 'email') ? 'email' : 'text msg'
         return ("There was a problem sending your verification #{verification_type}.  Support has been contacted")
+      else
+        user_msg = params[type]+" has not been verified yet.  The verification has been re-sent"
+        return nil, user_msg
       end
     end
   end
 
   def Protocol.send_verifications (params)
     errs = []
+    user_msgs = []
     ['mobile','email'].each do | type |
-      err = send_verification_by_type(params, type)
+      err, user_msg = send_verification_by_type(params, type)
       errs.push err if err
+      user_msgs.push user_msg if user_msg
     end
-    return errs.join('<br>') if ! errs.empty?
+    # errors are concatenated, user messages are returned as an array
+    err = errs.empty? ? nil : errs.join('<br>')
+    return err, user_msgs
   end
 
   def Protocol.get_existing_account (params, type)
@@ -520,7 +527,7 @@ class Protocol
     return user_msgs unless (user_msgs.empty?)
 
     params['account_id'] = device.account_id
-    err = Protocol.send_verifications (params)
+    err, user_msgs = Protocol.send_verifications (params)
     return err, user_msgs
   end
 
