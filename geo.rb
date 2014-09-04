@@ -364,16 +364,16 @@ class Protocol
   def Protocol.process_request_get_registration (params)
     if params.has_key?('device_id')
       device = Device.find_by(device_id: params['device_id'])
-      if defined? device
+      if device.nil?
+        # This shouldn't happen.  If there is a device_id, it should be in the DB
+        log_dos ("No record for "+params['device_id'])
+        error_response "Unknown device ID"
+      else
         if device.account_id
           Account.find(device.account_id)
         else
           {}
         end
-      else
-        # This shouldn't happen.  If there is a device_id, it should be in the DB
-        log_dos ("No record for "+params['device_id'])
-        error_response "Unknown device ID"
       end
     else
       log_dos ("No device_id")
