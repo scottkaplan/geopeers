@@ -981,31 +981,6 @@ function start () {
 
 start()
 
-function init_menu () {
-    var menu = [
-		{
-		    name: 'View Shares',
-                    img:  null,
-		    fun:  function () {manage_shares()},
-		},
-		{
-		    name: 'Account Settings',
-                    img:  null,
-		    fun:  function () {display_registration()},
-		},
-		{
-		    name: 'Make Us Better',
-                    img:  null,
-		    fun:  function () {display_support()},
-		},
-		];
-    $('.testButton').contextMenu(menu);
-    return;
-}
-$(document).ready(function(e,data){
-init_menu();
-})
-
 var bgGeo;
 
 // This callback will be executed every time a geolocation is recorded in the background.
