@@ -57,7 +57,7 @@ def parse_backtrace (backtrace)
   ar = Array.new
   backtrace.each { |x|
     /(?<path>.*?):(?<line_num>\d+):in `(?<routine>.*)'/ =~ x
-    file_base = File.basename(path);
+    file_base = File.basename(path)
     ar.push({file_base: file_base, line_num: line_num, routine: routine})
   }
   ar
@@ -210,13 +210,13 @@ class Protocol
       Protocol.send_email(msg, 'sherpa@geopeers.com', 'Geopeers Helper', params[type], "Please verify your email with Geopeers")
     elsif (type == 'mobile')
       msg = "Press this #{url} to verify your Geopeers account"
-      sms_obj = Sms.new;
+      sms_obj = Sms.new
       sms_obj.send(params[type], msg)
     end
   end
 
   def Protocol.send_share_sms (share, params)
-    sms_obj = Sms.new;
+    sms_obj = Sms.new
     msg = Protocol.create_share_msg(share, params)
     err = sms_obj.send(share.share_to, msg)
     if (err)
@@ -718,6 +718,10 @@ class Protocol
   end
 
   def Protocol.process_request_verify (params)
+    # an auth was created to update a value in an account
+    # In this request, we get a cred
+    # If it corresponds to an auth,
+    # then update the account with the info in the auth
     auth = Auth.find_by(cred: params["cred"])
     $LOG.debug auth
     device = Device.find_by(device_id: params['device_id'])
@@ -741,6 +745,62 @@ class Protocol
     redirect_url += "&download_app=1&device_id=#{device.device_id}"
     redirect_url += "&message_type=#{message_type}" if message_type
     return {:redirect_url => redirect_url}
+  end
+  
+  def Protocol.process_request_device_id_bind (params)
+    # A native app redirected to:
+    #   /api?method=device_id_bind&native_app_device_id=<native app device_id>"
+    # The webview opens this URL, so the webapp device_id is in the cookie
+    native_app_device = Device.find_by(device_id: params['native_app_device_id'])
+    web_app_device = Device.find_by(device_id: params['device_id'])
+    if native_app_device.account_id
+      if web_app_device.account_id
+        if native_app_device.account_id == web_app_device.account_id
+          $LOG.debug "native/web app account_id match: "+native_app_device.account_id
+          return
+        else
+          # This is not good, the webapp and native app got different accounts
+          log_error ("Account conflict:"+native_app_device.inspect+","+web_app_device.inspect)
+        end
+      else
+        # Native app was installed on a device where the web app was never run
+        # Associate the web app with this native app
+        # so the native app gets any shares that wind up in the web app
+        $LOG.debug "setting web app to account_id "+native_app_device.account_id
+        web_app_device.account_id = native_app_device.account_id
+        web_app_device.save
+      end
+    else
+      if web_app_device.account_id
+        # This is the common case
+        # An account was created in the web app, probably when the native app was downloaded
+        # The native app was installed on the same device
+        # When the native app started,
+        # it redirected to the webview where the registration/download happened
+        $LOG.debug "setting native app to account_id "+web_app_device.account_id
+        native_app_device.account_id = web_app_device.account_id
+        native_app_device.save
+      else
+        # This shouldn't happen, there should be an account somewhere
+        # Create the account and assign to both web and native app
+        # But this means there is no user-generated name
+        # It's better to generate one than leave it empty
+        name = "anon_"+SecureRandom.hex(6)
+        account = Account.new(name: name)
+        account.save
+        $LOG.debug "created new account "+account.id+" with name "+account.name
+        native_app_device.account_id = account.id
+        native_app_device.save
+        web_app_device.account_id = account.id
+        web_app_device.save
+      end
+    end
+    # redirect back to the native app with the device_ids
+    native_app_deeplink = "geopeers://api?method=device_id_bind&native_app_device_id="
+    native_app_deeplink += native_app_device.device_id
+    native_app_deeplink += "&web_app_device_id="
+    native_app_deeplink += web_app_device.device_id
+    {redirect_url: native_app_deeplink}
   end
   
   def Protocol.process_request_get_shares (params)
