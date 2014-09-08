@@ -98,10 +98,16 @@ body {
 }
 
 .popup_frame {
+    -moz-border-radius:10px;
+    -webkit-border-radius:10px;
+    border-radius:10px;
+    border: 1px solid #3eb1dd;
+    background-color: #d2e9ff;
     margin: 10px;
+    overflow:hidden;
 }
 
-.popup_wrapper {
+.popup_header {
     background-color:#3eb1dd;
     color:#404040;
     padding: 10px 10px 15px 10px;
@@ -111,13 +117,13 @@ body {
 }
 
 .popup_content {
-    padding-top:5px;
     background-color:#d2e9ff;
+    margin: 5px;
 }
 
 .popup_close_x {
     position:absolute;
-    right:16px;
+    right:24px;
     top:16px;
 }
 
@@ -154,6 +160,11 @@ body {
 .click-nav {
     margin-left: 150px;
 }
+.click-nav .js {
+    margin-top: 0px;
+    margin-bottom: 0px;
+}
+
 /* Fallbacks */
 .click-nav .no-js ul {
 	display:none;
