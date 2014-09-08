@@ -1,14 +1,144 @@
 "use strict"
 
-// MARKERS = {device_id_1: {sighting: sighting_1, marker: marker_1, label: label_1}, 
-//            device_id_2: {sighting: sighting_2, marker: marker_2, label: label_2}, ...
-//           }
-var MARKERS = {};
-var DT;
-var DOWNLOAD_URLS = { ios:     'https://www.geopeers.com/bin/ios/index.html',
-		      android: 'https://www.geopeers.com/bin/android/index.html',
-		      // web:     'https://www.geopeers.com/bin/android/index.html',
-};
+//
+// Utils
+//
+function get_parms (url) {
+    var parm_str = url.match (/^geopeers:\/\/api\?(.*)/);
+    if (! parm_str) {
+	return;
+    }
+    var parm_strs = parm_str.split('&');
+    var parms = {};
+    for (var i=0; i<parm_strs.length; i++) {
+	var key_val = parm_strs[i].split('=');
+	parms[key_val[0]] = key_val[1];
+    }
+    console.log (parms);
+    return (parms);
+}
+
+function is_phonegap () {
+    return (window.location.href.match (/^file:/));
+}
+
+function update_map_canvas_pos () {
+    var height = $('#geo_info').height();
+    var header_title_height = height + 60;
+    var content_height = height + 80;
+    $('#header_title').css('height', header_title_height+'px');
+    $('#content').css('top', content_height+'px');
+    console.log ("header_title_height="+header_title_height+", content_height="+content_height);
+    return;
+}
+
+function display_message (message, css_class) {
+    if (! message) {
+	return;
+    }
+    var msg_id = md5(message);
+    if ($('#'+msg_id).length) {
+	// we already got this message, just make sure it is visible
+	$('#'+msg_id).show();
+    } else {
+	// create new divs - message and close button
+	// append to geo_info
+	var onclick_cmd = "$('#"+msg_id+"').hide(); update_map_canvas_pos()";
+	var x_div = $('<div></div>')
+	    .attr('onclick', onclick_cmd)
+	    .css('position','relative')
+	    .css('right','16px')
+	    .css('top','40px')
+	    .css('text-align','right');
+	x_div.append ('<img src="https://eng.geopeers.com/images/x_black.png">');
+	var msg_div = $('<div></div>')
+	    .html(message)
+	    .addClass(css_class);
+	var wrapper_div = $('<div></div>').attr('id',msg_id);
+	wrapper_div.append(x_div);
+	wrapper_div.append(msg_div);
+	$('#geo_info').append(wrapper_div);
+    }
+    update_map_canvas_pos();
+}
+
+function display_in_div (msg, div_id, style) {
+    if (! div_id) {
+	return;
+    }
+    if (typeof msg === 'object') {
+	msg = JSON.stringify (msg);
+    }
+    $('#'+div_id).html(msg);
+    if (style) {
+	$('#'+div_id).css(style);
+    }
+    return;
+}
+
+function ajax_request (request_parms, success_callback, failure_callback) {
+    // phonegap runs from https://geopeers.com
+    // we now allow xdomain from that URL
+    var url = "https://eng.geopeers.com/api";
+    $.ajax({type:  "POST",
+	    async: true,
+	    url:   url,
+	    data:  request_parms,
+	  })
+	.done(success_callback)
+	.fail(failure_callback);
+    return;
+}
+
+function geo_ajax_fail_callback (data, textStatus, jqXHR) {
+    var error_html;
+    if (typeof (data.error) === 'string') {
+	error_html = data.error_html ? data.error_html : data.error;
+    } else if (data.responseJSON) {
+	error_html = data.responseJSON.error_html ? data.responseJSON.error_html : data.responseJSON.error;
+    }
+    display_message (error_html, 'message_error');
+    $('#registration_form_spinner').hide();
+    $('#share_location_form_spinner').hide();
+    return;
+}
+
+function getParameterByName(name) {
+    name = name.replace(/[\[]/, "\\[").replace(/[\]]/, "\\]");
+    var regex = new RegExp("[\\?&]" + name + "=([^&#]*)"),
+	results = regex.exec(location.search);
+    return results == null ? "" : decodeURIComponent(results[1].replace(/\+/g, " "));
+}
+
+function run_position_function (post_func) {
+    // post_func should be prepared to be called with 0 (gps failed) or 1 (position) parameter
+    if(navigator.geolocation) {
+	navigator.geolocation.getCurrentPosition(function (position) {post_func(position);
+		                                                      display_mgr.display_ok(position)},
+						 function (err)      {post_func();
+						                      display_mgr.display_err(err)},
+                                                 {timeout:3000, enableHighAccuracy: true});
+    }
+    return;
+}
+
+function update_current_pos () {
+    run_position_function (function(position) {
+	    if (! position) {
+		return;
+	    }
+	    $('#map_canvas').gmap('find', 'markers',
+				  { 'property': 'marker_id', 'value': 'my_pos' },
+				  function(marker, found) {
+				      if (found) {
+					  var my_pos = new google.maps.LatLng(position.coords.latitude,
+									      position.coords.longitude)
+					  marker.setPosition(my_pos);
+				      }
+				  });
+	});
+}
+
 
 var device_id_mgr = {
     device_id: null,
@@ -72,121 +202,6 @@ var db = {
     },
 };
 
-function device_id_bind_phase_1 () {
-    // implements the first half of a 2 part handshake
-    if (device_id_mgr.phonegap) {
-	// This must be initiated by the native_app
-	// First, redirect to the web app (webview) telling the webview what our device_id is
-	var url = "http://eng.geopeers.com/api?method=device_id_bind&my_device_id=";
-	url += device_id_mgr.device_id;
-	window.location = url;
-	// While we don't get back to here, we do get back
-	// The webview will redirect back to a deeplink
-	// which will be handled in handleOpenURL
-    }
-}
-
-function device_id_bind_phase_2(parms) {
-    // this is the 2nd part of a handshake between the native app (running this routine) and
-    // the webapp which called the native app via a deeplink
-
-    // if we got this far through the handshake, assume we're good and don't do it again
-    db.set_global ('device_id_bind_complete', 1);
-
-    if (parms['device_id'] != parms['native_app_device_id']) {
-	// this is not good
-    }
-
-    // Tell the server we got the handshake
-    // don't worry about the callback
-    parms['phase'] = 3;
-    ajax_request (parms);
-    return;
-}
-
-function get_parms (url) {
-    var parm_str = url.match (/^geopeers:\/\/api\?(.*)/);
-    if (! parm_str) {
-	return;
-    }
-    var parm_strs = parm_str.split('&');
-    var parms = {};
-    for (var i=0; i<parm_strs.length; i++) {
-	var key_val = parm_strs[i].split('=');
-	parms[key_val[0]] = key_val[1];
-    }
-    console.log (parms);
-    return (parms);
-}
-
-function process_deeplink (url) {
-    console.log (url);
-    // geopeers://api?<parms>
-    var parms = get_parms (url);
-    if (parms['method'] == 'device_id_bind') {
-	device_id_bind_phase_2 (parms);
-    }
-    return;
-}
-
-function handleOpenURL(url) {
-    setTimeout(function() {process_deeplink (url)}, 0);
-}
-
-
-function update_map_canvas_pos () {
-    var height = $('#geo_info').height();
-    var header_title_height = height + 60;
-    var content_height = height + 80;
-    $('#header_title').css('height', header_title_height+'px');
-    $('#content').css('top', content_height+'px');
-    console.log ("header_title_height="+header_title_height+", content_height="+content_height);
-    return;
-}
-
-function display_message (message, css_class) {
-    if (! message) {
-	return;
-    }
-    var msg_id = md5(message);
-    if ($('#'+msg_id).length) {
-	// we already got this message, just make sure it is visible
-	$('#'+msg_id).show();
-    } else {
-	// create new divs - message and close button
-	// append to geo_info
-	var onclick_cmd = "$('#"+msg_id+"').hide(); update_map_canvas_pos()";
-	var x_div = $('<div></div>')
-	    .attr('onclick', onclick_cmd)
-	    .css('position','relative')
-	    .css('right','16px')
-	    .css('top','40px')
-	    .css('text-align','right');
-	x_div.append ('<img src="https://eng.geopeers.com/images/x_black.png">');
-	var msg_div = $('<div></div>')
-	    .html(message)
-	    .addClass(css_class);
-	var wrapper_div = $('<div></div>').attr('id',msg_id);
-	wrapper_div.append(x_div);
-	wrapper_div.append(msg_div);
-	$('#geo_info').append(wrapper_div);
-    }
-    update_map_canvas_pos();
-}
-
-function display_in_div (msg, div_id, style) {
-    if (! div_id) {
-	return;
-    }
-    if (typeof msg === 'object') {
-	msg = JSON.stringify (msg);
-    }
-    $('#'+div_id).html(msg);
-    if (style) {
-	$('#'+div_id).css(style);
-    }
-    return;
-}
 
 var display_mgr = {
     new_orleans:   new google.maps.LatLng(29.9667,  -90.0500),
@@ -274,6 +289,185 @@ var display_mgr = {
     }
 }
 
+var marker_mgr = {
+    // markers = {device_id_1: {sighting: sighting_1, marker: marker_1, label: label_1}, 
+    //            device_id_2: {sighting: sighting_2, marker: marker_2, label: label_2}, ...
+    //           }
+    markers: {},
+    create_time_elem_str: function (num, unit) {
+	if (num == 0) {    
+	    return '';
+	}
+	var str = num + ' ' + unit;
+	if (num > 1) {
+	    str += 's';
+	}
+	return (str);
+    },
+    create_elapsed_str: function (sighting) {
+	var elapsed_sec = Math.round ((Date.now() - Date.parse(sighting.sighting_time)) / 1000);
+	var elapsed_str;
+	if (elapsed_sec < 60) {
+	    elapsed_str = elapsed_sec + ' seconds';
+	} else {
+	    var elapsed_min = Math.round (elapsed_sec / 60);
+	    if (elapsed_min < 60) {
+		elapsed_str = marker_mgr.create_time_elem_str (elapsed_min, 'minute');
+	    } else {
+		var elapsed_hr = Math.round (elapsed_min / 60);
+		elapsed_min = elapsed_min % 60;
+		if (elapsed_hr < 24) {
+		    elapsed_str = marker_mgr.create_time_elem_str (elapsed_hr, 'hour');
+		    elapsed_str += ' ';
+		    elapsed_str += marker_mgr.create_time_elem_str (elapsed_min, 'minute');
+		} else {
+		    var elapsed_day = Math.round (elapsed_hr / 24);
+		    elapsed_hr = elapsed_hr % 24;
+		    elapsed_str = marker_mgr.create_time_elem_str (elapsed_day, 'day');
+		    elapsed_str += ' ';
+		    elapsed_str += marker_mgr.create_time_elem_str (elapsed_hr, 'hour');
+		}
+	    }
+	}
+	elapsed_str = '('+elapsed_str+' ago)';
+	return (elapsed_str);
+    },
+    create_label_text: function (sighting) {
+	var elapsed_str = marker_mgr.create_elapsed_str (sighting);
+	var label_text = '<span style="text-align:center;font-size:20px;font-weight:bold;color:#453345"><div>' + sighting.name + '</div><div style="font-size:16px">' + elapsed_str + '</div></span>';
+	return (label_text);
+    },
+    update_marker_view: function (marker_info) {
+	var sighting = marker_info.sighting;
+	var sighting_location = new google.maps.LatLng(sighting.gps_latitude,
+						       sighting.gps_longitude);
+	var label_text = marker_mgr.create_label_text (sighting);
+	$('#map_canvas').gmap('find', 'markers',
+{ 'property': 'device_id', 'value': sighting.device_id },
+			      function(marker, found) {
+				  if (found) {
+				      marker.labelContent = label_text;
+				      marker.setPosition(sighting_location);
+				  }
+			      });
+	return;
+    },
+    popup_share_location_with_email: function () {
+	$('#share_via option[value="email"]')
+	.prop('selected', false)
+	.filter('[value="email"]')
+	.prop('selected', true);
+	$('#share_to').val('scott@kaplans.com');
+	$('#share_location_popup').popup('open');
+	return;
+    },
+    create_marker: function (sighting) {
+	var label_text = marker_mgr.create_label_text (sighting);
+	marker = $('#map_canvas').gmap('addMarker', {
+		'device_id':    sighting.device_id,
+		'position':     new google.maps.LatLng(sighting.gps_latitude,sighting.gps_longitude),
+		'marker':       MarkerWithLabel,
+		'icon':         '/images/pin_wings.png',
+		'labelAnchor':  new google.maps.Point(60, 0),
+		'labelContent': label_text}).click(function() {marker_mgr.popup_share_location_with_email()});
+	return ({marker: marker});
+    },
+    update_markers: function (data, textStatus, jqXHR) {
+	if (! data)
+	    return;
+	var sightings = data.sightings;
+	if (! sightings)
+	    return;
+
+	// update markers with whatever sightings are received (position change)
+	for (var i=0, len=sightings.length; i<len; i++) {
+	    var sighting = sightings[i];
+	    if (! marker_mgr.markers[sighting.device_id]) {
+		marker_mgr.markers[sighting.device_id] = marker_mgr.create_marker (sighting);
+	    }
+	    // and hold the most recent sighting to keep this marker's label up to date
+	    marker_mgr.markers[sighting.device_id].sighting = sighting;
+	}
+
+	// update the views of all the markers
+	// so we update the elapsed time of markers where the position has not changed
+	for (var device_id in marker_mgr.markers) {
+	    marker_mgr.update_marker_view (marker_mgr.markers[device_id]);
+	}
+
+	var map = $('#map_canvas').gmap('get','map');
+	if (! jQuery.isEmptyObject(marker_mgr.markers)) {
+	    var bounds = new google.maps.LatLngBounds ();
+	    for (var device_id in marker_mgr.markers) {
+		var sighting = marker_mgr.markers[device_id].sighting;
+		var sighting_location = new google.maps.LatLng(sighting.gps_latitude,
+							       sighting.gps_longitude);
+		bounds.extend (sighting_location);
+	    }
+	    map.fitBounds (bounds);
+	}
+	var zoom = map.getZoom();
+	// if we only have one marker, fitBounds zooms to maximum.
+	// Back off to max_zoom
+	var max_zoom = 16;
+	if (zoom > max_zoom) {
+	    $('#map_canvas').gmap('option', 'zoom', max_zoom);
+	}
+	return;
+    },
+}
+
+//
+// Web/Native app handshake
+//
+
+function device_id_bind_phase_1 () {
+    // implements the first half of a 2 part handshake
+    if (device_id_mgr.phonegap) {
+	// This must be initiated by the native_app
+	// First, redirect to the web app (webview) telling the webview what our device_id is
+	var url = "http://eng.geopeers.com/api?method=device_id_bind&my_device_id=";
+	url += device_id_mgr.device_id;
+	window.location = url;
+	// While we don't get back to here, we do get back
+	// The webview will redirect back to a deeplink
+	// which will be handled in handleOpenURL
+    }
+}
+
+function device_id_bind_phase_2(parms) {
+    // this is the 2nd part of a handshake between the native app (running this routine) and
+    // the webapp which called the native app via a deeplink
+
+    // if we got this far through the handshake, assume we're good and don't do it again
+    db.set_global ('device_id_bind_complete', 1);
+
+    if (parms['device_id'] != parms['native_app_device_id']) {
+	// this is not good
+    }
+
+    // Tell the server we got the handshake
+    // don't worry about the callback
+    parms['phase'] = 3;
+    ajax_request (parms);
+    return;
+}
+
+function process_deeplink (url) {
+    console.log (url);
+    // geopeers://api?<parms>
+    var parms = get_parms (url);
+    if (parms['method'] == 'device_id_bind') {
+	device_id_bind_phase_2 (parms);
+    }
+    return;
+}
+
+function handleOpenURL(url) {
+    setTimeout(function() {process_deeplink (url)}, 0);
+}
+
+
 //
 // MAP STUFF
 //
@@ -293,153 +487,10 @@ function create_map (position) {
     }
 }
 
-function create_time_elem_str (num, unit) {
-    if (num == 0) {    
-	return '';
-    }
-    var str = num + ' ' + unit;
-    if (num > 1) {
-	str += 's';
-    }
-    return (str);
-}
 
-function create_elapsed_str (sighting) {
-    var elapsed_sec = Math.round ((Date.now() - Date.parse(sighting.sighting_time)) / 1000);
-    var elapsed_str;
-    if (elapsed_sec < 60) {
-	elapsed_str = elapsed_sec + ' seconds';
-    } else {
-	var elapsed_min = Math.round (elapsed_sec / 60);
-	if (elapsed_min < 60) {
-	    elapsed_str = create_time_elem_str (elapsed_min, 'minute');
-	} else {
-	    var elapsed_hr = Math.round (elapsed_min / 60);
-	    elapsed_min = elapsed_min % 60;
-	    if (elapsed_hr < 24) {
-		elapsed_str = create_time_elem_str (elapsed_hr, 'hour');
-		elapsed_str += ' ';
-		elapsed_str += create_time_elem_str (elapsed_min, 'minute');
-	    } else {
-		var elapsed_day = Math.round (elapsed_hr / 24);
-		elapsed_hr = elapsed_hr % 24;
-		elapsed_str = create_time_elem_str (elapsed_day, 'day');
-		elapsed_str += ' ';
-		elapsed_str += create_time_elem_str (elapsed_hr, 'hour');
-	    }
-	}
-    }
-    elapsed_str = '('+elapsed_str+' ago)';
-    return (elapsed_str);
-}
-
-function create_label_text (sighting) {
-    var elapsed_str = create_elapsed_str (sighting);
-    var label_text = '<span style="text-align:center;font-size:20px;font-weight:bold;color:#453345"><div>' + sighting.name + '</div><div style="font-size:16px">' + elapsed_str + '</div></span>';
-    return (label_text);
-}
-
-function update_marker_view (marker_info) {
-    var sighting = marker_info.sighting;
-    var sighting_location = new google.maps.LatLng(sighting.gps_latitude,
-						   sighting.gps_longitude);
-    var label_text = create_label_text (sighting);
-    $('#map_canvas').gmap('find', 'markers',
-			  { 'property': 'device_id', 'value': sighting.device_id },
-			  function(marker, found) {
-			      if (found) {
-				  marker.labelContent = label_text;
-				  marker.setPosition(sighting_location);
-			      }
-			  });
-    return;
-}
-
-function popup_share_location_with_email () {
-    $('#share_via option[value="email"]')
-	.prop('selected', false)
-	.filter('[value="email"]')
-	.prop('selected', true);
-    $('#share_to').val('scott@kaplans.com');
-    $('#share_location_popup').popup('open');
-    return;
-}
-
-function create_marker (sighting) {
-    var label_text = create_label_text (sighting);
-    marker = $('#map_canvas').gmap('addMarker', {
-	    'device_id':    sighting.device_id,
-	    'position':     new google.maps.LatLng(sighting.gps_latitude,sighting.gps_longitude),
-	    'marker':       MarkerWithLabel,
-	    'icon':         '/images/pin_wings.png',
-	    'labelAnchor':  new google.maps.Point(60, 0),
-	    'labelContent': label_text}).click(function() {popup_share_location_with_email()});
-    return ({marker: marker});
-}
-
-function update_markers (data, textStatus, jqXHR) {
-    if (! data)
-	return;
-    var sightings = data.sightings;
-    if (! sightings)
-	return;
-
-    // update MARKERS with whatever sightings are received (position change)
-    for (var i=0, len=sightings.length; i<len; i++) {
-	var sighting = sightings[i];
-	if (! MARKERS[sighting.device_id]) {
-	    MARKERS[sighting.device_id] = create_marker (sighting);
-	}
-	// and hold the most recent sighting to keep this marker's label up to date
-	MARKERS[sighting.device_id].sighting = sighting;
-    }
-
-    // update the views of all the markers
-    // so we update the elapsed time of markers where the position has not changed
-    for (var device_id in MARKERS) {
-	update_marker_view (MARKERS[device_id]);
-    }
-
-    var map = $('#map_canvas').gmap('get','map');
-    if (! jQuery.isEmptyObject(MARKERS)) {
-	var bounds = new google.maps.LatLngBounds ();
-	for (var device_id in MARKERS) {
-	    var sighting = MARKERS[device_id].sighting;
-	    var sighting_location = new google.maps.LatLng(sighting.gps_latitude,
-							   sighting.gps_longitude);
-	    bounds.extend (sighting_location);
-	}
-	map.fitBounds (bounds);
-    }
-    var zoom = map.getZoom();
-    // if we only have one marker, fitBounds zooms to maximum.
-    // Back off to max_zoom
-    var max_zoom = 16;
-    if (zoom > max_zoom) {
-	$('#map_canvas').gmap('option', 'zoom', max_zoom);
-    }
-    //google.maps.event.trigger(map, 'resize');
-    return;
-}
-
-
-
-function ajax_request (request_parms, success_callback, failure_callback) {
-    // phonegap runs from https://geopeers.com
-    // we now allow xdomain from that URL
-    var url = "https://eng.geopeers.com/api";
-    $.ajax({type:  "POST",
-	    async: true,
-	    url:   url,
-	    data:  request_parms,
-	  })
-	.done(success_callback)
-	.fail(failure_callback);
-    return;
-}
-
-
+//
 // SEND_POSITION
+//
 
 function send_position_callback (data, textStatus, jqXHR) {
     if (! data) {
@@ -479,7 +530,9 @@ function send_position_request (position) {
 }
 
 
+//
 // SHARE_LOCATION
+//
 
 function share_location_popup () {
     if (device_id_mgr.phonegap) {
@@ -541,18 +594,35 @@ function share_location () {
     ajax_request (params, share_location_callback, geo_ajax_fail_callback);
 }
 
-function geo_ajax_fail_callback (data, textStatus, jqXHR) {
-    var error_html;
-    if (typeof (data.error) === 'string') {
-	error_html = data.error_html ? data.error_html : data.error;
-    } else if (data.responseJSON) {
-	error_html = data.responseJSON.error_html ? data.responseJSON.error_html : data.responseJSON.error;
+
+//
+// CONFIG
+//
+
+function config_callback (data, textStatus, jqXHR) {
+    if (! data) {
+	return;
     }
-    display_message (error_html, 'message_error');
-    $('#registration_form_spinner').hide();
-    $('#share_location_form_spinner').hide();
+    if (data.js) {
+        console.log (data.js);
+        eval (data.js);
+    }
+}
+
+function send_config () {
+    var device_id = device_id_mgr.get();
+    var request_parms = { method: 'config',
+			  device_id: device_id,
+			  version: 1,
+    };
+    
+    ajax_request (request_parms, config_callback, geo_ajax_fail_callback);
     return;
 }
+
+//
+// GET_POSITIONS
+//
 
 function get_positions () {
     var device_id = device_id_mgr.get();
@@ -560,9 +630,14 @@ function get_positions () {
 	return
     var request_parms = { method: 'get_positions',
 			  device_id: device_id};
-    ajax_request (request_parms, update_markers, geo_ajax_fail_callback);
+    ajax_request (request_parms, marker_mgr.update_markers, geo_ajax_fail_callback);
     return;
 }
+
+
+//
+// GET_SHARES
+//
 
 function format_time (time) {
     // JS version of same routine in geo.rb on server
@@ -576,13 +651,13 @@ function format_time (time) {
 
     var date_format_str, time_format_str;
     if (date.getFullYear() !== now.getFullYear()) {
-	date_format_str = "MM d, yy";
+	date_format_str = "M d, yy";
 	time_format_str = " 'at' h:mm tt";
     } else if (date.getMonth() !== now.getMonth()) {
-	date_format_str = "MM d";
+	date_format_str = "M d";
 	time_format_str = " 'at' h:mm tt";
     } else if (date.getDate() !== now.getDate()) {
-	date_format_str = "MM d";
+	date_format_str = "M d";
 	time_format_str = " 'at' h:mm tt";
     } else {
 	time_format_str = "'Today at' h:mm tt";
@@ -606,6 +681,7 @@ function format_time (time) {
     return (time_str);
 }
 
+var DT;
 function manage_shares_callback (data, textStatus, jqXHR) {
     // create markup for a table, loaded with data
     // table is of the form:
@@ -631,7 +707,7 @@ function manage_shares_callback (data, textStatus, jqXHR) {
 
 	var redeem_name = share.redeem_name ? share.redeem_name : '<Unopened>';
 	var expires = share.expire_time ? format_time(share.expire_time) : 'Never';
-	console.log (share.expire_time);
+	// console.log (share.expire_time);
 	var expire_time = new Date(share.expire_time);
 	var now = Date.now();
 
@@ -684,10 +760,6 @@ function manage_shares_callback (data, textStatus, jqXHR) {
     
 }
 
-function display_register_popup () {
-    alert ("display_register_popup");
-}
-
 function manage_shares () {
     if (1 || device_id_mgr.phonegap) {
 	var device_id = device_id_mgr.get();
@@ -703,16 +775,8 @@ function manage_shares () {
     return;
 }
 
-function run_position_function (post_func) {
-    // post_func should be prepared to be called with 0 (gps failed) or 1 (position) parameter
-    if(navigator.geolocation) {
-	navigator.geolocation.getCurrentPosition(function (position) {post_func(position);
-		                                                      display_mgr.display_ok(position)},
-						 function (err)      {post_func();
-						                      display_mgr.display_err(err)},
-                                                 {timeout:3000, enableHighAccuracy: true});
-    }
-    return;
+function display_register_popup () {
+    alert ("display_register_popup");
 }
 
 function validate_registration_form () {
@@ -839,30 +903,6 @@ function display_support () {
     return;
 }
 
-function getParameterByName(name) {
-    name = name.replace(/[\[]/, "\\[").replace(/[\]]/, "\\]");
-    var regex = new RegExp("[\\?&]" + name + "=([^&#]*)"),
-	results = regex.exec(location.search);
-    return results == null ? "" : decodeURIComponent(results[1].replace(/\+/g, " "));
-}
-
-function update_current_pos () {
-    run_position_function (function(position) {
-	    if (! position) {
-		return;
-	    }
-	    $('#map_canvas').gmap('find', 'markers',
-				  { 'property': 'marker_id', 'value': 'my_pos' },
-				  function(marker, found) {
-				      if (found) {
-					  var my_pos = new google.maps.LatLng(position.coords.latitude,
-									      position.coords.longitude)
-					  marker.setPosition(my_pos);
-				      }
-				  });
-	});
-}
-
 function heartbeat () {
     // things that should happen periodically
     var period_minutes = 1;
@@ -884,102 +924,10 @@ function heartbeat () {
     return;
 }
 
-function config_callback (data, textStatus, jqXHR) {
-    if (! data) {
-	return;
-    }
-    if (data.js) {
-        console.log (data.js);
-        eval (data.js);
-    }
-}
 
-function send_config () {
-    var device_id = device_id_mgr.get();
-    var request_parms = { method: 'config',
-			  device_id: device_id,
-			  version: 1,
-    };
-    
-    ajax_request (request_parms, config_callback, geo_ajax_fail_callback);
-    return;
-}
-
-function get_client_type () {
-    if (/android/i.exec(navigator.userAgent)) {
-	return ('android');
-    } else if (/iphone/i.exec(navigator.userAgent) ||
-	       /ipad/i.exec(navigator.userAgent)) {
-	return ('ios');
-    } else {
-	return ('web');
-    }
-}
-
-function download_app () {
-    var client_type = get_client_type();
-    var download_url = DOWNLOAD_URLS[client_type];
-    if (download_url) {
-	window.location = download_url;
-    }
-    return;
-}
-
-function init () {
-    // This is called after we are ready
-    // for webapp, this is $.ready, for phonegap, this is deviceready
-    console.log ("in init");
-    device_id_mgr.init ();
-    if (device_id_mgr.phonegap) {
-	// Your app must execute AT LEAST ONE call for the current position via standard Cordova geolocation,
-	//  in order to prompt the user for Location permission.
-	window.navigator.geolocation.getCurrentPosition(function(location) {
-		console.log('Location from Phonegap');
-	    });
-	init_background_gps ();
-	db.init();
-	device_id_bind_phase_1 ();
-    }
-    send_config ();
-
-    run_position_function (function(position) {create_map(position)});
-
-    // sets registeration.status
-    // used by popups to see if they should put up the registration screen instead
-    registration.init();
-
-    // server can pass parameters when it redirected to us
-    var message_type = getParameterByName('message_type') ? getParameterByName('message_type') : 'message_error'
-    display_message(getParameterByName('alert'), message_type);
-    if (getParameterByName('download_app')) {
-	download_app();
-    }
-
-    heartbeat();
-
-    // This is a bad hack.
-    // If the map isn't ready when the last display_message fired, the reposition will be wrong
-    setTimeout(function(){update_map_canvas_pos()}, 500);
-
-    return;
-}
-
-function is_phonegap () {
-    return (window.location.href.match (/^file:/));
-}
-
-function start () {
-    if (is_phonegap()) {
-	// Wait for device API libraries to load
-	document.addEventListener("deviceready", function(){console.log("Calling init"); init()}, false);
-    } else {
-	$(document).ready(function(e,data){
-		init();
-	    });
-    }
-}
-
-start()
+//
+// Background GPS (phonegap)
+//
 
 var bgGeo;
 
@@ -1036,7 +984,87 @@ function init_background_gps () {
     // bgGeo.stop();
 }
 
-function run () {
-    // used for troubleshooting
-    init();
+
+
+function get_client_type () {
+    if (/android/i.exec(navigator.userAgent)) {
+	return ('android');
+    } else if (/iphone/i.exec(navigator.userAgent) ||
+	       /ipad/i.exec(navigator.userAgent)) {
+	return ('ios');
+    } else {
+	return ('web');
+    }
 }
+
+var download = {
+    download_urls: { ios:     'https://www.geopeers.com/bin/ios/index.html',
+		     android: 'https://www.geopeers.com/bin/android/index.html',
+		     // web:     'https://www.geopeers.com/bin/android/index.html',
+    },
+    download_app: function () {
+	var client_type = get_client_type();
+	var download_url = download_app.download_urls[client_type];
+	if (download_url) {
+	    window.location = download_url;
+	}
+	return;
+    },
+}
+
+
+//
+// Init and startup
+//
+
+function init () {
+    // This is called after we are ready
+    // for webapp, this is $.ready, for phonegap, this is deviceready
+    console.log ("in init");
+    device_id_mgr.init ();
+    if (device_id_mgr.phonegap) {
+	// Your app must execute AT LEAST ONE call for the current position via standard Cordova geolocation,
+	//  in order to prompt the user for Location permission.
+	window.navigator.geolocation.getCurrentPosition(function(location) {
+		console.log('Location from Phonegap');
+	    });
+	init_background_gps ();
+	db.init();
+	device_id_bind_phase_1 ();
+    }
+    send_config ();
+
+    run_position_function (function(position) {create_map(position)});
+
+    // sets registeration.status
+    // used by popups to see if they should put up the registration screen instead
+    registration.init();
+
+    // server can pass parameters when it redirected to us
+    var message_type = getParameterByName('message_type') ? getParameterByName('message_type') : 'message_error'
+    display_message(getParameterByName('alert'), message_type);
+    if (getParameterByName('download_app')) {
+	download.download_app();
+    }
+
+    heartbeat();
+
+    // This is a bad hack.
+    // If the map isn't ready when the last display_message fired, the reposition will be wrong
+    setTimeout(function(){update_map_canvas_pos()}, 500);
+
+    return;
+}
+
+function start () {
+    if (is_phonegap()) {
+	// Wait for device API libraries to load
+	document.addEventListener("deviceready", function(){console.log("Calling init"); init()}, false);
+    } else {
+	$(document).ready(function(e,data){
+		init();
+	    });
+    }
+}
+
+start();
