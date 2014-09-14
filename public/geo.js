@@ -152,6 +152,7 @@ var device_id_mgr = {
 	    console.log (err);
 	    device_id_mgr.phonegap = false;
 	}
+	console.log ("phonegap="+device_id_mgr.phonegap);
 	return;
     },
     get_cookie: function (key) {
@@ -180,24 +181,21 @@ var device_id_mgr = {
 
 var db = {
     handle: null,
-    init: function () {
+    init: function (callback) {
 	db.handle = window.sqlitePlugin.openDatabase({name: "geopeers"});
 	var sql = "CREATE TABLE IF NOT EXISTS globals (key unique, value)";
-	DB.transaction(function (tx) {tx.executeSql(sql)}, db.error_callback, null);
+	db.handle.transaction(function (tx) {tx.executeSql(sql)}, db.error_callback, callback);
     },
-    error_callback: function (tx, err) {
-	console.log ("db error: "+err);
+    error_callback: function (err) {
+	console.log (err.message);
+	console.log (err.stack);
     },
-    get_global: function (key) {
-	var sql = "SELECT val FROM global WHERE key='"+key+"'";
-	db.handle.transaction(function (tx) {tx.executeSql(sql)}, db.error_callback, db.get_global_callback);
-    },
-    get_global_callback: function(tx, results) {
-	var row = results.rows.item(0);
-	console.log (row);
+    get_global: function (key, callback) {
+	var sql = "SELECT value FROM globals WHERE key='"+key+"'";
+	db.handle.transaction(function (tx) {tx.executeSql(sql)}, db.error_callback, callback);
     },
     set_global: function (key, val) {
-	var sql = "REPLACE INTO globals (key, val) VALUES ('"+key+"', '"+val+"')"
+	var sql = "REPLACE INTO globals (key, value) VALUES ('"+key+"', '"+val+"')"
 	db.handle.transaction(function (tx) {tx.executeSql(sql)}, db.error_callback, null);
     },
 };
@@ -415,27 +413,48 @@ var marker_mgr = {
 	}
 	return;
     },
-}
+};
 
 //
 // Web/Native app handshake
 //
 
-function device_id_bind_phase_1 () {
-    // implements the first half of a 2 part handshake
+function web_app_redirect () {
+    // First, redirect to the web app (webview) telling the webview what our device_id is
+    var url = "http://eng.geopeers.com/api?method=device_id_bind&my_device_id=";
+    url += device_id_mgr.device_id;
+    window.location = url;
+    // While we don't get back to here,
+    // we do get back to this JS file
+    // The webview will redirect back to a deeplink
+    // which will be handled in handleOpenURL
+}
+
+function device_id_bind_check (tx, results) {
+    console.log (tx);
+    console.log (results);
+    db.get_global ('device_id_bind_complete', device_id_bind_phase_1);
+}
+
+function device_id_bind_phase_1 (tx, results) {
+    // This must be initiated by the native_app
+    // But this test is superfluous
+    // It's in the db callback, so we only get here in the native app
+    console.log (results);
     if (device_id_mgr.phonegap) {
-	// This must be initiated by the native_app
-	// First, redirect to the web app (webview) telling the webview what our device_id is
-	var url = "http://eng.geopeers.com/api?method=device_id_bind&my_device_id=";
-	url += device_id_mgr.device_id;
-	window.location = url;
-	// While we don't get back to here, we do get back
-	// The webview will redirect back to a deeplink
-	// which will be handled in handleOpenURL
+	if (! results) return;
+	var row = results.rows.item(0);
+	console.log (row);
+	if (! row) return;
+
+	if (row.device_id_bind_complete) {
+	    // implements the first half of a 2 part handshake
+	    web_app_redirect ();
+	}
     }
 }
 
-function device_id_bind_phase_2(parms) {
+function device_id_bind_phase_2 (parms) {
     // this is the 2nd part of a handshake between the native app (running this routine) and
     // the webapp which called the native app via a deeplink
 
@@ -478,6 +497,7 @@ function create_map (position) {
     if (position) {
 	initial_location = new google.maps.LatLng(position.coords.latitude,
 						  position.coords.longitude);
+	console.log (initial_location);
     }
     $('#map_canvas').gmap({center: initial_location, zoom: zoom});
     if (position) {
@@ -615,7 +635,6 @@ function send_config () {
 			  device_id: device_id,
 			  version: 1,
     };
-    
     ajax_request (request_parms, config_callback, geo_ajax_fail_callback);
     return;
 }
@@ -756,8 +775,7 @@ function manage_shares_callback (data, textStatus, jqXHR) {
 	DT.column(0).visible(false);
 	DT.column(1).visible(false);
     }
-    $('#manage_popup').popup('open');
-    
+    $('#manage_popup').popup("open");
 }
 
 function manage_shares () {
@@ -963,19 +981,19 @@ function init_background_gps () {
     bgGeo.configure(callbackFn, failureFn, {
 	    // Android only
 	    url: 'http://eng.geopeers.com/api',
-	    params: {
+		params: {
 		method:    'send_position',
-		device_id: device_id_mgr.get(),
-	    },
-	    notificationTitle: 'Background tracking', // customize the title of the notification
-	    notificationText: 'ENABLED',              // customize the text of the notification
+		    device_id: device_id_mgr.get(),
+		    },
+		notificationTitle: 'Background tracking', // customize the title of the notification
+		notificationText: 'ENABLED',              // customize the text of the notification
 
-	    desiredAccuracy: 10,
-	    stationaryRadius: 20,
-	    distanceFilter: 30, 
-	    activityType: 'AutomotiveNavigation',
-	    debug: true // <-- enable this hear sounds for background-geolocation life-cycle.
-	});
+		desiredAccuracy: 10,
+		stationaryRadius: 20,
+		distanceFilter: 30, 
+		activityType: 'AutomotiveNavigation',
+		debug: false	// <-- enable this hear sounds for background-geolocation life-cycle.
+		});
 
     // Turn ON the background-geolocation system.  The user will be tracked whenever they suspend the app.
     bgGeo.start();
@@ -983,8 +1001,6 @@ function init_background_gps () {
     // If you wish to turn OFF background-tracking, call the #stop method.
     // bgGeo.stop();
 }
-
-
 
 function get_client_type () {
     if (/android/i.exec(navigator.userAgent)) {
@@ -1021,23 +1037,18 @@ function init () {
     // This is called after we are ready
     // for webapp, this is $.ready, for phonegap, this is deviceready
     console.log ("in init");
-    device_id_mgr.init ();
-    if (device_id_mgr.phonegap) {
-	// Your app must execute AT LEAST ONE call for the current position via standard Cordova geolocation,
-	//  in order to prompt the user for Location permission.
-	window.navigator.geolocation.getCurrentPosition(function(location) {
-		console.log('Location from Phonegap');
-	    });
-	init_background_gps ();
-	db.init();
-	device_id_bind_phase_1 ();
-    }
-    send_config ();
 
     run_position_function (function(position) {create_map(position)});
 
-    // sets registeration.status
-    // used by popups to see if they should put up the registration screen instead
+    device_id_mgr.init ();
+    send_config ();
+
+    if (device_id_mgr.phonegap) {
+	init_background_gps ();
+	db.init(device_id_bind_check);
+    }
+
+    // sets registration.status
     registration.init();
 
     // server can pass parameters when it redirected to us
@@ -1057,14 +1068,20 @@ function init () {
 }
 
 function start () {
-    if (is_phonegap()) {
-	// Wait for device API libraries to load
-	document.addEventListener("deviceready", function(){console.log("Calling init"); init()}, false);
-    } else {
-	$(document).ready(function(e,data){
-		init();
-	    });
+    alert ("start");
+    function call_init () {
+	// the call_init shim is needed because
+	// if we call init in addEventListener, it doesn't get called
+	init();
     }
+    $(document).ready(function(e,data){
+	    if (is_phonegap()) {
+		// Wait for device API libraries to load
+		document.addEventListener("deviceready", call_init);
+	    } else {
+		call_init();
+	    }
+	});
 }
 
 start();
