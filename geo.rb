@@ -11,6 +11,8 @@ require 'eztexting'
 require 'net/smtp'
 require 'uri'
 require 'securerandom'
+require 'pry'
+require 'pry-debugger'
 
 set :public_folder, 'public'
 class Sighting < ActiveRecord::Base
@@ -63,6 +65,11 @@ def parse_backtrace (backtrace)
   ar
 end
 
+def log_info(msg)
+  $LOG.info msg
+  Protocol.send_email(msg, 'support@geopeers.com', 'Geopeers Support', 'support@geopeers.com', 'Geopeers Server Info')
+end
+
 def log_error(err)
   if (err.respond_to?(:backtrace))
     msg = err.message + "\n" + err.backtrace.join("\n")
@@ -100,7 +107,30 @@ def init
 #                                          :username => 'geopeers',
 #                                          :password => 'ullamco1'
 #                                          )
-#  $DB_SPEC = ActiveRecord::Base.specification
+  #  $DB_SPEC = ActiveRecord::Base.specification
+
+  # For debugging, allow this script to be called with a URL parm:
+  #   geo.rb 'method=config&device_id=DEV_42'
+  # Unfortunately, things like rspec also call us
+  # So make sure the thing on the command line is a URL parm with a 'method' key
+  # The keys of params must be strings, that's what sinatra sends us
+  if ARGV[0]
+    params_str = /\?(.*)/.match(ARGV[0])
+    if params_str
+      params = {}
+      params_str.split('&').each { |param_str|
+        key, val = param_str.split('=')
+        params[key] = val
+      }
+    end
+    if params && params['method']
+      resp = Protocol.process_request params
+      puts resp.inspect
+      # if we return, sinatra will listen for connections
+      exit
+    end
+  end
+
 end
 
 DOWNLOAD_URLS = {
@@ -285,17 +315,41 @@ class Protocol
     { message: error_msg, style: {color: 'red'}}
   end
 
+  def Protocol.create_device_id (user_agent)
+    require 'securerandom'
+    device_id = SecureRandom.uuid
+    begin
+      device = Device.new(device_id:  device_id,
+                          user_agent: user_agent)
+      device.save
+      log_info ("created device "+device_id)
+    rescue => err
+      log_error (err)
+    end
+    device_id
+  end
+
   def Protocol.process_request_config (params)
     # params: device_id, version
     # returns: js
 
-    if (params[:version].to_i < 1)
+    device = Device.find_by(device_id: params['device_id'])
+    if ! device
+      # We haven't seen device_id yet, create it
+      device = Device.new(device_id:  params['device_id'],
+                          user_agent: params['user_agent'])
+      device.save
+    end
+
+    if (params[:version].to_i < 2)
       {js: "alert('If we had an upgrade, this would be it')"}
+    else
+      {}
     end
   end
 
   def Protocol.process_request_send_position (params)
-    # parms: device_id, gps_*
+    # params: device_id, gps_*
     # returns: OK/ERROR
     if (params['location'])
       longitude = params['location']['longitude']
@@ -310,7 +364,7 @@ class Protocol
                             gps_latitude:  latitude,
                             )
     sighting.save
-    {}
+    {status:'OK'}
   end
 
   def Protocol.process_request_get_positions (params)
@@ -408,6 +462,12 @@ class Protocol
   end
 
   def Protocol.send_verification_by_type (params, type)
+    # params:
+    #   account_id
+    #   email
+    #   mobile
+    #
+    # create cred
     account = Account.find(params['account_id'])
     $LOG.debug account
     if (params[type])
@@ -556,6 +616,11 @@ class Protocol
     device[:account_id] = account.id
     device.save
 
+    if (params['name'] != account.name)
+      account.name = params['name']
+      account.save
+    end
+
     return nil, user_msgs
   end
 
@@ -625,6 +690,14 @@ class Protocol
   end
 
   def Protocol.process_request_register_device (params)
+    # params:
+    #   method = 'register_device'
+    #   download_app = [ 0 | 1 ]	response sends redirect to download URL
+    #   registration_edit = [ 0 | 1 ]	assumes info is for existing registration
+    #   new_account = [ 'yes' | 'no' ]	only if registration_edit == 0
+    #   name
+    #   email
+    #   mobile
     # register name/email/mobile with an account
     # send the verification
     #
@@ -749,10 +822,30 @@ class Protocol
   
   def Protocol.process_request_device_id_bind (params)
     # A native app redirected to:
-    #   /api?method=device_id_bind&native_app_device_id=<native app device_id>"
+    #   /api?method=device_id_bind&my_device_id=<native app device_id>"
+
+    # redirect back to the native app with the device_ids
+    native_app_deeplink = "geopeers://api?method=device_id_bind"
+
+    native_app_device = Device.find_by(device_id: params['my_device_id'])
+    $LOG.debug native_app_device
+    if ! native_app_device
+      log_error ("No native app device")
+      {redirect_url: native_app_deeplink}
+    end
+
     # The webview opens this URL, so the webapp device_id is in the cookie
-    native_app_device = Device.find_by(device_id: params['native_app_device_id'])
     web_app_device = Device.find_by(device_id: params['device_id'])
+    $LOG.debug web_app_device
+    if ! web_app_device
+      log_error ("No web app device")
+      {redirect_url: native_app_deeplink}
+    end
+    native_app_deeplink += "&native_app_device_id="
+    native_app_deeplink += native_app_device.device_id
+    native_app_deeplink += "&web_app_device_id="
+    native_app_deeplink += web_app_device.device_id
+
     if native_app_device.account_id
       if web_app_device.account_id
         if native_app_device.account_id == web_app_device.account_id
@@ -795,11 +888,6 @@ class Protocol
         web_app_device.save
       end
     end
-    # redirect back to the native app with the device_ids
-    native_app_deeplink = "geopeers://api?method=device_id_bind&native_app_device_id="
-    native_app_deeplink += native_app_device.device_id
-    native_app_deeplink += "&web_app_device_id="
-    native_app_deeplink += web_app_device.device_id
     {redirect_url: native_app_deeplink}
   end
   
@@ -862,20 +950,35 @@ end
 class ProtocolEngine < Sinatra::Base
   set :static, true
 
-  def get_device_id ()
-    # The device_id is stored in the client's cookie
-    # retrieve it if one already has been assigned,
-    # create and send a new device_id if one was not sent by the client
-    if (request.cookies['device_id'])
-      request.cookies['device_id']
+  def manage_device_id (device_id)
+
+    if device_id
+      device = Device.find_by(device_id: params['device_id'])
+      if device
+        device.id
+      else
+        # This is a device_id we haven't see yet
+        Protocol.create_device_id (request.user_agent)
+      end
     else
-      device_id = create_device_id(request.user_agent)
-      response.set_cookie('device_id',
-                          { :value   => device_id,
-                            :domain  => 'geopeers.com',
-                            :expires => Time.new(2038,1,17),
-                          })
-      device_id
+      # there is no device_id
+      # since the native apps create their own device_id from the uuid,
+      # this must be a webapp
+
+      # The device_id is stored in the client's cookie
+      # retrieve it if one already has been assigned,
+      # create and send a new device_id if one was not sent by the client
+      if (request.cookies['device_id'])
+        request.cookies['device_id']
+      else
+        device_id = Protocol.create_device_id (request.user_agent)
+        response.set_cookie('device_id',
+                            { :value   => device_id,
+                              :domain  => 'geopeers.com',
+                              :expires => Time.new(2038,1,17),
+                            })
+        device_id
+      end
     end
   end
 
@@ -889,29 +992,19 @@ class ProtocolEngine < Sinatra::Base
     renderer.result(binding)
   end
 
-  def create_device_id (user_agent)
-    require 'securerandom'
-    device_id = SecureRandom.uuid
-    begin
-      device_record = Device.new(device_id: device_id,
-                                 user_agent: user_agent)
-      device_record.save
-    rescue => err
-      log_error (err)
-    end
-    device_id
-  end
 
   before do
     # empty form variables are empty strings, not nil
     params.each do |key, val|
       params[key] = nil if (val.length == 0)
     end
+
+    # parameters to add
+    params['user_agent'] = request.user_agent
+    params['device_id'] ||= manage_device_id(params['device_id'])
   end
 
   get '/api' do
-    params['device_id'] = params['device_id'] ? params['device_id'] : get_device_id()
-    params['user_agent'] = request.user_agent
     resp = Protocol.process_request params
     if (resp[:error])
       html = create_error_html (resp)
@@ -932,9 +1025,6 @@ class ProtocolEngine < Sinatra::Base
         params.merge!(JSON.parse(request.body.read))
     end
 
-    # parameters to add
-    params['device_id'] = params['device_id'] ? params['device_id'] : get_device_id()
-    params['user_agent'] = request.user_agent
 
     resp = Protocol.process_request params
     if (resp && resp.class == 'Hash' && resp[:error])
@@ -957,7 +1047,6 @@ class ProtocolEngine < Sinatra::Base
         # we don't need the device_id to build the page
         # but we do want to make sure the client gets a device_id
         # in case they don't have one
-        params['device_id'] = get_device_id()
         erb :index
       else
         redirect request.url.gsub(/^http/, "https")
@@ -974,3 +1063,4 @@ class ProtocolEngine < Sinatra::Base
 end
 
 init()
+
