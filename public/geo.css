@@ -177,16 +177,18 @@ body {
     -webkit-border-radius: 10px;
     -moz-border-radius: 10px;
     border-radius: 10px;
-    background-color: #3eb1dd;
+    background-color: #c7d7dd;
+    border: 2px solid #3eb1dd;
+    color: #00a0dd;
+
     margin:0px;
     list-style:none;
     padding:0;
-    color:black;
     text-transform:none;
     text-shadow:none;
     width:160px;
     font-family: Helvetica;
-    font-size: 18px;
+    font-size: 14px;
     margin-left: -170px;
     margin-top: -40px;
     position:absolute;
