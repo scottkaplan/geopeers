@@ -11,25 +11,25 @@
 	  href="https://prod1.magtogo.com/library/jquery.mobile-1.4.2.min.css" />
     <link type="text/css"
 	  rel ="stylesheet"
-	  href="geo.css" />
+	  href="https://eng.geopeers.com/geo.css" />
     <link type="text/css"
           rel="stylesheet"
-          href="dataTables.css" />
+          href="https://eng.geopeers.com/dataTables.css" />
 
     <script src="https://prod1.magtogo.com/library/jquery-1.11.1.min.js"></script>
-    <script src="//code.jquery.com/ui/1.11.0/jquery-ui.js"></script>
+    <script src="http://code.jquery.com/ui/1.11.0/jquery-ui.js"></script>
     <script src="https://prod1.magtogo.com/library/jquery.mobile-1.4.2.min.js"></script>
-    <script src="/jqm_map/ui/jquery.ui.map.js"></script>
+    <script src="https://eng.geopeers.com/jqm_map/ui/jquery.ui.map.js"></script>
 
     <script src="https://maps.google.com/maps/api/js?sensor=true"></script>
-    <script src="markerwithlabel.js"></script>
+    <script src="https://eng.geopeers.com/markerwithlabel.js"></script>
 
-    <script src="md5.js"></script>
-    <script src="dataTables.js"></script>
-    <script src="jquery-ui-timepicker-addon.js"></script>
+    <script src="https://eng.geopeers.com/md5.js"></script>
+    <script src="https://eng.geopeers.com/dataTables.js"></script>
+    <script src="https://eng.geopeers.com/jquery-ui-timepicker-addon.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jstimezonedetect/1.0.4/jstz.min.js"></script>
-    <script src="geo.js"></script>
-    <script src="menu.js"></script>
+    <script src="https://eng.geopeers.com/geo.js"></script>
+    <script src="https://eng.geopeers.com/menu.js"></script>
   </head>
 
   <body>
@@ -42,7 +42,7 @@
           </div>
           <div class="overlap_div">
             <div id="flying_pin" class="icon_div">
-              <img src="images/pin_wings.png"
+              <img src="https://eng.geopeers.com/images/pin_wings.png"
                    class="icon_img"
                    onclick="share_location_popup()">
             </div>
@@ -71,6 +71,7 @@
       <!-- popup registration box -->
       <div id="registration_popup"
 	   data-role="popup"
+	   data-transition="fade"
 	   >
 	<div class="popup_frame">
 	  <div class="popup_header">
@@ -80,7 +81,7 @@
 	    </div>
 	    <div class="popup_close_x"
 		 onclick="$('#registration_popup').popup('close')">
-	      <img src="images/x.png">
+	      <img src="https://eng.geopeers.com/images/x.png">
 	    </div>
 	    <div style="font-size:18px">
 	      <div class="popup_content">
@@ -95,13 +96,14 @@
       <!-- popup share_location box -->
       <div id="share_location_popup"
 	   data-role="popup"
+	   data-transition="fade"
 	   >
         <div class="popup_frame">
 	  <div class="popup_header">
 	    Share your Location
 	    <div class="popup_close_x"
 		 onclick="$('#share_location_popup').popup('close')">
-	      <img src="images/x.png">
+	      <img src="https://eng.geopeers.com/images/x.png">
 	    </div>
 	  </div>
 	  <div class="popup_content">
@@ -112,6 +114,7 @@
 
       <!-- popup share management box -->
       <div id="manage_popup"
+	   data-transition="fade"
 	   data-role="popup"
 	   >
 	<div class="popup_frame">
@@ -119,7 +122,7 @@
 	    Manage your Shared Locations
 	    <div class="popup_close_x"
 		 onclick="$('#manage_popup').popup('close')">
-	      <img src="images/x.png">
+	      <img src="https://eng.geopeers.com/images/x.png">
 	    </div>
 	  </div>
 	  <div class="popup_content">
