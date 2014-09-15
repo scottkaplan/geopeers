@@ -837,11 +837,15 @@ function validate_registration_form () {
 }
 
 function update_registration_popup () {
+    // set the 'New Account' radio to 'no' and hide the control
+    var $radios = $('input:radio[name=new_account]');
+    $radios.filter('[value=yes]').prop('checked', false);
+    $radios.filter('[value=no]').prop('checked', true);
     $('#new_account_div').hide();
+
     $('#registration_form #name').val(registration.reg_info.name);
     $('#registration_form #email').val(registration.reg_info.email);
     $('#registration_form #mobile').val(registration.reg_info.mobile);
-    $('#registration_form #registration_edit').val(1);
     return;
 }
 
