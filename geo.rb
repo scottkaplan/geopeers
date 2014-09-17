@@ -11,8 +11,8 @@ require 'eztexting'
 require 'net/smtp'
 require 'uri'
 require 'securerandom'
-require 'pry'
-require 'pry-debugger'
+# require 'pry'
+# require 'pry-debugger'
 
 set :public_folder, 'public'
 ActiveRecord::Base.logger = nil
@@ -85,6 +85,7 @@ end
 def log_info(msg)
   $LOG.info msg
   Protocol.send_email(msg, 'support@geopeers.com', 'Geopeers Support', 'support@geopeers.com', 'Geopeers Server Info')
+  msg
 end
 
 def log_error(err)
@@ -97,6 +98,17 @@ def log_error(err)
   end
   $LOG.error msg
   Protocol.send_email(msg, 'support@geopeers.com', 'Geopeers Support', 'support@geopeers.com', 'Geopeers Server Error')
+  msg
+end
+
+def parse_params (params_str)
+  params_str = /\??(.*)/.match(params_str).to_s	# strip optional leading '?'
+  params = {}
+  params_str.split('&').each { |param_str|
+    key, val = param_str.split('=')
+    params[key] = val
+  }
+  params
 end
 
 def init
@@ -133,12 +145,7 @@ def init
   # The keys of params must be strings, that's what sinatra sends us
   puts ARGV[0]
   if ARGV[0]
-    params_str = /\??(.*)/.match(ARGV[0]).to_s	# strip optional leading '?'
-    params = {}
-    params_str.split('&').each { |param_str|
-      key, val = param_str.split('=')
-      params[key] = val
-    }
+    params = parse_params(ARGV[0])
     if params && params['method']
       resp = Protocol.process_request params
       puts resp.inspect
@@ -171,11 +178,17 @@ class Protocol
   private
 
   def Protocol.get_account_from_device (device)
+    return unless device
     if (device.account_id)
       Account.find(device.account_id)
     else
       nil
     end
+  end
+
+  def Protocol.get_account_from_device_id (device_id)
+    device = Device.find_by(device_id: device_id)
+    Protocol.get_account_from_device (device)
   end
 
   def Protocol.compute_expire_time (params)
@@ -221,10 +234,9 @@ class Protocol
   end
 
   def Protocol.create_share_msg (share, params)
-    device = Device.find_by(device_id: params['device_id'])
     url = Protocol.create_share_url(share, params)
     expire_time = Protocol.format_expire_time(share, params)
-    account = Protocol.get_account_from_device (device)
+    account = Protocol.get_account_from_device_id (params['device_id'])
     name = account ? account.name : 'Geopeers'
     message = params['share_message']
     if (share.share_via == 'sms')
@@ -290,8 +302,7 @@ class Protocol
   end
 
   def Protocol.send_share_email (share, params)
-    device = Device.find_by(device_id: params['device_id'])
-    account = Protocol.get_account_from_device (device)
+    account = Protocol.get_account_from_device_id (params['device_id'])
     if (! account)
       log_error ("No account")
       {message: 'There was a problem sending your email.  Support has been contacted', css_class: 'message_error'}
@@ -319,6 +330,11 @@ class Protocol
     {message: "Twitter shares are not implemented yet"}
   end
 
+  def Protocol.error_response (error_msg)
+    # { error: error_msg, backtrace: caller }
+    { message: error_msg, style: {color: 'red'}}
+  end
+
   def Protocol.send_share (share, params)
     procname = 'send_share_' + share['share_via']
     if (defined? procname)
@@ -326,11 +342,6 @@ class Protocol
     else
       error_response "Bad method " + procname
     end
-  end
-
-  def Protocol.error_response (error_msg)
-    # { error: error_msg, backtrace: caller }
-    { message: error_msg, style: {color: 'red'}}
   end
 
   def Protocol.create_device_id (user_agent)
@@ -436,16 +447,16 @@ class Protocol
   def Protocol.process_request_get_registration (params)
     if params.has_key?('device_id')
       device = Device.find_by(device_id: params['device_id'])
-      if device.nil?
-        # This shouldn't happen.  If there is a device_id, it should be in the DB
-        log_dos ("No record for "+params['device_id'])
-        error_response "Unknown device ID"
-      else
+      if device
         if device.account_id
           Account.find(device.account_id)
         else
           {}
         end
+      else
+        # This shouldn't happen.  If there is a device_id, it should be in the DB
+        log_dos ("No record for "+params['device_id'])
+        error_response "Unknown device ID"
       end
     else
       log_dos ("No device_id")
@@ -454,12 +465,19 @@ class Protocol
   end
 
   def Protocol.validate_register_params (params)
-    return ("Please supply your name") if (params['new_account'] == 'yes' && (! params['name']))
-    return ("No device ID") unless (params['device_id'])
+    msgs = []
+    if ! params['device_id']
+      msgs.push "No device ID"
+    end
+    if params['new_account'] == 'yes'
+      if ! params['name']
+        msgs.push "Please supply your name"
+      end
+    end
 
-    if (params['email'])
-      if (! /.+@.+/.match(params["email"]))
-        return ("Email should be in the form 'fred@company.com'")
+    if params['email']
+      if ! /.+@.+/.match(params["email"])
+        msgs.push "Email should be in the form 'fred@company.com'"
       end
       has_email_or_mobile = true
     end
@@ -469,54 +487,73 @@ class Protocol
       # We have to do this so that (415) 555-1212 matches 415-5551212
       params['mobile'] = Sms.clean_num(params['mobile'])
       if (! /^\d{10}$/.match(params['mobile']))
-        return ("The mobile number must be 10 digits")
+        msgs.push ("The mobile number must be 10 digits")
       end
       has_email_or_mobile = true
     end
 
-    return ("Please supply your email or mobile number") unless (has_email_or_mobile)
-
-    return
+    # if there is no account associated with this device yet
+    # we need an email or mobile to look for this account
+    device = Device.find_by(device_id: params['device_id'])
+    if (! device.account_id && ! has_email_or_mobile)
+      msgs.push ("Please supply your email or mobile number")
+    end
+    # don't return an empty array
+    msgs = nil if msgs.empty?
+    return msgs
   end
 
   def Protocol.send_verification_by_type (params, type)
     # params:
+    #   device_id
     #   account_id
-    #   email
-    #   mobile
+    #   email | mobile
     #
-    # create cred
-    account = Account.find(params['account_id'])
-    $LOG.debug account
-    if (params[type])
-      # Don't send if already verified
-      return if account[type]
+    # create cred and put in auth record
+    # email/text verification
 
-      auth = Auth.find_by(account_id: account.id)
-      $LOG.debug auth
-      if auth
-        # Didn't verify, resend existing cred
-        params['cred'] = auth.cred
-        user_msg = params[type]+" has not been verified yet.  The verification has been re-sent"
+    new_val = params[type]
+    return unless (new_val)
+
+    account = Protocol.get_account_from_device_id (params['device_id'])
+    return unless (account)
+
+    # Don't send if there is no change
+    # This is not just a nice optimization (which it is)
+    # But geo_spec.rb needs this
+    return if account[type] == new_val
+
+    auth = Client.where("account_id = ? AND auth_type = ?", account.id, type)
+    if auth
+      params['cred'] = auth.cred
+      if auth.auth_key == new_val
+        # User is trying to verify the same value, resend the verification
+        user_msg = "#{new_val} has not been verified yet.  The verification has been re-sent"
       else
-        params['cred'] = SecureRandom.urlsafe_base64(10)
-        auth = Auth.new(account_id: params['account_id'],
-                        auth_type:  type,
-                        auth_key:   params[type],
-                        cred:       params['cred'],
-                        issue_time: Time.now,
-                        )
+        # user wants to verify a different value
+        user_msg = "We were waiting for a verification for #{auth.auth_key}"
+        user_msg += "That verification will now verify #{new_val}.  And a new verification was sent to #{new_val}"
+        auth.auth_key = new_val
         auth.save
-        user_msg = "A verification was sent to #{params[type]}"
       end
-      err = Protocol.send_msg(params, type)
-      if (err)
-        log_error (err)
-        verification_type = (type == 'email') ? 'email' : 'text msg'
-        return ("There was a problem sending your verification #{verification_type}.  Support has been contacted")
-      else
-        return nil, user_msg
-      end
+    else
+      params['cred'] = SecureRandom.urlsafe_base64(10)
+      auth = Auth.new(account_id: account.id,
+                      auth_type:  type,
+                      auth_key:   new_val,
+                      cred:       params['cred'],
+                      issue_time: Time.now,
+                      )
+      auth.save
+      user_msg = "A verification was sent to #{new_val}"
+    end
+    err = Protocol.send_msg(params, type)
+    if (err)
+      log_error (err)
+      verification_type = (type == 'email') ? 'email' : 'text msg'
+      return ("There was a problem sending your verification #{verification_type}.  Support has been contacted")
+    else
+      return nil, user_msg
     end
   end
 
@@ -524,13 +561,11 @@ class Protocol
     errs = []
     user_msgs = []
     ['mobile','email'].each do | type |
-      err, user_msg = send_verification_by_type(params, type)
+      err, user_msg = Protocol.send_verification_by_type(params, type)
       errs.push err if err
       user_msgs.push user_msg if user_msg
     end
-    # errors are concatenated, user messages are returned as an array
-    err = errs.empty? ? nil : errs.join('<br>')
-    return err, user_msgs
+    return errs, user_msgs
   end
 
   def Protocol.get_existing_account (params, type)
@@ -551,103 +586,76 @@ class Protocol
     end
   end
 
-  def Protocol.find_account (params, type)
-    # look for the account associated with credential (email | mobile) supplied by user
-    # returns <account, msg>
-    #   nil, msg     => no account, user message
-    #   account, nil => account is verified
-    #   account, msg => account is not verified, user message (info only)
-    return unless params[type]
-
-    account = Protocol.get_existing_account(params, type)
-    $LOG.debug account
-    if account
-      if ! account[type]
-        # not verified, resend the verification as a reminder
-        # ignore the error, if it failed, the system error was already logged
-        params['account_id'] = account.id
-        err_msg, user_msg = Protocol.send_verification_by_type(params, type)
-      end
-    else
-      log_dos ("No account for #{params[type]}")
-      user_msg = params[type]+" is not an account"
-    end
-    return account, user_msg
-  end
-
-  def Protocol.get_account_for_device(device)
-    return unless (device)
-    if device.account_id
-      Account.find(device.account_id)
-    else
-      account = Account.new()
-      account.save
-      device[:account_id] = account.id
-      device.save
-      account
-    end
-  end
-
   def Protocol.process_new_account (params)
-    user_msgs = []
 
-    # Are these credentials already verified
     device = Device.find_by(device_id: params['device_id'])
     if (! device)
       log_dos ("No device")
-      return (["There was a problem with your request."])
+      return ["There was a problem with your request."], nil
     end
 
-    account = Protocol.get_account_for_device(device)
-    account[:name] = params['name']
-    account.save
-
+    err_msgs = []
     # make sure account (email and/or mobile) doesn't already exist
     account = Protocol.get_existing_account(params, 'mobile')
-    user_msgs.push (params['mobile']+" is already registered") if account && account.id != device.account_id
+    err_msgs.push (params['mobile']+" is already registered") if account && account.id != device.account_id
     account = Protocol.get_existing_account(params, 'email')
-    user_msgs.push (params['email']+" is already registered") if account && account.id != device.account_id
-    return user_msgs unless (user_msgs.empty?)
+    err_msgs.push (params['email']+" is already registered") if account && account.id != device.account_id
+    return err_msgs, nil if err_msgs && ! err_msgs.empty?
 
-    params['account_id'] = device.account_id
-    err, user_msgs = Protocol.send_verifications (params)
-    return err, user_msgs
+    # If we get here, it's time to create the account and bind it to the device
+    account = Account.new()
+    account[:name] = params['name']
+    account.save
+    device[:account_id] = account.id
+    device.save
+
+    Protocol.send_verifications (params)
   end
 
-  def Protocol.process_existing_account (params)
+  def Protocol.bind_to_account (params)
     # associate device_id with an existing account
     # since we have email and/or mobile, this requires a few twists
 
     user_msgs = []
-    account_mobile, user_msg = find_account(params, 'mobile')
-    user_msgs.push (user_msg) if user_msg
-    account_email, user_msg = find_account(params, 'email')
-    user_msgs.push (user_msg) if user_msg
-    # Don't use user_msgs as status
-    # use accounts to determine if there is an existing account
-    if (! account_mobile && ! account_email)
-      return error_response user_msgs.join ('<br>')
+    errs = []
+    accounts = {}
+    ['mobile','email'].each do | type |
+      if params[type]
+        account = Protocol.get_existing_account(params, type)
+        if account
+          err_msg, user_msg = Protocol.send_verification_by_type(params, type)
+          errs.push (err_msg) if (err_msg)
+          user_msgs.push (user_msg) if (user_msg)
+          accounts[type] = account
+        else
+          log_dos ("No account for #{params[type]}")
+          user_msgs.push ("There is no account associated with #{params[type]}")
+        end
+      end
     end
-    if (account_mobile && account_email && (account_mobile.id != account_email.id))
+
+    if (! params['mobile'] && ! params['email'])
+      # we couldn't find an account
+      # The error message is already in user_msgs
+      errs.push ("Please supply either mobile or email")
+    elsif (accounts['mobile'] && accounts['email'] && (accounts['mobile'].id != accounts['email'].id))
       # This is a problem, the email points to one account and the mobile to another
-      return error_response "The email and mobile are not associated with the same account"
+      errs.push ("The email and mobile are not associated with the same account")
+    else
+      account = accounts['mobile'] ? accounts['mobile'] : accounts['email']
+      # it's possible that we don't have any accounts if we got a param with no account
+      if account
+        params['account_id'] = account.id
+        device = Device.find_by(device_id: params['device_id'])
+        device[:account_id] = account.id
+        device.save
+        user_msgs.push ("Your device has been added to the account #{account.name}")
+      end
     end
-    # We can finally get to one account
-    account = account_mobile ? account_mobile : account_email
-    params['account_id'] = account.id
-    device = Device.find_by(device_id: params['device_id'])
-    device[:account_id] = account.id
-    device.save
-
-    if (params['name'] != account.name)
-      account.name = params['name']
-      account.save
-    end
-
-    return nil, user_msgs
+    return errs, user_msgs
   end
 
-  def create_download_app_response (params)
+  def Protocol.get_download_app_info (params)
     if (params['download_app'])
       client_type = get_client_type ()
       redirect_url = DOWNLOAD_URLS[client_type]
@@ -659,84 +667,90 @@ class Protocol
     end
   end
 
-  def Protocol.manage_registration (params)
+  def Protocol.manage_account(params, account)
+    if ! account
+      log_error "No account"
+      return ["No Account"]
+    end
+    # Update account with name/email/mobile in parms
     device = Device.find_by(device_id: params['device_id'])
-    msgs = []
-    if device
-      if device.account_id
-        account = Account.find(device.account_id)
-        if account
-          if (params['name'] != account.name)
-            account.name = params['name']
-            account.save
-            msgs.push ("Account name changed to #{account.name}")
-          end
-          ['mobile','email'].each do | type |
-            if (params[type] != account[type])
-              params['account_id'] = account.id
-              err, user_msg = send_verification_by_type(params, type)
-              if err
-                log_error err
-                msgs.push (err)
-              end
-              msgs.push (user_msg) if user_msg
-            end
-          end
-        else
-          log_error "No account for #{device.account_id}"
-          msgs.push "No account for #{device.account_id}"
-        end
-      else
-        log_error "No account"
-        msgs.push "No account"
-      end
-    else
+    if ! device
       log_error "No device"
-      msgs.push "No device"
+      return ["No device"]
     end
-    if msgs.empty?
-      {message: 'The changes have been made', style: {color:"green"}}
-    else
-      {message: msgs.join('<br>'), style: {color:"red"}}
+    msgs = []
+    errs = []
+    if (params['name'] != account.name)
+      account.name = params['name']
+      account.save
+      msgs.push ("Account name changed to #{account.name}")
     end
+    ['mobile','email'].each do | type |
+      if (params[type] != account[type])
+        params['account_id'] = account.id
+        err, user_msg = Protocol.send_verification_by_type(params, type)
+        if err
+          log_error err
+          errs.push (err)
+        end
+        msgs.push (user_msg) if user_msg
+      end
+    end
+    return errs, msgs
   end
 
   def Protocol.process_request_register_device (params)
     # params:
     #   method = 'register_device'
     #   download_app = [ 0 | 1 ]	response sends redirect to download URL
-    #   registration_edit = [ 0 | 1 ]	assumes info is for existing registration
-    #   new_account = [ 'yes' | 'no' ]	only if registration_edit == 0
+    #   new_account = [ 'yes' | 'no' ]	
     #   name
     #   email
     #   mobile
     # register name/email/mobile with an account
     # send the verification
     #
-    err = Protocol.validate_register_params (params)
-    return (error_response err) if (err)
 
-    if params['registration_edit']
-      # changes to an existing account
-      Protocol.manage_registration (params)
-    else
-      # standard login (new or existing)
-      user_msgs = []
-      if (params['new_account'] == 'yes')
-        err, user_msgs = Protocol.process_new_account (params)
-      else
-        err, user_msgs = Protocol.process_existing_account (params)
-      end
-      return error_response err if (err)
-      user_msgs.push (user_msg)
-
-
-      # If we get to here there is an account which may or may not be verified
-      # redirect to the native app download URL
-      redirect_url, user_msg = create_download_app_redirect (params)
-      {message: user_msgs.join('<br>'), style: {color:"red"}}      
-      response
+    if ! params['device_id']
+      log_dos ("No device ID")
+      return;
     end
+
+    errs = Protocol.validate_register_params (params)
+    return error_response errs.join('<br>') if (errs)
+
+    # There are three possibilities
+    #   1) create new account
+    #   2) register a new device to an existing account
+    #   3) edit the account parameters (after verification if needed)
+    if (params['new_account'] == 'yes')
+      errs, user_msgs = Protocol.process_new_account (params)
+    else
+      account = Protocol.get_account_from_device (params['device_id'])
+      if account
+        # This device is already associated with an account
+        # params are changes to that account
+        errs, user_msgs = Protocol.manage_account(params, account)
+      else
+        # This device does not have an account yet (i.e. never got new_account == 'yes')
+        # use params (email and/or mobile) to find an account
+        errs, user_msgs = Protocol.bind_to_account(params)
+        $LOG.debug user_msgs
+      end
+    end
+
+    # handle native app download redirection
+    err_msg, redirect_url = Protocol.get_download_app_info (params)
+    errs.push (err_msg) if (err_msg)
+
+    response = {}
+    if (errs && ! errs.empty?)
+      response = error_response errs.join('<br>')
+    else
+      response = {message: user_msgs.join('<br>'), style: {color:"red"}} if (user_msgs)
+      response['redirect_url'] = redirect_url if (redirect_url)
+    end
+    response
   end
 
   def Protocol.process_request_share_location (params)
