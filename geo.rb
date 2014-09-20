@@ -61,7 +61,10 @@ class Sms
   end
 end
 
-def clear_device (device)
+def clear_device_id (device_id)
+  return unless device_id
+  device = Device.find_by(device_id: device_id)
+  return unless device
   account = Protocol.get_account_from_device (device)
   account.destroy if account
   device.destroy
@@ -109,6 +112,17 @@ def parse_params (params_str)
     params[key] = val
   }
   params
+end
+
+def merge_accounts (account_dst, account_src)
+  # move any devices using account_src
+  Device.where("account_id = ?", account_src.id)
+    .update_all(account_id: account_dst.id)
+  # move any un-verified auths
+  Auth.where("auth_time IS NULL AND account_id = ?", account_src.id)
+    .update_all(account_id: account_dst.id)
+  account_src.update(active: nil)
+  return
 end
 
 def init
@@ -492,15 +506,17 @@ class Protocol
       has_email_or_mobile = true
     end
 
-    # if there is no account associated with this device yet
-    # we need an email or mobile to look for this account
-    device = Device.find_by(device_id: params['device_id'])
-    if (! device.account_id && ! has_email_or_mobile)
-      msgs.push ("Please supply your email or mobile number")
-    end
     # don't return an empty array
     msgs = nil if msgs.empty?
     return msgs
+  end
+
+  def Protocol.get_latest_auth(account_id, type)
+    # get the most recent, un-verified auth for this account/type
+    auth = Auth.where("account_id = ? AND auth_type = ? AND auth_time IS NULL", account_id, type)
+      .order(auth_time: :desc)
+      .limit(1)
+      .first
   end
 
   def Protocol.send_verification_by_type (params, type)
@@ -508,6 +524,9 @@ class Protocol
     #   device_id
     #   account_id
     #   email | mobile
+    #
+    # returns:
+    #   <err_msg>, <user_msg>
     #
     # create cred and put in auth record
     # email/text verification
@@ -518,12 +537,12 @@ class Protocol
     account = Protocol.get_account_from_device_id (params['device_id'])
     return unless (account)
 
+    $LOG.debug account
+    $LOG.debug new_val
     # Don't send if there is no change
-    # This is not just a nice optimization (which it is)
-    # But geo_spec.rb needs this
     return if account[type] == new_val
 
-    auth = Client.where("account_id = ? AND auth_type = ?", account.id, type)
+    auth = Protocol.get_latest_auth(account.id,type)
     if auth
       params['cred'] = auth.cred
       if auth.auth_key == new_val
@@ -531,6 +550,16 @@ class Protocol
         user_msg = "#{new_val} has not been verified yet.  The verification has been re-sent"
       else
         # user wants to verify a different value
+        # create a new auth
+        # the old auth
+        params['cred'] = SecureRandom.urlsafe_base64(10)
+        auth = Auth.new(account_id: account.id,
+                        auth_type:  type,
+                        auth_key:   new_val,
+                        cred:       params['cred'],
+                        issue_time: Time.now,
+                        )
+        auth.save
         user_msg = "We were waiting for a verification for #{auth.auth_key}"
         user_msg += "That verification will now verify #{new_val}.  And a new verification was sent to #{new_val}"
         auth.auth_key = new_val
@@ -606,6 +635,7 @@ class Protocol
     account = Account.new()
     account[:name] = params['name']
     account.save
+    $LOG.debug "Created account #{account.id}"
     device[:account_id] = account.id
     device.save
 
@@ -616,6 +646,7 @@ class Protocol
     # associate device_id with an existing account
     # since we have email and/or mobile, this requires a few twists
 
+    $LOG.debug "bind_to_account"
     user_msgs = []
     errs = []
     accounts = {}
@@ -640,12 +671,19 @@ class Protocol
       errs.push ("Please supply either mobile or email")
     elsif (accounts['mobile'] && accounts['email'] && (accounts['mobile'].id != accounts['email'].id))
       # This is a problem, the email points to one account and the mobile to another
-      errs.push ("The email and mobile are not associated with the same account")
+      errs.push ("Please supply either email or mobile but not both to register this device with your account.  To create a new account, check 'New'.")
     else
+      # at this point we are guaranteed that
+      # if we have an account for both mobile and email
+      # then they are the same
       account = accounts['mobile'] ? accounts['mobile'] : accounts['email']
       # it's possible that we don't have any accounts if we got a param with no account
       if account
         params['account_id'] = account.id
+        #
+        # Don't do this.  See:
+        #   #4302 - Only add a device to an account after verification
+        #
         device = Device.find_by(device_id: params['device_id'])
         device[:account_id] = account.id
         device.save
@@ -680,13 +718,15 @@ class Protocol
     end
     msgs = []
     errs = []
-    if (params['name'] != account.name)
+
+    if (params['name'] && params['name'] != account.name)
       account.name = params['name']
       account.save
       msgs.push ("Account name changed to #{account.name}")
     end
+
     ['mobile','email'].each do | type |
-      if (params[type] != account[type])
+      if params[type] && (params[type] != account[type])
         params['account_id'] = account.id
         err, user_msg = Protocol.send_verification_by_type(params, type)
         if err
@@ -716,6 +756,13 @@ class Protocol
       return;
     end
 
+    device = Device.find_by(device_id: params['device_id'])
+    if ! device
+      device = Device.new(device_id:  params['device_id'],
+                          user_agent: params['user_agent'])
+      device.save
+    end
+
     errs = Protocol.validate_register_params (params)
     return error_response errs.join('<br>') if (errs)
 
@@ -726,7 +773,7 @@ class Protocol
     if (params['new_account'] == 'yes')
       errs, user_msgs = Protocol.process_new_account (params)
     else
-      account = Protocol.get_account_from_device (params['device_id'])
+      account = Protocol.get_account_from_device (device)
       if account
         # This device is already associated with an account
         # params are changes to that account
@@ -735,9 +782,10 @@ class Protocol
         # This device does not have an account yet (i.e. never got new_account == 'yes')
         # use params (email and/or mobile) to find an account
         errs, user_msgs = Protocol.bind_to_account(params)
-        $LOG.debug user_msgs
       end
     end
+    $LOG.debug user_msgs
+    $LOG.debug errs
 
     # handle native app download redirection
     err_msg, redirect_url = Protocol.get_download_app_info (params)
@@ -835,23 +883,65 @@ class Protocol
     # In this request, we get a cred
     # If it corresponds to an auth,
     # then update the account with the info in the auth
-    auth = Auth.find_by(cred: params["cred"])
+    #
+    # Several twists:
+    #   - the cred may not be the most recent.
+    #     There can only be one verification 'in the air' at a time.
+    #     So if you request 2 value changes, the first verification should fail
+    #   - make sure params['device_id'] is correct for the cred
+    #
+
+    # get the auth associated with the credential in the request params
+    auth_cred = Auth.find_by(cred: params["cred"])
     $LOG.debug auth
+
+    # get the latest auth
+    auth_latest = Protocol.get_latest_auth(auth_cred.account_id, auth_cred.auth_type)
+    $LOG.debug auth_latest
+
+    # As a cross-check, we include the device_id
     device = Device.find_by(device_id: params['device_id'])
     $LOG.debug device
+
     redirect_url = 'https://geopeers.com'
-    if (! auth || ! device || auth.account_id != device.account_id)
+
+    # Things that can go wrong:
+    #   1) there is no auth associated with cred
+    #   2) there is no device associated with device_id
+    #   3) the cred is old (not latest auth)
+    #      test auth.auth_keys, not auth.ids
+    #      in case user did this: key_1 -> key_2 -> key_1
+    if  ! auth_cred ||
+        ! device ||
+        auth_cred.account_id != device.account_id
+      (auth_latest &&
+       auth_cred.auth_key != auth_latest.auth_key)
       log_dos (params)
       msg = "That credential is not valid.  You can't view the location.  You can still use the other features of GeoPeers"
+      message_type = 'message_warning'
     else
+      account_for_device = Account.find(device.account_id)
+      $LOG.debug account_for_device
+      account_from_val = Account.where("#{type}=?",params[type]).first
+      $LOG.debug account_from_val
+      if  account_from_val &&
+          account_from_val.id != account_for_device.id
+        # this value is used in another account, merge 
+        msg "#{params[type]} is used by #{account_from_val.name}.  Your device has been added to this account."
+        message_type = 'message_info'
+        merge_accounts(account_from_val, account_for_device)
+        device.account_id = account_from_val.id
+        account = account_from_val
+      else
+        msg = account_for_device.name+" has been registered"
+        message_type = 'message_success'
+        account = account_for_device
+      end
       auth.auth_time = Time.now
       auth.save
-      account = Account.find(auth.account_id)
       account[auth.auth_type] = auth.auth_key
       account.save
       $LOG.debug account
-      msg = account.name+" has been registered"
-      message_type = 'message_success'
     end
     msg = URI.escape (msg)
     redirect_url += "?alert=#{msg}"
@@ -917,7 +1007,7 @@ class Protocol
         # This shouldn't happen, there should be an account somewhere
         # Create the account and assign to both web and native app
         # But this means there is no user-generated name
-        # It's better to generate one than leave it empty
+        # It's better to generate the account with a nil name than have no account
         name = "anon_"+SecureRandom.hex(6)
         account = Account.new(name: name)
         account.save
@@ -962,8 +1052,7 @@ class Protocol
   end
 
   def Protocol.process_request_clear_device (params)
-    device = Device.find_by(device_id: params['device_id'])
-    clear_device(device)
+    clear_device_id(params['device_id'])
     return;
   end
   
