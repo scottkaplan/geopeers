@@ -1,5 +1,10 @@
 #!/usr/bin/ruby
 
+# The backend server for Geopeers
+#
+# Author:: Scott Kaplan (mailto:scott@kaplans.com)
+# Copyright:: Copyright (c) 2014 Scott Kaplan
+
 require 'sinatra'
 require 'sinatra/activerecord'
 require 'json'
@@ -11,6 +16,7 @@ require 'eztexting'
 require 'net/smtp'
 require 'uri'
 require 'securerandom'
+require 'socket'
 # require 'pry'
 # require 'pry-debugger'
 
@@ -26,7 +32,7 @@ class Device < ActiveRecord::Base
   }
 end
 class Share < ActiveRecord::Base
-  before_destroy { |record|
+  before_destroy { |share|
     Redeem.destroy_all(share_id: share.id)
   }
 end
@@ -61,6 +67,13 @@ class Sms
   end
 end
 
+def clear_shares (device_id)
+  # delete all the shares that track device_id
+  Share.where("device_id=?",device_id).find_each do |share|
+    share.destroy
+  end
+end
+
 def clear_device_id (device_id)
   return unless device_id
   device = Device.find_by(device_id: device_id)
@@ -92,12 +105,13 @@ def log_info(msg)
 end
 
 def log_error(err)
+  msg = "On " + Socket.gethostname + "\n\n"
   if (err.respond_to?(:backtrace))
-    msg = err.message + "\n" + err.backtrace.join("\n")
+    msg += "Error: " + err.message + "\n\n" + err.backtrace.join("\n")
   else
     backtrace = parse_backtrace caller
     backtrace_str = backtrace[0][:file_base] + ':' + backtrace[0][:line_num] + ' ' + backtrace[0][:routine]
-    msg = err.inspect + "\n" + backtrace_str
+    msg += "Error: " + err.inspect + "\n\n" + backtrace_str
   end
   $LOG.error msg
   Protocol.send_email(msg, 'support@geopeers.com', 'Geopeers Support', 'support@geopeers.com', 'Geopeers Server Error')
@@ -141,16 +155,13 @@ def init
     "[#{datetime.strftime($LOG.datetime_format)} #{severity} #{file}:#{line}]: #{msg.inspect}\n"
   }
   db_config = YAML::load_file('config/database.yml')
-  db_str = "#{db_config['adapter']}://#{db_config['username']}:#{db_config['password']}@#{db_config['host']}:#{db_config['port']}/#{db_config['database']}"
-  set :database, db_str
-#  ActiveRecord::Base.establish_connection(
-#                                          :adapter  => db_config.adapter,
-#                                          :database => 'geopeers',
-#                                          :host     => 'db.geopeers.com',
-#                                          :username => 'geopeers',
-#                                          :password => 'ullamco1'
-#                                          )
-  #  $DB_SPEC = ActiveRecord::Base.specification
+  ActiveRecord::Base.establish_connection(
+                                          :adapter  => db_config['adapter'],
+                                          :database => 'geopeers',
+                                          :host     => 'db.geopeers.com',
+                                          :username => 'geopeers',
+                                          :password => 'ullamco1'
+                                          )
 
   # For debugging, allow this script to be called with a URL parm:
   #   geo.rb 'method=config&device_id=DEV_42'
@@ -167,7 +178,6 @@ def init
       exit
     end
   end
-
 end
 
 DOWNLOAD_URLS = {
@@ -220,7 +230,7 @@ class Protocol
   end
 
   def Protocol.create_share_url (share, params)
-    "https://eng.geopeers.com/api?method=cred&cred="+share.share_cred
+    "https://eng.geopeers.com/api?method=redeem&cred="+share.share_cred
   end
 
   def Protocol.create_verification_url (params)
@@ -365,7 +375,7 @@ class Protocol
       device = Device.new(device_id:  device_id,
                           user_agent: user_agent)
       device.save
-      log_info ("created device "+device_id)
+      log_info ("created device "+device_id+",\nuser agent="+user_agent.to_s)
     rescue => err
       log_error (err)
     end
@@ -384,7 +394,7 @@ class Protocol
       device.save
     end
 
-    if (params[:version].to_i < 2)
+    if (params[:version].to_i < 1)
       {js: "alert('If we had an upgrade, this would be it')"}
     else
       {}
@@ -604,17 +614,6 @@ class Protocol
     return
   end
 
-  def Protocol.get_verified_account (params, type)
-    account = Protocol.get_existing_account(params, type)
-    if account
-      if account[type]
-        return account
-      else
-        return [account, "NOT_VERIFIED"]
-      end
-    end
-  end
-
   def Protocol.process_new_account (params)
 
     device = Device.find_by(device_id: params['device_id'])
@@ -826,55 +825,72 @@ class Protocol
                       share_via:    params["share_via"],
                       share_to:     params["share_to"],
                       share_cred:   share_cred,
+                      num_uses:     0,
                       num_uses_max: params["num_uses"],
                       )
     share.save
     Protocol.send_share(share, params)
   end
 
-  def Protocol.process_request_cred (params)
+  def Protocol.process_request_redeem (params)
     # a share URL has been clicked
-    # using the cred, create a redeem
-    share = Share.find_by(share_cred: params["cred"])
-    redirect_url = 'https://geopeers.com'
+    # using the cred, create a redeem for the share
 
-    if (! share)
-      msg = "That credential is not valid.  You can't view the location.  You can still use the other features of GeoPeers"
-      msg = URI.escape (msg)
-      redirect_url += "?alert=#{msg}"
-    elsif (! share.num_uses_max || share.num_uses < share.num_uses_max)	# null num_uses_max -> unlimited uses
-      # it's a good share
+    # get the share for this cred
+    share = Share.find_by(share_cred: params[:cred])
+    $LOG.debug share
+    redirect_url = 'https://eng.geopeers.com'
 
-      # does params['device_id'] (seer) already have access to a share for share.device_id (seen)
-      sql = "SELECT shares.expire_time, redeems.id AS redeem_id FROM shares, redeems
+    if (share)
+      if (! share.num_uses_max ||	# null num_uses_max -> unlimited uses
+           (share.num_uses < share.num_uses_max))
+        # it's a good share
+
+        # does params['device_id'] (seer) already have access to a share for share.device_id (seen)
+        sql = "SELECT shares.expire_time, redeems.id AS redeem_id FROM shares, redeems
              WHERE shares.device_id  = '#{share.device_id}' AND
                    redeems.device_id = '#{params['device_id']}' AND
                    redeems.share_id  = shares.id AND
                    NOW() < shares.expire_time
             "
-      current_share = Share.find_by_sql(sql).first
-      $LOG.debug current_share
-      if (current_share)
-        if ( ! current_share.expire_time ||
-             current_share.expire_time >= share.expire_time)
-          # this current_share expires after the new share, ignore the new share
-          $LOG.debug "using existing share"
-          return {:redirect_url => redirect_url}
+        current_share = Share.find_by_sql(sql).first
+        $LOG.debug current_share
+        if (current_share)
+          if ( ! current_share.expire_time)
+            # we already have an unlimited share
+            $LOG.debug "unlimited share"
+            return {:redirect_url => redirect_url}
+          end
+          
+          if (current_share.expire_time >= share.expire_time)
+            # this current_share expires after the new share, ignore the new share
+            $LOG.debug "using existing share"
+            return {:redirect_url => redirect_url}
+          else
+            # the new share expires after the current share, update the redeem with the new share
+            $LOG.debug "updating redeem with new share"
+            redeem = Redeem.find (current_share.redeem_id)
+          end
         else
-          # the new share expires after the current share, update the redeem with the new share
-          $LOG.debug "updating redeem with new share"
-          redeem = Redeem.find (current_share.redeem_id)
+          $LOG.debug "no existing share"
+          redeem = Redeem.new(share_id:  share.id,
+                              device_id: params["device_id"])
         end
+        $LOG.debug redeem
+        redeem.save
+        share.num_uses = share.num_uses ? share.num_uses+1 : 1
+        share.save
       else
-        $LOG.debug "no existing share"
-        redeem = Redeem.new(share_id:  share.id,
-                            device_id: params["device_id"])
+        # This share has been used up
+        msg = "That credential is not valid.  You can't view the location.  You can still use the other features of GeoPeers"
+        msg = URI.escape (msg)
+        redirect_url += "?alert=#{msg}"
       end
-      $LOG.debug redeem
-      redeem.save
-      share.num_uses = share.num_uses ? share.num_uses+1 : 1
-      share.save
-    end
+    else
+      msg = "That credential is not valid.  You can't view the location.  You can still use the other features of GeoPeers"
+      msg = URI.escape (msg)
+      redirect_url += "?alert=#{msg}"
+end
     {:redirect_url => redirect_url}
   end
 
@@ -893,7 +909,7 @@ class Protocol
 
     # get the auth associated with the credential in the request params
     auth_cred = Auth.find_by(cred: params["cred"])
-    $LOG.debug auth
+    $LOG.debug auth_cred
 
     # get the latest auth
     auth_latest = Protocol.get_latest_auth(auth_cred.account_id, auth_cred.auth_type)
@@ -920,26 +936,31 @@ class Protocol
       msg = "That credential is not valid.  You can't view the location.  You can still use the other features of GeoPeers"
       message_type = 'message_warning'
     else
+      # auth_cred and device are good
+      # But it is possible that there are two different accounts
+      #   1) This device_id has an account
+      #   2) There is an account associated with the value 
       account_for_device = Account.find(device.account_id)
       $LOG.debug account_for_device
-      account_from_val = Account.where("#{type}=?",params[type]).first
+      account_from_val = Account.where("#{auth_cred.auth_type}=?",auth_cred.auth_key).first
       $LOG.debug account_from_val
       if  account_from_val &&
-          account_from_val.id != account_for_device.id
+          account_from_val.id != device.account_id
         # this value is used in another account, merge 
         msg "#{params[type]} is used by #{account_from_val.name}.  Your device has been added to this account."
         message_type = 'message_info'
         merge_accounts(account_from_val, account_for_device)
         device.account_id = account_from_val.id
+        device.save
         account = account_from_val
       else
         msg = account_for_device.name+" has been registered"
         message_type = 'message_success'
         account = account_for_device
       end
-      auth.auth_time = Time.now
-      auth.save
-      account[auth.auth_type] = auth.auth_key
+      auth_cred.auth_time = Time.now
+      auth_cred.save
+      account[auth_cred.auth_type] = auth_cred.auth_key
       account.save
       $LOG.debug account
     end
@@ -1025,11 +1046,16 @@ class Protocol
     # get a list of device_ids that are registered with the same device.email as params['device_id']
     # and create a comma-separate list, suitable for putting in the SQL IN clause
     device = Device.find_by(device_id: params['device_id'])
+    if ! device
+      log_dos ("No device for #{params['device_id']}")
+      return {error: "No device"}
+    end
     if device.account_id
       device_filter = "devices.account_id = #{device.account_id} AND redeems.device_id = devices.device_id"
       devices_table = ", devices"
     else
-      device_filter = "redeems.device_id = #{params['device_id']}"
+      device_id_parm = Mysql.escape_string(params['device_id'])
+      device_filter = "redeems.device_id = #{device_id_parm}"
     end
 
     # get all the shares with those device_ids
@@ -1141,7 +1167,7 @@ class ProtocolEngine < Sinatra::Base
 
   get '/api' do
     resp = Protocol.process_request params
-    if (resp[:error])
+    if (! resp || resp[:error])
       html = create_error_html (resp)
       halt 500, {'Content-Type' => 'text/html'}, html
     elsif (resp[:redirect_url])
@@ -1159,7 +1185,6 @@ class ProtocolEngine < Sinatra::Base
     if (request.content_type == 'application/json')
         params.merge!(JSON.parse(request.body.read))
     end
-
 
     resp = Protocol.process_request params
     if (resp && resp.class == 'Hash' && resp[:error])
