@@ -15,21 +15,8 @@
     <link type="text/css"
           rel="stylesheet"
           href="https://eng.geopeers.com/dataTables.css" />
-
     <script src="https://prod1.magtogo.com/library/jquery-1.11.1.min.js"></script>
-    <script src="http://code.jquery.com/ui/1.11.0/jquery-ui.js"></script>
-    <script src="https://prod1.magtogo.com/library/jquery.mobile-1.4.2.min.js"></script>
-    <script src="https://eng.geopeers.com/jqm_map/ui/jquery.ui.map.js"></script>
 
-    <script src="https://maps.google.com/maps/api/js?sensor=true"></script>
-    <script src="https://eng.geopeers.com/markerwithlabel.js"></script>
-
-    <script src="https://eng.geopeers.com/md5.js"></script>
-    <script src="https://eng.geopeers.com/dataTables.js"></script>
-    <script src="https://eng.geopeers.com/jquery-ui-timepicker-addon.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jstimezonedetect/1.0.4/jstz.min.js"></script>
-    <script src="https://eng.geopeers.com/geo.js"></script>
-    <script src="https://eng.geopeers.com/menu.js"></script>
   </head>
 
   <body>
@@ -72,6 +59,7 @@
       <div id="registration_popup"
 	   data-role="popup"
 	   data-transition="fade"
+	   style="display:none"
 	   >
 	<div class="popup_frame">
 	  <div class="popup_header">
@@ -97,6 +85,7 @@
       <div id="share_location_popup"
 	   data-role="popup"
 	   data-transition="fade"
+	   style="display:none"
 	   >
         <div class="popup_frame">
 	  <div class="popup_header">
@@ -116,6 +105,7 @@
       <div id="manage_popup"
 	   data-transition="fade"
 	   data-role="popup"
+	   style="display:none"
 	   >
 	<div class="popup_frame">
 	  <div class="popup_header">
@@ -135,10 +125,28 @@
       <div data-role="content" id="content">
         <div id="map_canvas"
              style="height:100%">       <!-- this has to be here or JQM will override -->
+	  <div id="gps_spinner"
+	       style="text-align:center; display:none">
+	    <img src="https://eng.geopeers.com/gps-satellites.gif">
+	  </div>
         </div>
       </div>
 
     </div>
+    <script src="https://code.jquery.com/ui/1.11.0/jquery-ui.js"></script>
+    <script src="https://prod1.magtogo.com/library/jquery.mobile-1.4.2.min.js"></script>
+    <script src="https://eng.geopeers.com/jqm_map/ui/jquery.ui.map.js"></script>
+
+    <script src="https://maps.google.com/maps/api/js?sensor=true"></script>
+    <script src="https://eng.geopeers.com/markerwithlabel.js"></script>
+
+    <script src="https://eng.geopeers.com/md5.js"></script>
+    <script src="https://eng.geopeers.com/dataTables.js"></script>
+    <script src="https://eng.geopeers.com/jquery-ui-timepicker-addon.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jstimezonedetect/1.0.4/jstz.min.js"></script>
+    <script src="https://eng.geopeers.com/db.js"></script>
+    <script src="https://eng.geopeers.com/geo.js"></script>
+    <script src="https://eng.geopeers.com/menu.js"></script>
   </body>
 
 </html>
