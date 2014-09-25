@@ -38,13 +38,13 @@ ERROR_MESSAGES = {
   already_registered: " is already registered",
 }
 
-def call_api(method, device_id, extra_parms)
+def call_api(method, device_id, extra_parms=nil)
   procname = "process_request_#{method}"
   params = {
     'method'     => method,
     'device_id'  => device_id,
   }
-  params.merge!(extra_parms)
+  params.merge!(extra_parms) if extra_parms
   puts params.inspect
   response = Protocol.send(procname, params)
   puts response.inspect
@@ -232,12 +232,14 @@ RSpec.shared_examples "the 2nd step of the verification process" do
   end
 end
 
-RSpec.describe Protocol, development: true do
+RSpec.describe Protocol do
 
-  # clear the decks
-  clear_device_id (TEST_VALUES[:device_id_1])
-  clear_device_id (TEST_VALUES[:device_id_2])
-  clear_device_id (TEST_VALUES[:device_id_3])
+  before(:all) do
+    # clear the decks
+    clear_device_id (TEST_VALUES[:device_id_1])
+    clear_device_id (TEST_VALUES[:device_id_2])
+    clear_device_id (TEST_VALUES[:device_id_3])
+  end
 
   context "when creating a new account (new_account == 'yes')" do
 
@@ -381,10 +383,12 @@ RSpec.describe Protocol, development: true do
 end
 
 RSpec.describe Protocol do
-  # clear the decks
-  clear_device_id (TEST_VALUES[:device_id_1])
-  clear_device_id (TEST_VALUES[:device_id_2])
-  clear_device_id (TEST_VALUES[:device_id_3])
+  before(:all) do
+    # clear the decks
+    clear_device_id (TEST_VALUES[:device_id_1])
+    clear_device_id (TEST_VALUES[:device_id_2])
+    clear_device_id (TEST_VALUES[:device_id_3])
+  end
 
   context "when devices in multiple accounts" do
     context "when add verified email to a new device" do
@@ -434,19 +438,118 @@ RSpec.describe Protocol do
   end
 end
 
-RSpec.describe Protocol do
-  method = "share_location"
-  device_id = "TEST_DEV_42"
+RSpec.describe Protocol, development: true do
+
+  before(:all) do
+    clear_shares(TEST_VALUES[:device_id_1])
+  end
 
   context "with share location"
-  xit "creates share" do
-    response = call_api(method, device_id, params)
-    # get cred
-    # verify that share was created
+  it "creates share" do
+    params = {
+      'share_via' => 'email',
+      'share_to' => TEST_VALUES[:email_good_2],
+      'share_duration_unit' => 'manual',
+      'num_uses' => 1
+    }
+    response = call_api('share_location', TEST_VALUES[:device_id_1], params)
+    $LOG.debug response
+    # We would really like the cred that was created
+    # and look up the share with the unique cred
+    # But it would defeat the entire process to send the cred in the response
+    # instead get the most recent share for this device_id/share_to that was created in the last 5 sec
+    share = Share.where("device_id=? AND share_to=? AND share_via='email'",
+                        TEST_VALUES[:device_id_1], TEST_VALUES[:email_good_2])
+      .order(created_at: :desc)
+      .limit(1)
+      .first
+    $LOG.debug share
+    expect(share).not_to be_nil
+    expect(Time.now.to_i - 5).to be < share.created_at.to_i
   end
-  context "when seer verifies share"
-  xit "redeem is created" do
-    # verify redeem is created
+end
+
+RSpec.describe Protocol, development: true do
+  # TODO: refactor this test
+  context "redeeming shares" do
+    before(:all) do
+      share = Share.where("device_id=? AND share_to=? AND share_via='email'",
+                          TEST_VALUES[:device_id_1], TEST_VALUES[:email_good_2])
+        .order(created_at: :desc)
+        .limit(1)
+        .first
+      redeem = Redeem.where("share_id=? AND device_id=?",share.id, TEST_VALUES[:device_id_2]).first
+      redeem.destroy if redeem
+    end
+
+    context "when redeem bad share"
+    it "get error" do
+      response = call_api('redeem', TEST_VALUES[:device_id_2], {cred: 'NOT_A_CRED'})
+      expect(response).not_to be_nil
+      $LOG.debug response
+      redirect_url = response[:redirect_url]
+      expect(redirect_url).not_to be_nil
+      query_params = parse_params(URI.parse(redirect_url).query)
+      expect(query_params).not_to be_nil
+      expect(query_params['alert']).not_to be_nil
+    end
+    context "when seer redeems share"
+    it "creates redeem and seer (device_id_2) can now see device_id_1" do
+      share = Share.where("device_id=? AND share_to=? AND share_via='email'",
+                          TEST_VALUES[:device_id_1], TEST_VALUES[:email_good_2])
+        .order(created_at: :desc)
+        .limit(1)
+        .first
+      redeem = Redeem.where("share_id=? AND device_id=?",share.id, TEST_VALUES[:device_id_2]).first
+      $LOG.debug redeem
+      expect(redeem).to be_nil
+      response = call_api('redeem', TEST_VALUES[:device_id_2], {cred: share.share_cred})
+      $LOG.debug response
+      redeem_after = Redeem.where("share_id=? AND device_id=?",share.id, TEST_VALUES[:device_id_2]).first
+      $LOG.debug redeem_after
+      expect(redeem_after).not_to be_nil
+      expect(Time.now.to_i - 5).to be < redeem_after.created_at.to_i
+    end
+    context "when another seer redeems share"
+    it "get error" do
+      share = Share.where("device_id=? AND share_to=? AND share_via='email'",
+                          TEST_VALUES[:device_id_1], TEST_VALUES[:email_good_2])
+        .order(created_at: :desc)
+        .limit(1)
+        .first
+      redeem = Redeem.where("share_id=? AND device_id=?",share.id, TEST_VALUES[:device_id_3]).first
+      $LOG.debug redeem
+      expect(redeem).to be_nil
+      response = call_api('redeem', TEST_VALUES[:device_id_3], {cred: share.share_cred})
+      $LOG.debug response
+      redeem_after = Redeem.where("share_id=? AND device_id=?",share.id, TEST_VALUES[:device_id_3]).first
+      $LOG.debug redeem_after
+      expect(redeem_after).to be_nil
+    end
+    context "when the first seer redeems a share that is shorter duration than the first share"
+    xit "doesn't change the redeem time" do
+
+    end
+    context "when the first seer redeems a share that is longer duration than the first share"
+    xit "does advances the redeem time" do
+
+    end
+    context "when the first seer redeems a share that is infinite"
+    xit "makes the redeem time infinite" do
+
+    end
+  end
+end
+
+RSpec.describe Protocol do
+  method = "get_shares"
+  device_id = "TEST_DEV_42"
+  context "when the user doesn't have any shares"
+  it "return the empty list" do
+    response = call_api(method, device_id)
+    $LOG.debug response
+    expect(response).not_to be_nil
+    expect(response['shares']).not_to be_nil
   end
 end
 
@@ -468,23 +571,15 @@ end
 RSpec.describe Protocol do
   method = "get_registration"
   device_id = "TEST_DEV_42"
-  context ""
-  xit "" do
-    response = call_api(method, device_id, params)
+  context "when device_id is sent"
+  it "account is returned" do
+    response = call_api(method, device_id)
+    $LOG.debug response
   end
 end
 
 RSpec.describe Protocol do
   method = "cred"
-  device_id = "TEST_DEV_42"
-  context "when cred is redeemed"
-  xit "creates a share" do
-    response = call_api(method, device_id, params)
-  end
-end
-
-RSpec.describe Protocol do
-  method = "get_shares"
   device_id = "TEST_DEV_42"
   context "when cred is redeemed"
   xit "creates a share" do
