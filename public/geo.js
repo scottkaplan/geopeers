@@ -87,6 +87,7 @@ function ajax_request (request_parms, success_callback, failure_callback) {
 	  })
 	.done(success_callback)
 	.fail(failure_callback);
+    console.log ("ajax_request:"+JSON.stringify(request_parms));
     return;
 }
 
@@ -178,28 +179,6 @@ var device_id_mgr = {
 	return (device_id_mgr.device_id);
     },
 };
-
-var db = {
-    handle: null,
-    init: function (callback) {
-	db.handle = window.sqlitePlugin.openDatabase({name: "geopeers"});
-	var sql = "CREATE TABLE IF NOT EXISTS globals (key unique, value)";
-	db.handle.transaction(function (tx) {tx.executeSql(sql)}, db.error_callback, callback);
-    },
-    error_callback: function (err) {
-	console.log (err.message);
-	console.log (err.stack);
-    },
-    get_global: function (key, callback) {
-	var sql = "SELECT value FROM globals WHERE key='"+key+"'";
-	db.handle.transaction(function (tx) {tx.executeSql(sql)}, db.error_callback, callback);
-    },
-    set_global: function (key, val) {
-	var sql = "REPLACE INTO globals (key, value) VALUES ('"+key+"', '"+val+"')"
-	db.handle.transaction(function (tx) {tx.executeSql(sql)}, db.error_callback, null);
-    },
-};
-
 
 var display_mgr = {
     new_orleans:   new google.maps.LatLng(29.9667,  -90.0500),
@@ -419,35 +398,30 @@ var marker_mgr = {
 // Web/Native app handshake
 //
 
-function web_app_redirect () {
-    // First, redirect to the web app (webview) telling the webview what our device_id is
-    var url = "http://eng.geopeers.com/api?method=device_id_bind&my_device_id=";
-    url += device_id_mgr.device_id;
-    window.location = url;
-    // While we don't get back to here,
-    // we do get back to this JS file
-    // The webview will redirect back to a deeplink
-    // which will be handled in handleOpenURL
-}
-
 function device_id_bind_check (tx, results) {
+    // this is called in init() to kick off the process
     console.log (tx);
     console.log (results);
+    // we only want to do this once, presumably at native app first start
+    // check a global variable in the DB to see if we've done this
     db.get_global ('device_id_bind_complete', device_id_bind_phase_1);
 }
 
 function device_id_bind_phase_1 (tx, results) {
-    // This must be initiated by the native_app
-    // But this test is superfluous
-    // It's in the db callback, so we only get here in the native app
     console.log (results);
+
+    // Two conditions to launch phase_1:
+    //   1) phonegap (native app)
+    //   2) haven't done this before (this is only done once at app first start)
+    // The phonegap test is superfluous
+    // We got here in a db callback, so we only get here in the phonegap app
     if (device_id_mgr.phonegap) {
 	if (! results) return;
 	var row = results.rows.item(0);
 	console.log (row);
 	if (! row) return;
 
-	if (row.device_id_bind_complete) {
+	if (! row.device_id_bind_complete) {
 	    // implements the first half of a 2 part handshake
 	    web_app_redirect ();
 	}
@@ -472,6 +446,24 @@ function device_id_bind_phase_2 (parms) {
     return;
 }
 
+function web_app_redirect () {
+    // redirect to the web app (webview) telling the webview what our device_id is
+    var url = "http://eng.geopeers.com/api?method=device_id_bind&my_device_id=";
+    url += device_id_mgr.device_id;
+    // MAGIC HERE:
+    // this is how we get state from the native app to the webview
+    // this form will cause url to be opened in the device browser, not a webview in the app
+    window.open(url, target);
+    // While we don't get back to here,
+    // we do get back to this JS file
+    // The webview will redirect back to a deeplink
+    // which will be handled in handleOpenURL
+}
+
+function handleOpenURL(url) {
+    setTimeout(function() {process_deeplink (url)}, 0);
+}
+
 function process_deeplink (url) {
     console.log (url);
     // geopeers://api?<parms>
@@ -480,10 +472,6 @@ function process_deeplink (url) {
 	device_id_bind_phase_2 (parms);
     }
     return;
-}
-
-function handleOpenURL(url) {
-    setTimeout(function() {process_deeplink (url)}, 0);
 }
 
 
@@ -775,6 +763,7 @@ function manage_shares_callback (data, textStatus, jqXHR) {
 	DT.column(0).visible(false);
 	DT.column(1).visible(false);
     }
+    $('#manage_popup').show();
     $('#manage_popup').popup("open");
 }
 
@@ -851,6 +840,7 @@ function update_registration_popup () {
 
 function display_registration_popup () {
     update_registration_popup();
+    $('#registration_popup').show();
     $('#registration_popup').popup('open');
     return;
 }
@@ -951,60 +941,57 @@ function heartbeat () {
 // Background GPS (phonegap)
 //
 
-var bgGeo;
+var background_gps = {
+    handle: null,
+    init: function () {
+	console.log ("init_background_gps - start");
+	background_gps.handle = window.plugins.backgroundGeoLocation;
+	background_gps.handle.configure(background_gps.callback, background_gps.callback_error, {
+		// Android only
+		url: 'http://eng.geopeers.com/api',
+		    params: {
+		    method:    'send_position',
+			device_id: device_id_mgr.get(),
+			},
+		    notificationTitle: 'Background tracking', // customize the title of the notification
+		    notificationText: 'ENABLED',              // customize the text of the notification
 
-// This callback will be executed every time a geolocation is recorded in the background.
-var callbackFn = function(location) {
-    console.log('[js] BackgroundGeoLocation callback:  ' + location.latitude + ',' + location.longitude);
-    console.log (this);
-    // IMPORTANT:  You must execute the #finish method here to inform the native plugin that you're finished,
-    //  and the background-task may be completed.  You must do this regardless if your HTTP request is successful or not.
-    // IF YOU DON'T, ios will CRASH YOUR APP for spending too much time in the background.
-    //
-    //
-    bgGeo.finish();
+		    desiredAccuracy: 10,
+		    stationaryRadius: 20,
+		    distanceFilter: 30, 
+		    activityType: 'AutomotiveNavigation',
+		    debug: false	// <-- enable this hear sounds for background-geolocation life-cycle.
+		    });
 
-    // Do your HTTP request here to POST location to your server.
-    //
-    //
-    var request_parms = { gps_longitude: location.longitude,
-			  gps_latitude:  location.latitude,
-			  method:        'send_position',
-			  device_id:     device_id_mgr.get(),
-    };
-    ajax_request (request_parms);
+	// Turn ON the background-geolocation system.  The user will be tracked whenever they suspend the app.
+	background_gps.handle.start();
 
+	// If you wish to turn OFF background-tracking, call the #stop method.
+	// background_gps.handle.stop();
+	console.log ("init_background_gps - end");
+    },
+    callback: function (location) {
+	// executed every time a geolocation is recorded in the background.
+	console.log('callback:' + location.latitude + ',' + location.longitude);
+	console.log (this);
+	// You must execute the #finish method here
+	// to inform the native plugin that you're finished,
+	// and the background-task may be completed.
+	// IF YOU DON'T, ios will CRASH YOUR APP for spending too much time in the background.
+	background_gps.handle.finish();
+
+	// POST location to server
+	var request_parms = { gps_longitude: location.longitude,
+			      gps_latitude:  location.latitude,
+			      method:        'send_position',
+			      device_id:     device_id_mgr.get(),
+	};
+	ajax_request (request_parms);
+    },
+    callback_error: function(error) {
+	console.log('callback error' + error);
+    },
 };
-
-var failureFn = function(error) {
-    console.log('BackgroundGeoLocation error'+error.inspect);
-};
-
-function init_background_gps () {
-    bgGeo = window.plugins.backgroundGeoLocation;
-    bgGeo.configure(callbackFn, failureFn, {
-	    // Android only
-	    url: 'http://eng.geopeers.com/api',
-		params: {
-		method:    'send_position',
-		    device_id: device_id_mgr.get(),
-		    },
-		notificationTitle: 'Background tracking', // customize the title of the notification
-		notificationText: 'ENABLED',              // customize the text of the notification
-
-		desiredAccuracy: 10,
-		stationaryRadius: 20,
-		distanceFilter: 30, 
-		activityType: 'AutomotiveNavigation',
-		debug: false	// <-- enable this hear sounds for background-geolocation life-cycle.
-		});
-
-    // Turn ON the background-geolocation system.  The user will be tracked whenever they suspend the app.
-    bgGeo.start();
-
-    // If you wish to turn OFF background-tracking, call the #stop method.
-    // bgGeo.stop();
-}
 
 function get_client_type () {
     if (/android/i.exec(navigator.userAgent)) {
@@ -1042,14 +1029,21 @@ function init () {
     // for webapp, this is $.ready, for phonegap, this is deviceready
     console.log ("in init");
 
+    // show the spinner in 200mS (.2 sec)
+    // if there are no GPS issues, the map will display quickly and
+    // we don't want the spinner to flash up
+    setTimeout($('#gps_spinner').show, 200);
+
     run_position_function (function(position) {create_map(position)});
 
     device_id_mgr.init ();
+    console.log ("device_id="+device_id_mgr.get());
     send_config ();
 
     if (device_id_mgr.phonegap) {
-	init_background_gps ();
-	db.init(device_id_bind_check);
+	background_gps.init ();
+	db.init();
+	device_id_bind_check();
     }
 
     // sets registration.status
