@@ -13,22 +13,23 @@ COORDS = {
 }
 
 TEST_VALUES = {
-  name_1:         'Fred Friendly',
-  name_2:         'Mary Smith',
-  name_3:         'George Fortune',
-  email_good_1:   'test@geopeers.com',
-  email_good_2:   'scott@kaplans.com',
-  email_good_3:   'scott@magtogo.com',
-  email_bad_1:    'noone@magtogo.com',
-  email_bad_2:    'NotAnAddress',
-  mobile_good_1:  '4156521706',
-  mobile_good_2:  '4155551212',
-  mobile_valid_1: '1234567890',
-  mobile_bad_1:   '123',
-  user_agent:     'tire rim browser',
-  device_id_1:    'TEST_DEV_42',
-  device_id_2:    'TEST_DEV_43',
-  device_id_3:    'TEST_DEV_44',
+  name_1:          'Fred Friendly',
+  name_2:          'Mary Smith',
+  name_3:          'George Fortune',
+  email_good_1:    'test@geopeers.com',
+  email_good_2:    'scott@kaplans.com',
+  email_good_3:    'scott@magtogo.com',
+  email_bad_1:     'noone@magtogo.com',
+  email_bad_2:     'NotAnAddress',
+  mobile_good_1:   '4156521706',
+  mobile_good_2:   '4155551212',
+  mobile_valid_1:  '1234567890',
+  mobile_bad_1:    '123',
+  user_agent:      'tire rim browser',
+  device_id_1:     'TEST_DEV_42',
+  device_id_2:     'TEST_DEV_43',
+  device_id_3:     'TEST_DEV_44',
+  device_id_bad_4: 'TEST_DEV_45',
 }
 
 ERROR_MESSAGES = {
@@ -117,6 +118,7 @@ end
 
 def call_redeem_by_values(seer_device_id, seen_device_id, email)
   share = get_email_share(seen_device_id, email)
+  $LOG.debug share
   call_redeem(seer_device_id, share.share_cred)
 end
 
@@ -548,12 +550,18 @@ RSpec.describe Protocol do
       | seen_device_id |
       get_email_shares(TEST_VALUES[seen_device_id], TEST_VALUES[:email_good_2]).each do
         | share |
-        [:device_id_1, :device_id_2, :device_id_3].each do
-          | seer_device_id |
-          clear_redeems(TEST_VALUES[seer_device_id], share.id)
-        end
+        share.destroy
       end
     end
+
+    # create a share to setup the testing
+    params = {
+      'share_via' => 'email',
+      'share_to' => TEST_VALUES[:email_good_2],
+      'share_duration_unit' => 'manual',
+      'num_uses' => 1
+    }
+    response = call_api('share_location', TEST_VALUES[:device_id_1], params)
   end
 
   context "when redeem bad share" do
@@ -614,7 +622,8 @@ RSpec.describe Protocol do
 
   context "when the first seer redeems a share that is shorter duration than the first share" do
     it "doesn't change the redeem" do
-      # setup initial share (could be done in before clause)
+      # setup initial share
+      # don't do this in before clause or earlier tests get upset
       create_and_redeem_share(TEST_VALUES[:device_id_3],
                               TEST_VALUES[:device_id_1],
                               TEST_VALUES[:email_good_2],
@@ -636,11 +645,13 @@ RSpec.describe Protocol do
   context "when the seer redeems a share that is longer duration than the first share" do
     it "uses redeem with longer expiration" do
       redeem_before = get_redeem_by_seen(TEST_VALUES[:device_id_3], TEST_VALUES[:device_id_1])
+      $LOG.debug redeem_before
       create_and_redeem_share(TEST_VALUES[:device_id_3],
                               TEST_VALUES[:device_id_1],
                               TEST_VALUES[:email_good_2],
                               'hour', '10')
       redeem_after = get_redeem_by_seen(TEST_VALUES[:device_id_3], TEST_VALUES[:device_id_1])
+      $LOG.debug redeem_after
       expect(redeem_after).not_to be_nil
       expect(redeem_after.share_id).not_to eq redeem_before.share_id
     end
@@ -652,7 +663,9 @@ RSpec.describe Protocol do
                               TEST_VALUES[:device_id_1],
                               TEST_VALUES[:email_good_2],
                               'manual')
+      $LOG.debug redeem_before
       redeem_after = get_redeem_by_seen(TEST_VALUES[:device_id_3], TEST_VALUES[:device_id_1])
+      $LOG.debug redeem_after
       expect(redeem_after).not_to be_nil
       expect(redeem_after.share_id).not_to eq redeem_before.share_id
       share_after = Share.find(redeem_after.share_id)
@@ -661,7 +674,21 @@ RSpec.describe Protocol do
   end
 end
 
-RSpec.describe Protocol, development: true do
+RSpec.describe Protocol do
+  before(:all) do
+    [:device_id_1, :device_id_2, :device_id_3].each do
+      | seen_device_id |
+      get_email_shares(TEST_VALUES[seen_device_id], TEST_VALUES[:email_good_2]).each do
+        | share |
+        share.destroy
+      end
+    end
+    create_and_redeem_share(TEST_VALUES[:device_id_2],
+                            TEST_VALUES[:device_id_1],
+                            TEST_VALUES[:email_good_2],
+                            'manual')
+    # TODO: make sure device_id_1/2 are registered
+  end
   context "when the user doesn't have any shares"
   it "return the empty list" do
     response = call_api("get_shares", TEST_VALUES[:device_id_1])
@@ -678,6 +705,23 @@ RSpec.describe Protocol, development: true do
 end
 
 RSpec.describe Protocol do
+  before(:all) do
+    # TODO: make sure device_id_1 is registered
+  end
+  context "when bad device_id is sent"
+  it "get error" do
+    response = call_api("get_registration", TEST_VALUES[:device_id_bad_4])
+    expect(response).not_to be_nil
+    expect(response[:message]).not_to be_nil
+  end
+  context "when good device_id is sent"
+  it "returns account" do
+    response = call_api("get_registration", TEST_VALUES[:device_id_1])
+    expect(response).not_to be_nil
+  end
+end
+
+RSpec.describe Protocol, development: true do
   method = "get_positions"
   device_id = "TEST_DEV_42"
   params = {}
@@ -689,16 +733,6 @@ RSpec.describe Protocol do
   context ""
   xit "" do
 
-  end
-end
-
-RSpec.describe Protocol do
-  method = "get_registration"
-  device_id = "TEST_DEV_42"
-  context "when device_id is sent"
-  it "account is returned" do
-    response = call_api(method, device_id)
-    $LOG.debug response
   end
 end
 
