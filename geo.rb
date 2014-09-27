@@ -17,6 +17,7 @@ require 'net/smtp'
 require 'uri'
 require 'securerandom'
 require 'socket'
+require 'mysql2'
 # require 'pry'
 # require 'pry-debugger'
 
@@ -72,6 +73,19 @@ def clear_shares (device_id)
   Share.where("device_id=?",device_id).find_each do |share|
     share.destroy
   end
+end
+
+def clear_redeems (device_id, share_id)
+  Redeem.where("share_id=? AND device_id=?",share_id, TEST_VALUES[:device_id_2]).each do
+    | redeem |
+    $LOG.debug redeem
+    redeem.destroy
+  end
+end
+
+def create_share (seen_device_id, params)
+  response = call_api('share_location', seen_device_id, params)
+  response
 end
 
 def clear_device_id (device_id)
@@ -851,8 +865,9 @@ class Protocol
              WHERE shares.device_id  = '#{share.device_id}' AND
                    redeems.device_id = '#{params['device_id']}' AND
                    redeems.share_id  = shares.id AND
-                   NOW() < shares.expire_time
+                   (shares.expire_time IS NULL OR NOW() < shares.expire_time)
             "
+        $LOG.debug sql
         current_share = Share.find_by_sql(sql).first
         $LOG.debug current_share
         if (current_share)
@@ -862,7 +877,12 @@ class Protocol
             return {:redirect_url => redirect_url}
           end
           
-          if (current_share.expire_time >= share.expire_time)
+          if (! share.expire_time)
+            # the new share doesn't expire, use it
+            $LOG.debug "using new infinite share"
+            redeem = Redeem.find (current_share.redeem_id)
+            redeem.share_id = share.id
+          elsif (current_share.expire_time >= share.expire_time)
             # this current_share expires after the new share, ignore the new share
             $LOG.debug "using existing share"
             return {:redirect_url => redirect_url}
@@ -870,14 +890,15 @@ class Protocol
             # the new share expires after the current share, update the redeem with the new share
             $LOG.debug "updating redeem with new share"
             redeem = Redeem.find (current_share.redeem_id)
+            redeem.share_id = share.id
           end
         else
           $LOG.debug "no existing share"
           redeem = Redeem.new(share_id:  share.id,
                               device_id: params["device_id"])
         end
-        $LOG.debug redeem
         redeem.save
+        $LOG.debug redeem
         share.num_uses = share.num_uses ? share.num_uses+1 : 1
         share.save
       else
@@ -1054,7 +1075,7 @@ end
       device_filter = "devices.account_id = #{device.account_id} AND redeems.device_id = devices.device_id"
       devices_table = ", devices"
     else
-      device_id_parm = Mysql.escape_string(params['device_id'])
+      device_id_parm = Mysql2::Client.escape(params['device_id'])
       device_filter = "redeems.device_id = #{device_id_parm}"
     end
 
