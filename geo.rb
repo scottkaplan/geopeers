@@ -212,6 +212,16 @@ def get_client_type (user_agent)
   
 end
 
+##
+#
+# class which implements the geopeers protocol server
+#
+# The protocol consists of a series of REST API request/responses.
+# The server implements each method of the request with a corresponding private method in this class.
+# There is a single, public method, process_request() which dispatches the request to appropriate private method.
+# The naming convention for the private routines is:
+#   process_request_<method>
+# 
 class Protocol
   private
 
@@ -231,16 +241,17 @@ class Protocol
 
   def Protocol.compute_expire_time (params)
     multiplier = {
-      'minute' => 1,
-      'hour'   => 60,
-      'day'    => 60*24,
-      'week'   => 60*24*7
+      'second' => 1,
+      'minute' => 60,
+      'hour'   => 60*60,
+      'day'    => 60*60*24,
+      'week'   => 60*60*24*7
     }
     raise ArgumentError.new("No share unit")   unless params.has_key?('share_duration_unit')
     return if params['share_duration_unit'] == 'manual'
     raise ArgumentError.new("No share number") unless params.has_key?('share_duration_number')
     raise ArgumentError.new("No multiplier")   unless multiplier.has_key?(params['share_duration_unit'])
-    multiplier[params['share_duration_unit']] * params['share_duration_number'].to_i * 60
+    multiplier[params['share_duration_unit']] * params['share_duration_number'].to_i
   end
 
   def Protocol.create_share_url (share, params)
@@ -397,9 +408,20 @@ class Protocol
   end
 
   def Protocol.process_request_config (params)
-    # params: device_id, version
-    # returns: js
+    ##
+    # config
+    #
+    # client sends config request at startup
+    #
+    # params
+    #   device_id
+    #   version - current client version
+    #
+    # returns
+    #   js      - client will execute this js
+    #     
 
+    # manage the device_id
     device = Device.find_by(device_id: params['device_id'])
     if ! device
       # We haven't seen device_id yet, create it
@@ -408,6 +430,7 @@ class Protocol
       device.save
     end
 
+    # handle upgrade
     if (params[:version].to_i < 1)
       {js: "alert('If we had an upgrade, this would be it')"}
     else
@@ -447,24 +470,24 @@ class Protocol
       log_dos "No device for #{params['device_id']}"
       return (error_response "No device for #{params['device_id']}")
     end
-
-    if device.account_id
-      device_filter = "devices.account_id = #{device.account_id} AND redeems.device_id = devices.device_id"
-    else
-      device_filter = "redeems.device_id = '#{params['device_id']}'"
+    if ! device.account_id
+      log_dos "No device account for #{params['device_id']}"
+      return (error_response "No device account for #{params['device_id']}")
     end
+
     sql = "SELECT sightings.device_id, sightings.gps_longitude, sightings.gps_latitude,
                   MAX(sightings.updated_at) AS max_updated_at,
                   shares.expire_time,
                   accounts.name
            FROM   sightings, devices, shares, redeems, accounts
-           WHERE  #{device_filter} AND
-                  redeems.share_id = shares.id AND
-                  (NOW() < shares.expire_time OR shares.expire_time IS NULL) AND
-                  shares.device_id = sightings.device_id AND
-                  sightings.device_id = devices.device_id AND
+           WHERE  devices.account_id = #{device.account_id} AND
                   devices.account_id = accounts.id AND
                   (accounts.email IS NOT NULL OR accounts.mobile IS NOT NULL)
+                  redeems.share_id = shares.id AND
+                  (NOW() < shares.expire_time OR shares.expire_time IS NULL) AND
+                  redeems.device_id = devices.device_id AND
+                  shares.device_id = sightings.device_id AND
+                  sightings.device_id = devices.device_id AND
            GROUP BY sightings.device_id
           "
     $LOG.debug sql
