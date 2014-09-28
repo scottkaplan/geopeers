@@ -474,31 +474,40 @@ class Protocol
       log_dos "No device account for #{params['device_id']}"
       return (error_response "No device account for #{params['device_id']}")
     end
+    $LOG.debug device
 
-    sql = "SELECT sightings.device_id, sightings.gps_longitude, sightings.gps_latitude,
-                  MAX(sightings.updated_at) AS max_updated_at,
-                  shares.expire_time,
-                  accounts.name
-           FROM   sightings, devices, shares, redeems, accounts
-           WHERE  devices.account_id = #{device.account_id} AND
-                  devices.account_id = accounts.id AND
-                  (accounts.email IS NOT NULL OR accounts.mobile IS NOT NULL)
-                  redeems.share_id = shares.id AND
-                  (NOW() < shares.expire_time OR shares.expire_time IS NULL) AND
-                  redeems.device_id = devices.device_id AND
-                  shares.device_id = sightings.device_id AND
-                  sightings.device_id = devices.device_id AND
-           GROUP BY sightings.device_id
+    sql = "SELECT sightings.device_id,
+                  sightings.gps_longitude, sightings.gps_latitude,
+                  sightings.updated_at,
+                  current_sightings.share_expire_time,
+                  current_sightings.account_name
+           FROM   sightings
+           JOIN (
+                  SELECT sightings.device_id,
+                         MAX(sightings.updated_at) AS max_updated_at,
+                         shares.expire_time AS share_expire_time,
+                         accounts.name AS account_name
+                  FROM sightings, devices, shares, redeems, accounts
+                  WHERE  devices.account_id = #{device.account_id} AND
+                         devices.account_id = accounts.id AND
+                         redeems.device_id = devices.device_id AND
+                         redeems.share_id = shares.id AND
+                         shares.device_id = sightings.device_id AND
+                         (NOW() < shares.expire_time OR shares.expire_time IS NULL)
+                  GROUP BY sightings.device_id
+                ) current_sightings
+           ON current_sightings.device_id = sightings.device_id AND
+              current_sightings.max_updated_at = sightings.updated_at
           "
-    $LOG.debug sql
+    $LOG.debug sql.gsub("\n"," ")
     elems = []
     Sighting.find_by_sql(sql).each { |row|
-      elems.push ({ 'name'          => row.name,
+      elems.push ({ 'name'          => row.account_name,
                     'device_id'     => row.device_id,
                     'gps_longitude' => row.gps_longitude,
                     'gps_latitude'  => row.gps_latitude,
-                    'sighting_time' => row.max_updated_at,
-                    'expire_time'   => row.expire_time,
+                    'sighting_time' => row.updated_at,
+                    'expire_time'   => row.share_expire_time,
                   })
     }
     $LOG.debug elems
@@ -654,12 +663,16 @@ class Protocol
   def Protocol.process_new_account (params)
 
     device = Device.find_by(device_id: params['device_id'])
+    $LOG.debug device
     if (! device)
       log_dos ("No device")
       return ["There was a problem with your request."], nil
     end
 
     err_msgs = []
+
+    err_msgs.push ("Your device is already registered") if device.account_id
+
     # make sure account (email and/or mobile) doesn't already exist
     account = Protocol.get_existing_account(params, 'mobile')
     err_msgs.push (params['mobile']+" is already registered") if account && account.id != device.account_id
@@ -1121,7 +1134,7 @@ end
     {'shares' => elems }
   end
 
-  def Protocol.process_request_clear_device (params)
+  def Protocol.process_request_clear_device_KILLME (params)
     clear_device_id(params['device_id'])
     return;
   end
