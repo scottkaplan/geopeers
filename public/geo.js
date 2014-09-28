@@ -453,7 +453,7 @@ function web_app_redirect () {
     // MAGIC HERE:
     // this is how we get state from the native app to the webview
     // this form will cause url to be opened in the device browser, not a webview in the app
-    window.open(url, target);
+    window.open(url, '_system');
     // While we don't get back to here,
     // we do get back to this JS file
     // The webview will redirect back to a deeplink
