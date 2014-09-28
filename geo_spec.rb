@@ -122,7 +122,8 @@ def call_redeem_by_values(seer_device_id, seen_device_id, email)
   call_redeem(seer_device_id, share.share_cred)
 end
 
-def create_and_redeem_share(seer_device_id, seen_device_id, email, share_duration_unit, share_duration_number=nil)
+def create_and_redeem_share(seer_device_id, seen_device_id, share_duration_unit, share_duration_number=nil)
+  email = TEST_VALUES[:email_good_2]
   response = create_share(seen_device_id,
                           { 'share_via'             => 'email',
                             'share_to'              => email,
@@ -133,85 +134,159 @@ def create_and_redeem_share(seer_device_id, seen_device_id, email, share_duratio
   call_redeem_by_values(seer_device_id, seen_device_id, email)
 end
 
-RSpec.describe Protocol, production: true do
-  method = "config"
-  device_id = TEST_VALUES[:device_id_1]
-
-  user_agent = TEST_VALUES[:user_agent]
-  current_version = 1
-
-  context "when does not exist before" do
-    it "creates device_id record" do
-      device_before = Device.find_by(device_id: device_id)
-      device_before.destroy() if device_before
-
-      response = call_api(method, device_id,
-                          { 'user_agent' => user_agent,
-                            'version'    => current_version+1})
-
-      device_after = Device.find_by(device_id: device_id)
-      expect(device_after).not_to be_nil
+def clear_test_shares()
+  [:device_id_1, :device_id_2, :device_id_3].each do
+    | seen_device_id |
+    get_email_shares(TEST_VALUES[seen_device_id], TEST_VALUES[:email_good_2]).each do
+      | share |
+      share.destroy
     end
   end
+end
 
-  context "when does exist before"
-  it "device_id record is unchanged" do
-    device_before = Device.find_by(device_id: device_id)
-    device_before ||= Device.new(device_id:  device_id,
-                                 user_agent: TEST_VALUES[:user_agent])
-    expect(device_before).not_to be_nil
+def setup_devices()
+  call_api('register_device', TEST_VALUES[:device_id_1],
+           { 'new_account' => 'yes',
+             'name'        => 'Device ID1',
+           })
+  call_api('register_device', TEST_VALUES[:device_id_2],
+           { 'new_account' => 'yes',
+             'name'        => 'Device ID2',
+           })
+  call_api('register_device', TEST_VALUES[:device_id_3],
+           { 'new_account' => 'yes',
+             'name'        => 'Device ID3',
+           })
+end
 
-    response = call_api(method, device_id,
-                        { 'user_agent' => user_agent,
-                          'version'    => current_version+1})
+def create_position(device_id, coords)
+  call_api("send_position", device_id,
+           { 'gps_longitude' => coords[:longitude],
+             'gps_latitude'  => coords[:latitude],
+           })
+end
 
-    device_after = Device.find_by(device_id: device_id)
-    expect(device_after).not_to be_nil
-    expect(device_before.id).to eq(device_after.id)
+def get_sighting(sightings, seen_device_id, coords)
+  sightings.each do
+    |sighting|
+    if  sighting['gps_longitude'] == coords[:longitude] &&
+        sighting['gps_latitude'] == coords[:latitude] &&
+        sighting['device_id'] == seen_device_id
+      return sighting
+    end
   end
+  return
+end
 
-  context "when sent old version"
-  it "gets JS" do
-    response = call_api(method, device_id,
-                        { 'user_agent' => user_agent,
-                          'version'    => current_version,
-                        })
+RSpec.describe Protocol, production: true do
+  describe "config" do
+    current_version = 1
 
-    expect(response[:js]).not_to be_nil
+    context "when does not exist before" do
+      it "creates device_id record" do
+        device_before = Device.find_by(device_id: TEST_VALUES[:device_id_1])
+        device_before.destroy() if device_before
+
+        response = call_api("config", TEST_VALUES[:device_id_1],
+                            { 'user_agent' => TEST_VALUES[:user_agent],
+                              'version'    => current_version+1})
+
+        device_after = Device.find_by(device_id: TEST_VALUES[:device_id_1])
+        expect(device_after).not_to be_nil
+      end
+    end
+
+    context "when does exist before"
+    it "device_id record is unchanged" do
+      device_before = Device.find_by(device_id: TEST_VALUES[:device_id_1])
+      device_before ||= Device.new(device_id:  TEST_VALUES[:device_id_1],
+                                   user_agent: TEST_VALUES[:user_agent])
+      expect(device_before).not_to be_nil
+
+      response = call_api("config", TEST_VALUES[:device_id_1],
+                          { 'user_agent' => TEST_VALUES[:user_agent],
+                            'version'    => current_version+1})
+
+      device_after = Device.find_by(device_id: TEST_VALUES[:device_id_1])
+      expect(device_after).not_to be_nil
+      expect(device_before.id).to eq(device_after.id)
+    end
+
+    context "when sent old version"
+    it "gets JS" do
+      response = call_api("config", TEST_VALUES[:device_id_1],
+                          { 'user_agent' => TEST_VALUES[:user_agent],
+                            'version'    => current_version,
+                          })
+
+      expect(response[:js]).not_to be_nil
+    end
   end
 end
 
 RSpec.describe Protocol, production: true do
-  def look_for_sighting (device_id, gps_longitude, gps_latitude)
-    sql = "SELECT * FROM sightings WHERE device_id = '#{device_id}' AND gps_longitude = #{gps_longitude} AND gps_latitude = #{gps_latitude} AND created_at < TIMESTAMPADD(SECOND, 5, NOW())"
-    Sighting.find_by_sql(sql).first
+  describe "send_position" do
+    def look_for_sighting (device_id, gps_longitude, gps_latitude)
+      sql = "SELECT * FROM sightings
+             WHERE device_id = '#{device_id}' AND
+                   gps_longitude = #{gps_longitude} AND
+                   gps_latitude = #{gps_latitude} AND
+                   created_at < TIMESTAMPADD(SECOND, 5, NOW())
+            "
+      Sighting.find_by_sql(sql).first
+    end
+
+    context "with syntax 1"
+    it "creates sighting record" do
+      response = create_position(TEST_VALUES[:device_id_1], COORDS[:new_orleans]) 
+      expect(response[:status]).to eql("OK")
+
+      sighting = look_for_sighting(device_id, gps_longitude, gps_latitude)
+      expect(sighting).not_to be nil
+    end
+
+    context "with syntax 2"
+    it "creates sighting record" do
+      response = call_api("send_position", TEST_VALUES[:device_id_1],
+                          { 'location'      => {
+                              'longitude' => COORDS[:new_york][:longitude],
+                              'latitude'  => COORDS[:new_york][:latitude],
+                            }
+                          })
+
+      expect(response[:status]).to eql("OK")
+
+      sighting = look_for_sighting(device_id, gps_longitude, gps_latitude)
+      expect(sighting).not_to be nil
+    end
   end
+end
 
-  context "with syntax 1"
-  it "creates sighting record" do
-    response = call_api("send_position", TEST_VALUES[:device_id_1],
-                        { 'gps_longitude' => COORDS[:new_orleans][:longitude],
-                          'gps_latitude'  => COORDS[:new_orleans][:latitude],
-                        })
-    expect(response[:status]).to eql("OK")
-
-    sighting = look_for_sighting(device_id, gps_longitude, gps_latitude)
-    expect(sighting).not_to be nil
+RSpec.shared_examples "good sighting" do
+  | seer_device_id, seen_device_id, coords |
+  it "gets a sighting for coords" do
+    response = call_api("get_positions", seer_device_id)
+    $LOG.debug response
+    expect(response).not_to be_nil
+    expect(response["sightings"]).not_to be_nil
+    sighting = get_sighting(response["sightings"], seen_device_id, coords)
+    $LOG.debug coords
+    $LOG.debug sighting
+    expect(sighting).not_to be_nil
   end
+end
 
-  context "with syntax 2"
-  it "creates sighting record" do
-    response = call_api("send_position", TEST_VALUES[:device_id_1],
-                        { 'location'      => {
-                            'longitude' => COORDS[:new_york][:longitude],
-                            'latitude'  => COORDS[:new_york][:latitude],
-                          }
-                        })
-
-    expect(response[:status]).to eql("OK")
-
-    sighting = look_for_sighting(device_id, gps_longitude, gps_latitude)
-    expect(sighting).not_to be nil
+RSpec.shared_examples "no sighting" do
+  | seer_device_id, seen_device_id, coords |
+  it "does not get a sighting for coords" do
+    response = call_api("get_positions", seer_device_id)
+    $LOG.debug response
+    expect(response).not_to be_nil
+    expect(response["sightings"]).not_to be_nil
+    sighting = get_sighting(response["sightings"], seen_device_id, coords)
+    $LOG.debug coords
+    $LOG.debug sighting
+    expect(sighting).to be_nil
   end
 end
 
@@ -241,9 +316,9 @@ RSpec.shared_examples "bad parameters" do
 end
 
 RSpec.shared_examples "start the verification process" do
-  | method, device_id, new_account, name, email, mobile |
+  | device_id, new_account, name, email, mobile |
   it "creates account, auth and device.account_id" do
-    response = call_api(method, device_id,
+    response = call_api('register_device', device_id,
                         { 'new_account' => new_account,
                           'name'        => name,
                           'email'       => email,
@@ -334,7 +409,7 @@ RSpec.describe Protocol do
 
     context "when email" do
       it_should_behave_like "start the verification process",
-      'register_device', TEST_VALUES[:device_id_1],
+      TEST_VALUES[:device_id_1],
       'yes', TEST_VALUES[:name_1], TEST_VALUES[:email_good_1], nil
     end
 
@@ -346,7 +421,7 @@ RSpec.describe Protocol do
     context "when mobile, new device_id" do
       # This is from a different device_id
       it_should_behave_like "start the verification process",
-      'register_device', TEST_VALUES[:device_id_2],
+      TEST_VALUES[:device_id_2],
       'yes', TEST_VALUES[:name_2], nil, TEST_VALUES[:mobile_good_1], nil
     end
 
@@ -396,7 +471,7 @@ RSpec.describe Protocol do
 
     context "when adding mobile" do
       it_should_behave_like "start the verification process",
-      'register_device', TEST_VALUES[:device_id_1],
+      TEST_VALUES[:device_id_1],
       'no', nil, nil, TEST_VALUES[:mobile_good_2], nil
     end
 
@@ -418,13 +493,13 @@ RSpec.describe Protocol do
     
     context "when email changes" do
       it_should_behave_like "start the verification process",
-      'register_device', TEST_VALUES[:device_id_2],
+      TEST_VALUES[:device_id_2],
       'no', nil, TEST_VALUES[:email_good_2], nil
     end
 
     context "when change email again before last change was verified" do
       it_should_behave_like "start the verification process",
-      'register_device', TEST_VALUES[:device_id_2],
+      TEST_VALUES[:device_id_2],
       'no', nil, TEST_VALUES[:email_good_3], nil do
       end
     end
@@ -461,7 +536,7 @@ RSpec.describe Protocol do
   context "when devices in multiple accounts" do
     context "when add verified email to a new device" do
       it_should_behave_like "start the verification process",
-      'register_device',  TEST_VALUES[:device_id_3],
+      TEST_VALUES[:device_id_3],
       'no', nil, TEST_VALUES[:email_good_2], nil
     end
 
@@ -507,13 +582,46 @@ RSpec.describe Protocol do
 end
 
 RSpec.describe Protocol do
+  describe "share_location" do
+    before(:all) do
+      clear_shares(TEST_VALUES[:device_id_1])
+    end
 
-  before(:all) do
-    clear_shares(TEST_VALUES[:device_id_1])
+    context "with share location" do
+      it "creates share" do
+        params = {
+          'share_via' => 'email',
+          'share_to' => TEST_VALUES[:email_good_2],
+          'share_duration_unit' => 'manual',
+          'num_uses' => 1
+        }
+        response = call_api('share_location', TEST_VALUES[:device_id_1], params)
+        $LOG.debug response
+        # We would really like the cred that was created
+        # and look up the share with the unique cred
+        # But it would defeat the entire process to send the cred in the response
+        # instead get the most recent share for this device_id/share_to that was created in the last 5 sec
+        share = get_email_share(TEST_VALUES[:device_id_1], TEST_VALUES[:email_good_2])
+        $LOG.debug share
+        expect(share).not_to be_nil
+        expect(Time.now.to_i - 5).to be < share.created_at.to_i
+      end
+    end
   end
+end
 
-  context "with share location" do
-    it "creates share" do
+RSpec.describe Protocol do
+  describe "redeem" do
+    before(:all) do
+      [:device_id_1, :device_id_2, :device_id_3].each do
+        | seen_device_id |
+        get_email_shares(TEST_VALUES[seen_device_id], TEST_VALUES[:email_good_2]).each do
+          | share |
+          share.destroy
+        end
+      end
+
+      # create a share to setup the testing
       params = {
         'share_via' => 'email',
         'share_to' => TEST_VALUES[:email_good_2],
@@ -521,264 +629,239 @@ RSpec.describe Protocol do
         'num_uses' => 1
       }
       response = call_api('share_location', TEST_VALUES[:device_id_1], params)
-      $LOG.debug response
-      # We would really like the cred that was created
-      # and look up the share with the unique cred
-      # But it would defeat the entire process to send the cred in the response
-      # instead get the most recent share for this device_id/share_to that was created in the last 5 sec
-      share = get_email_share(TEST_VALUES[:device_id_1], TEST_VALUES[:email_good_2])
-      $LOG.debug share
-      expect(share).not_to be_nil
-      expect(Time.now.to_i - 5).to be < share.created_at.to_i
+    end
+
+    context "when redeem bad share" do
+      it "get error" do
+        response = call_api('redeem', TEST_VALUES[:device_id_2], {cred: 'NOT_A_CRED'})
+        expect(response).not_to be_nil
+        redirect_url = response[:redirect_url]
+        expect(redirect_url).not_to be_nil
+        query_params = parse_params(URI.parse(redirect_url).query)
+        expect(query_params).not_to be_nil
+        expect(query_params['alert']).not_to be_nil
+      end
+    end
+    context "when redeem does not exist for seer device_id initially" do
+      it_should_behave_like "no redeem",
+      TEST_VALUES[:device_id_2], TEST_VALUES[:device_id_1], TEST_VALUES[:email_good_2] do
+      end
+    end
+    context "when creating redeem" do
+      it "creates redeem and seer (device_id_2) can now see device_id_1" do
+        redeem = call_redeem_by_values(TEST_VALUES[:device_id_2], TEST_VALUES[:device_id_1], TEST_VALUES[:email_good_2])
+        expect(redeem).not_to be_nil
+        expect(Time.now.to_i - 5).to be < redeem.created_at.to_i
+        share = Share.find(redeem.share_id)
+        expect(share.device_id).to eq TEST_VALUES[:device_id_1]
+      end
+    end
+    context "when redeem does not exist for seer device_id initially" do
+      it_should_behave_like "no redeem",
+      TEST_VALUES[:device_id_3], TEST_VALUES[:device_id_1], TEST_VALUES[:email_good_2] do
+      end
+    end
+    context "when num_uses is exceeded" do
+      it "get error" do
+        redeem = call_redeem_by_values(TEST_VALUES[:device_id_3], TEST_VALUES[:device_id_1], TEST_VALUES[:email_good_2])
+        $LOG.debug redeem
+        expect(redeem).to be_nil
+      end
+    end
+    
+    context "when the seer already has an infinite share" do
+      it "makes the redeem time infinite" do
+        share = get_email_share(TEST_VALUES[:device_id_1], TEST_VALUES[:email_good_2])
+        redeem = get_redeem_by_share(share.id, TEST_VALUES[:device_id_2])
+        response = create_share(TEST_VALUES[:device_id_1],
+                                { 'share_via'             => 'email',
+                                  'share_to'              => TEST_VALUES[:email_good_2],
+                                  'share_duration_unit'   => 'hour',
+                                  'share_duration_number' => '1',
+                                  'num_uses'              => 1,
+                                })
+        call_redeem_by_values(TEST_VALUES[:device_id_2], TEST_VALUES[:device_id_1], TEST_VALUES[:email_good_2])
+        redeem_after = get_redeem_by_seen(TEST_VALUES[:device_id_2], TEST_VALUES[:device_id_1])
+        expect(redeem_after).not_to be_nil
+        expect(redeem_after.id).to eq redeem.id
+      end
+    end
+
+    context "when the first seer redeems a share that is shorter duration than the first share" do
+      it "doesn't change the redeem" do
+        # setup initial share
+        # don't do this in before clause or earlier tests get upset
+        create_and_redeem_share(TEST_VALUES[:device_id_3],
+                                TEST_VALUES[:device_id_1],
+                                'hour', '5')
+
+        redeem_before = get_redeem_by_seen(TEST_VALUES[:device_id_3], TEST_VALUES[:device_id_1])
+        create_and_redeem_share(TEST_VALUES[:device_id_3],
+                                TEST_VALUES[:device_id_1],
+                                'hour', '2')
+        redeem_after = get_redeem_by_seen(TEST_VALUES[:device_id_3], TEST_VALUES[:device_id_1])
+        $LOG.debug redeem_before
+        $LOG.debug redeem_after
+        expect(redeem_after).not_to be_nil
+        expect(redeem_after.share_id).to eq redeem_before.share_id
+      end
+    end
+
+    context "when the seer redeems a share that is longer duration than the first share" do
+      it "uses redeem with longer expiration" do
+        redeem_before = get_redeem_by_seen(TEST_VALUES[:device_id_3], TEST_VALUES[:device_id_1])
+        $LOG.debug redeem_before
+        create_and_redeem_share(TEST_VALUES[:device_id_3],
+                                TEST_VALUES[:device_id_1],
+                                'hour', '10')
+        redeem_after = get_redeem_by_seen(TEST_VALUES[:device_id_3], TEST_VALUES[:device_id_1])
+        $LOG.debug redeem_after
+        expect(redeem_after).not_to be_nil
+        expect(redeem_after.share_id).not_to eq redeem_before.share_id
+      end
+    end
+    context "when the first seer redeems a share that is infinite" do
+      it "makes the redeem time infinite" do
+        redeem_before = get_redeem_by_seen(TEST_VALUES[:device_id_3], TEST_VALUES[:device_id_1])
+        create_and_redeem_share(TEST_VALUES[:device_id_3],
+                                TEST_VALUES[:device_id_1],
+                                'manual')
+        $LOG.debug redeem_before
+        redeem_after = get_redeem_by_seen(TEST_VALUES[:device_id_3], TEST_VALUES[:device_id_1])
+        $LOG.debug redeem_after
+        expect(redeem_after).not_to be_nil
+        expect(redeem_after.share_id).not_to eq redeem_before.share_id
+        share_after = Share.find(redeem_after.share_id)
+        expect(share_after.expire_time).to be_nil
+      end
     end
   end
 end
 
 RSpec.describe Protocol do
-  before(:all) do
-    [:device_id_1, :device_id_2, :device_id_3].each do
-      | seen_device_id |
-      get_email_shares(TEST_VALUES[seen_device_id], TEST_VALUES[:email_good_2]).each do
-        | share |
-        share.destroy
-      end
-    end
-
-    # create a share to setup the testing
-    params = {
-      'share_via' => 'email',
-      'share_to' => TEST_VALUES[:email_good_2],
-      'share_duration_unit' => 'manual',
-      'num_uses' => 1
-    }
-    response = call_api('share_location', TEST_VALUES[:device_id_1], params)
-  end
-
-  context "when redeem bad share" do
-    it "get error" do
-      response = call_api('redeem', TEST_VALUES[:device_id_2], {cred: 'NOT_A_CRED'})
-      expect(response).not_to be_nil
-      redirect_url = response[:redirect_url]
-      expect(redirect_url).not_to be_nil
-      query_params = parse_params(URI.parse(redirect_url).query)
-      expect(query_params).not_to be_nil
-      expect(query_params['alert']).not_to be_nil
-    end
-  end
-  context "when redeem does not exist for seer device_id initially" do
-    it_should_behave_like "no redeem",
-    TEST_VALUES[:device_id_2], TEST_VALUES[:device_id_1], TEST_VALUES[:email_good_2] do
-    end
-  end
-  context "when creating redeem" do
-    it "creates redeem and seer (device_id_2) can now see device_id_1" do
-      redeem = call_redeem_by_values(TEST_VALUES[:device_id_2], TEST_VALUES[:device_id_1], TEST_VALUES[:email_good_2])
-      expect(redeem).not_to be_nil
-      expect(Time.now.to_i - 5).to be < redeem.created_at.to_i
-      share = Share.find(redeem.share_id)
-      expect(share.device_id).to eq TEST_VALUES[:device_id_1]
-    end
-  end
-  context "when redeem does not exist for seer device_id initially" do
-    it_should_behave_like "no redeem",
-    TEST_VALUES[:device_id_3], TEST_VALUES[:device_id_1], TEST_VALUES[:email_good_2] do
-    end
-  end
-  context "when num_uses is exceeded" do
-    it "get error" do
-      redeem = call_redeem_by_values(TEST_VALUES[:device_id_3], TEST_VALUES[:device_id_1], TEST_VALUES[:email_good_2])
-      $LOG.debug redeem
-      expect(redeem).to be_nil
-    end
-  end
-  
-  context "when the seer already has an infinite share" do
-    it "makes the redeem time infinite" do
-      share = get_email_share(TEST_VALUES[:device_id_1], TEST_VALUES[:email_good_2])
-      redeem = get_redeem_by_share(share.id, TEST_VALUES[:device_id_2])
-      response = create_share(TEST_VALUES[:device_id_1],
-                              { 'share_via'             => 'email',
-                                'share_to'              => TEST_VALUES[:email_good_2],
-                                'share_duration_unit'   => 'hour',
-                                'share_duration_number' => '1',
-                                'num_uses'              => 1,
-                              })
-      call_redeem_by_values(TEST_VALUES[:device_id_2], TEST_VALUES[:device_id_1], TEST_VALUES[:email_good_2])
-      redeem_after = get_redeem_by_seen(TEST_VALUES[:device_id_2], TEST_VALUES[:device_id_1])
-      expect(redeem_after).not_to be_nil
-      expect(redeem_after.id).to eq redeem.id
-    end
-  end
-
-  context "when the first seer redeems a share that is shorter duration than the first share" do
-    it "doesn't change the redeem" do
-      # setup initial share
-      # don't do this in before clause or earlier tests get upset
-      create_and_redeem_share(TEST_VALUES[:device_id_3],
+  describe "get_shares" do
+    before(:all) do
+      clear_test_shares()
+      create_and_redeem_share(TEST_VALUES[:device_id_2],
                               TEST_VALUES[:device_id_1],
-                              TEST_VALUES[:email_good_2],
-                              'hour', '5')
-
-      redeem_before = get_redeem_by_seen(TEST_VALUES[:device_id_3], TEST_VALUES[:device_id_1])
-      create_and_redeem_share(TEST_VALUES[:device_id_3],
-                              TEST_VALUES[:device_id_1],
-                              TEST_VALUES[:email_good_2],
-                              'hour', '2')
-      redeem_after = get_redeem_by_seen(TEST_VALUES[:device_id_3], TEST_VALUES[:device_id_1])
-      $LOG.debug redeem_before
-      $LOG.debug redeem_after
-      expect(redeem_after).not_to be_nil
-      expect(redeem_after.share_id).to eq redeem_before.share_id
-    end
-  end
-
-  context "when the seer redeems a share that is longer duration than the first share" do
-    it "uses redeem with longer expiration" do
-      redeem_before = get_redeem_by_seen(TEST_VALUES[:device_id_3], TEST_VALUES[:device_id_1])
-      $LOG.debug redeem_before
-      create_and_redeem_share(TEST_VALUES[:device_id_3],
-                              TEST_VALUES[:device_id_1],
-                              TEST_VALUES[:email_good_2],
-                              'hour', '10')
-      redeem_after = get_redeem_by_seen(TEST_VALUES[:device_id_3], TEST_VALUES[:device_id_1])
-      $LOG.debug redeem_after
-      expect(redeem_after).not_to be_nil
-      expect(redeem_after.share_id).not_to eq redeem_before.share_id
-    end
-  end
-  context "when the first seer redeems a share that is infinite" do
-    it "makes the redeem time infinite" do
-      redeem_before = get_redeem_by_seen(TEST_VALUES[:device_id_3], TEST_VALUES[:device_id_1])
-      create_and_redeem_share(TEST_VALUES[:device_id_3],
-                              TEST_VALUES[:device_id_1],
-                              TEST_VALUES[:email_good_2],
                               'manual')
-      $LOG.debug redeem_before
-      redeem_after = get_redeem_by_seen(TEST_VALUES[:device_id_3], TEST_VALUES[:device_id_1])
-      $LOG.debug redeem_after
-      expect(redeem_after).not_to be_nil
-      expect(redeem_after.share_id).not_to eq redeem_before.share_id
-      share_after = Share.find(redeem_after.share_id)
-      expect(share_after.expire_time).to be_nil
+      # TODO: make sure device_id_1/2 are registered
+    end
+    context "when the user doesn't have any shares"
+    it "return the empty list" do
+      response = call_api("get_shares", TEST_VALUES[:device_id_1])
+      expect(response).not_to be_nil
+      expect(response['shares']).to be_empty
+    end
+    context "when the user does have any shares"
+    it "returns shares" do
+      response = call_api("get_shares", TEST_VALUES[:device_id_2])
+      $LOG.debug response
+      expect(response).not_to be_nil
+      expect(response['shares']).not_to be_empty
     end
   end
 end
 
 RSpec.describe Protocol do
-  before(:all) do
-    [:device_id_1, :device_id_2, :device_id_3].each do
-      | seen_device_id |
-      get_email_shares(TEST_VALUES[seen_device_id], TEST_VALUES[:email_good_2]).each do
-        | share |
-        share.destroy
-      end
+  describe "get_registration" do
+    before(:all) do
+      # TODO: make sure device_id_1 is registered
     end
-    create_and_redeem_share(TEST_VALUES[:device_id_2],
-                            TEST_VALUES[:device_id_1],
-                            TEST_VALUES[:email_good_2],
-                            'manual')
-    # TODO: make sure device_id_1/2 are registered
-  end
-  context "when the user doesn't have any shares"
-  it "return the empty list" do
-    response = call_api("get_shares", TEST_VALUES[:device_id_1])
-    expect(response).not_to be_nil
-    expect(response['shares']).to be_empty
-  end
-  context "when the user does have any shares"
-  it "returns shares" do
-    response = call_api("get_shares", TEST_VALUES[:device_id_2])
-    $LOG.debug response
-    expect(response).not_to be_nil
-    expect(response['shares']).not_to be_empty
-  end
-end
-
-RSpec.describe Protocol do
-  before(:all) do
-    # TODO: make sure device_id_1 is registered
-  end
-  context "when bad device_id is sent"
-  it "get error" do
-    response = call_api("get_registration", TEST_VALUES[:device_id_bad_4])
-    expect(response).not_to be_nil
-    expect(response[:message]).not_to be_nil
-  end
-  context "when good device_id is sent"
-  it "returns account" do
-    response = call_api("get_registration", TEST_VALUES[:device_id_1])
-    expect(response).not_to be_nil
+    context "when bad device_id is sent"
+    it "get error" do
+      response = call_api("get_registration", TEST_VALUES[:device_id_bad_4])
+      expect(response).not_to be_nil
+      expect(response[:message]).not_to be_nil
+    end
+    context "when good device_id is sent"
+    it "returns account" do
+      response = call_api("get_registration", TEST_VALUES[:device_id_1])
+      expect(response).not_to be_nil
+    end
   end
 end
 
 RSpec.describe Protocol, development: true do
-  before(:all) do
-    response = call_api("send_position", TEST_VALUES[:device_id_2],
-                        { 'gps_longitude' => COORDS[:san_francisco][:longitude],
-                          'gps_latitude'  => COORDS[:san_francisco][:latitude],
-                        })
-    response = call_api("send_position", TEST_VALUES[:device_id_3],
-                        { 'gps_longitude' => COORDS[:new_york][:longitude],
-                          'gps_latitude'  => COORDS[:new_york][:latitude],
-                        })
-    # seer device_id_2, seen device_id_3
-    create_and_redeem_share(TEST_VALUES[:device_id_2],
-                            TEST_VALUES[:device_id_3],
-                            TEST_VALUES[:email_good_2],
-                            'second',
-                            '1',
-                            )
-  end
-  context "when multiple sightings for a seen" do
-    it "returns GPS coords of latest sighting" do
-      # create sightings to test
-      response = call_api("send_position", TEST_VALUES[:device_id_1],
-                          { 'gps_longitude' => COORDS[:new_orleans][:longitude],
-                            'gps_latitude'  => COORDS[:new_orleans][:latitude],
-                          })
-      # make sure this time is at least one sec after new_orleans sighting
-      sleep(1)
-      response = call_api("send_position", TEST_VALUES[:device_id_1],
-                          { 'gps_longitude' => COORDS[:us_center][:longitude],
-                            'gps_latitude'  => COORDS[:us_center][:latitude],
-                          })
-      # device_id_3 (seer) to see device_id_1 (seen)
-      create_and_redeem_share(TEST_VALUES[:device_id_3],
-                              TEST_VALUES[:device_id_1],
-                              TEST_VALUES[:email_good_2],
-                              'manual',
-                              )
-      response = call_api("get_positions", TEST_VALUES[:device_id_3])
-      $LOG.debug response
-      # expect coords are us_center (latest sighting)
-    end
-  end
-  context "when share expires" do
-    it "does not return sightings" do
-      create_and_redeem_share(TEST_VALUES[:device_id_3],
-                              TEST_VALUES[:device_id_2],
-                              TEST_VALUES[:email_good_2],
-                              'second',
-                              '2',
-                              )
-      response = call_api("send_position", TEST_VALUES[:device_id_2],
-                          { 'gps_longitude' => COORDS[:new_orleans][:longitude],
-                            'gps_latitude'  => COORDS[:new_orleans][:latitude],
-                          })
-      response = call_api("get_positions", TEST_VALUES[:device_id_3])
-      $LOG.debug response
-      # expect device_id_2 is returned
+  describe "get_positions" do
 
-      # make sure share expires
-      sleep(3)
-      response = call_api("get_positions", TEST_VALUES[:device_id_3])
-      $LOG.debug response
-      # expect device_id_2 is not returned
+    before(:all) do
+      setup_devices()
+      clear_test_shares()
     end
-  end
-  context "when account has not been verified" do
-    it "does not return sightings" do
-      
+    context "when single sighting" do
+      it "returns GPS coords of sighting" do
+        # create sightings to test
+        create_position(TEST_VALUES[:device_id_1], COORDS[:new_orleans])
+
+        # create share/redeem to test
+        # device_id_3 (seer) to see device_id_1 (seen)
+        create_and_redeem_share(TEST_VALUES[:device_id_3],
+                                TEST_VALUES[:device_id_1],
+                                'manual',
+                                )
+        
+        response = call_api("get_positions", TEST_VALUES[:device_id_3])
+        $LOG.debug response
+
+        expect(response).not_to be_nil
+        expect(response["sightings"]).not_to be_nil
+        sighting = get_sighting(response["sightings"], TEST_VALUES[:device_id_1], COORDS[:new_orleans])
+        expect(sighting).not_to be_nil
+      end
+    end
+    context "when multiple sightings for a seen" do
+      it "returns GPS coords of latest sighting" do
+        # make sure the timestamp on this sighting is
+        # at least one sec after the sighting in the earlier test
+        sleep(1)
+        create_position(TEST_VALUES[:device_id_1], COORDS[:us_center]) 
+
+        response = call_api("get_positions", TEST_VALUES[:device_id_3])
+        $LOG.debug response
+
+        expect(response).not_to be_nil
+        expect(response["sightings"]).not_to be_nil
+        sighting = get_sighting(response["sightings"], TEST_VALUES[:device_id_1], COORDS[:us_center])
+        expect(sighting).not_to be_nil
+      end
+    end
+    context "when share expires" do
+      before(:all) do
+        # device_id_3 position
+        create_position(TEST_VALUES[:device_id_3], COORDS[:new_york])
+        
+        # seer device_id_2, seen device_id_3
+        create_and_redeem_share(TEST_VALUES[:device_id_2],
+                                TEST_VALUES[:device_id_3],
+                                'second',
+                                '3',
+                                )
+      end
+
+      context "before share expires" do
+        it_should_behave_like "good sighting",
+        TEST_VALUES[:device_id_2], TEST_VALUES[:device_id_3], COORDS[:new_york] do
+        end
+      end
+
+      context "let share expires" do
+        it "waits for share to expire" do
+          sleep(4)
+        end
+      end
+
+      context "after share expires" do
+        it_should_behave_like "no sighting",
+        TEST_VALUES[:device_id_2], TEST_VALUES[:device_id_3], COORDS[:new_york] do
+        end
+      end
+    end
+
+    context "when account has not been verified" do
+      xit "does not return sightings" do
+        
+      end
     end
   end
 end
