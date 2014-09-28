@@ -182,25 +182,17 @@ RSpec.describe Protocol, production: true do
 end
 
 RSpec.describe Protocol, production: true do
-  method = "send_position"
-  device_id = TEST_VALUES[:device_id_1]
-
   def look_for_sighting (device_id, gps_longitude, gps_latitude)
     sql = "SELECT * FROM sightings WHERE device_id = '#{device_id}' AND gps_longitude = #{gps_longitude} AND gps_latitude = #{gps_latitude} AND created_at < TIMESTAMPADD(SECOND, 5, NOW())"
-    puts sql
     Sighting.find_by_sql(sql).first
   end
 
   context "with syntax 1"
   it "creates sighting record" do
-    gps_longitude = COORDS[:new_orleans][:longitude]
-    gps_latitude  = COORDS[:new_orleans][:latitude]
-
-    response = call_api(method, device_id,
-                        { 'gps_longitude' => gps_longitude,
-                          'gps_latitude'  => gps_latitude,
+    response = call_api("send_position", TEST_VALUES[:device_id_1],
+                        { 'gps_longitude' => COORDS[:new_orleans][:longitude],
+                          'gps_latitude'  => COORDS[:new_orleans][:latitude],
                         })
-
     expect(response[:status]).to eql("OK")
 
     sighting = look_for_sighting(device_id, gps_longitude, gps_latitude)
@@ -209,12 +201,10 @@ RSpec.describe Protocol, production: true do
 
   context "with syntax 2"
   it "creates sighting record" do
-    gps_longitude = COORDS[:new_york][:longitude]
-    gps_latitude  = COORDS[:new_york][:latitude]
-    response = call_api(method, device_id,
+    response = call_api("send_position", TEST_VALUES[:device_id_1],
                         { 'location'      => {
-                            'longitude' => gps_longitude,
-                            'latitude'  => gps_latitude,
+                            'longitude' => COORDS[:new_york][:longitude],
+                            'latitude'  => COORDS[:new_york][:latitude],
                           }
                         })
 
@@ -722,26 +712,82 @@ RSpec.describe Protocol do
 end
 
 RSpec.describe Protocol, development: true do
-  method = "get_positions"
-  device_id = "TEST_DEV_42"
-  params = {}
-  context "when get positions shared to device_id"
-  xit "returns GPS coords shared to device_id" do
-    response = call_api(method, device_id, params)
-    # check coords for new_orleans and new_york
+  before(:all) do
+    response = call_api("send_position", TEST_VALUES[:device_id_2],
+                        { 'gps_longitude' => COORDS[:san_francisco][:longitude],
+                          'gps_latitude'  => COORDS[:san_francisco][:latitude],
+                        })
+    response = call_api("send_position", TEST_VALUES[:device_id_3],
+                        { 'gps_longitude' => COORDS[:new_york][:longitude],
+                          'gps_latitude'  => COORDS[:new_york][:latitude],
+                        })
+    # seer device_id_2, seen device_id_3
+    create_and_redeem_share(TEST_VALUES[:device_id_2],
+                            TEST_VALUES[:device_id_3],
+                            TEST_VALUES[:email_good_2],
+                            'second',
+                            '1',
+                            )
   end
-  context ""
-  xit "" do
+  context "when multiple sightings for a seen" do
+    it "returns GPS coords of latest sighting" do
+      # create sightings to test
+      response = call_api("send_position", TEST_VALUES[:device_id_1],
+                          { 'gps_longitude' => COORDS[:new_orleans][:longitude],
+                            'gps_latitude'  => COORDS[:new_orleans][:latitude],
+                          })
+      # make sure this time is at least one sec after new_orleans sighting
+      sleep(1)
+      response = call_api("send_position", TEST_VALUES[:device_id_1],
+                          { 'gps_longitude' => COORDS[:us_center][:longitude],
+                            'gps_latitude'  => COORDS[:us_center][:latitude],
+                          })
+      # device_id_3 (seer) to see device_id_1 (seen)
+      create_and_redeem_share(TEST_VALUES[:device_id_3],
+                              TEST_VALUES[:device_id_1],
+                              TEST_VALUES[:email_good_2],
+                              'manual',
+                              )
+      response = call_api("get_positions", TEST_VALUES[:device_id_3])
+      $LOG.debug response
+      # expect coords are us_center (latest sighting)
+    end
+  end
+  context "when share expires" do
+    it "does not return sightings" do
+      create_and_redeem_share(TEST_VALUES[:device_id_3],
+                              TEST_VALUES[:device_id_2],
+                              TEST_VALUES[:email_good_2],
+                              'second',
+                              '2',
+                              )
+      response = call_api("send_position", TEST_VALUES[:device_id_2],
+                          { 'gps_longitude' => COORDS[:new_orleans][:longitude],
+                            'gps_latitude'  => COORDS[:new_orleans][:latitude],
+                          })
+      response = call_api("get_positions", TEST_VALUES[:device_id_3])
+      $LOG.debug response
+      # expect device_id_2 is returned
 
+      # make sure share expires
+      sleep(3)
+      response = call_api("get_positions", TEST_VALUES[:device_id_3])
+      $LOG.debug response
+      # expect device_id_2 is not returned
+    end
+  end
+  context "when account has not been verified" do
+    it "does not return sightings" do
+      
+    end
   end
 end
 
 RSpec.describe Protocol do
-  method = "device_id_bind"
-  device_id = "TEST_DEV_42"
-  context "when cred is redeemed"
-  xit "creates a share" do
-    response = call_api(method, device_id, params)
+  context "when device is bound" do
+    xit "both devices can see the shares that were redeemed by both devices" do
+      response = call_api("device_id_bind", TEST_VALUES[:device_id_1])
+    end
   end
 end
 
