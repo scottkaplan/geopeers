@@ -13,9 +13,9 @@ COORDS = {
 }
 
 TEST_VALUES = {
-  name_1:          'Fred Friendly',
-  name_2:          'Mary Smith',
-  name_3:          'George Fortune',
+  name_1:          'Device ID1',
+  name_2:          'Device ID2',
+  name_3:          'Device ID3',
   email_good_1:    'test@geopeers.com',
   email_good_2:    'scott@kaplans.com',
   email_good_3:    'scott@magtogo.com',
@@ -25,7 +25,9 @@ TEST_VALUES = {
   mobile_good_2:   '4155551212',
   mobile_valid_1:  '1234567890',
   mobile_bad_1:    '123',
-  user_agent:      'tire rim browser',
+  user_agent_1:    'tire rim browser',
+  user_agent_2:    'Safari iPhone browser',
+  user_agent_3:    'Android browser',
   device_id_1:     'TEST_DEV_42',
   device_id_2:     'TEST_DEV_43',
   device_id_3:     'TEST_DEV_44',
@@ -33,12 +35,17 @@ TEST_VALUES = {
 }
 
 ERROR_MESSAGES = {
-  no_email_or_mobile: 'Please supply your email or mobile number',
-  no_name: 'Please supply your name',
-  email_bad: "Email should be in the form 'fred@company.com'",
-  mobile_bad: "The mobile number must be 10 digits",
+  no_email_or_mobile: "Please supply your email or mobile number",
+  no_name:            "Please supply your name",
+  email_bad:          "Email should be in the form 'fred@company.com'",
+  mobile_bad:         "The mobile number must be 10 digits",
   already_registered: " is already registered",
+  no_native_app:      "There is no native app available for your device",
 }
+
+#
+# Utilities
+#
 
 def call_api(method, device_id, extra_parms=nil)
   procname = "process_request_#{method}"
@@ -47,9 +54,9 @@ def call_api(method, device_id, extra_parms=nil)
     'device_id'  => device_id,
   }
   params.merge!(extra_parms) if extra_parms
-  puts params.inspect
+  $LOG.debug params.inspect
   response = Protocol.send(procname, params)
-  puts response.inspect
+  $LOG.debug response.inspect
   response
 end
 
@@ -81,59 +88,6 @@ def get_email_share(device_id, email)
   share
 end
 
-def get_redeem_by_share(share_id, device_id)
-  Redeem.where("share_id=? AND device_id=?",share_id, device_id).first
-end
-
-def get_redeem(device_id, cred)
-  quoted_device_id = Mysql2::Client.escape(device_id)
-  quoted_cred = Mysql2::Client.escape(cred)
-  sql = "SELECT redeems.* FROM redeems, shares
-         WHERE shares.share_cred = '#{quoted_cred}' AND
-               shares.id = redeems.share_id AND
-               redeems.device_id = '#{quoted_device_id}'"
-  redeem = Redeem.find_by_sql(sql).first
-  $LOG.debug redeem
-  redeem
-end
-
-def get_redeem_by_seen(seer_device_id, seen_device_id)
-  quoted_seer_device_id = Mysql2::Client.escape(seer_device_id)
-  quoted_seen_device_id = Mysql2::Client.escape(seen_device_id)
-  sql = "SELECT redeems.* FROM redeems, shares
-         WHERE shares.device_id = '#{quoted_seen_device_id}' AND
-               shares.id = redeems.share_id AND
-               redeems.device_id = '#{quoted_seer_device_id}'"
-  redeem = Redeem.find_by_sql(sql).first
-  $LOG.debug redeem
-  redeem
-end
-
-def call_redeem(seer_device_id, cred)
-  response = call_api('redeem', seer_device_id, {cred: cred})
-  $LOG.debug response
-  redeem = get_redeem(seer_device_id, cred)
-  redeem
-end
-
-def call_redeem_by_values(seer_device_id, seen_device_id, email)
-  share = get_email_share(seen_device_id, email)
-  $LOG.debug share
-  call_redeem(seer_device_id, share.share_cred)
-end
-
-def create_and_redeem_share(seer_device_id, seen_device_id, share_duration_unit, share_duration_number=nil)
-  email = TEST_VALUES[:email_good_2]
-  response = create_share(seen_device_id,
-                          { 'share_via'             => 'email',
-                            'share_to'              => email,
-                            'share_duration_unit'   => share_duration_unit,
-                            'share_duration_number' => share_duration_number,
-                            'num_uses'              => 1,
-                          })
-  call_redeem_by_values(seer_device_id, seen_device_id, email)
-end
-
 def clear_test_shares()
   [:device_id_1, :device_id_2, :device_id_3].each do
     | seen_device_id |
@@ -147,165 +101,95 @@ end
 def setup_devices()
   call_api('register_device', TEST_VALUES[:device_id_1],
            { 'new_account' => 'yes',
-             'name'        => 'Device ID1',
+             'name'        => TEST_VALUES[:name_1],
+             'user_agent'  => TEST_VALUES[:user_agent_1],
            })
   call_api('register_device', TEST_VALUES[:device_id_2],
            { 'new_account' => 'yes',
-             'name'        => 'Device ID2',
+             'name'        => TEST_VALUES[:name_2],
+             'user_agent'  => TEST_VALUES[:user_agent_2],
            })
   call_api('register_device', TEST_VALUES[:device_id_3],
            { 'new_account' => 'yes',
-             'name'        => 'Device ID3',
+             'name'        => TEST_VALUES[:name_3],
+             'user_agent'  => TEST_VALUES[:user_agent_3],
            })
 end
 
-def create_position(device_id, coords)
-  call_api("send_position", device_id,
-           { 'gps_longitude' => coords[:longitude],
-             'gps_latitude'  => coords[:latitude],
-           })
-end
+#
+# CONFIG API
+#
 
-def get_sighting(sightings, seen_device_id, coords)
-  sightings.each do
-    |sighting|
-    if  sighting['gps_longitude'] == coords[:longitude] &&
-        sighting['gps_latitude'] == coords[:latitude] &&
-        sighting['device_id'] == seen_device_id
-      return sighting
-    end
+RSpec.shared_examples "config request creates device_id if not present" do
+  | device_id, user_agent, version|
+  it "" do
+    device = Device.find_by(device_id: device_id)
+    $LOG.debug device_id
+    $LOG.debug device
+    response = call_api("config", device_id,
+                        { 'user_agent' => user_agent,
+                          'version'    => version})
+
+    device = Device.find_by(device_id: device_id)
+    $LOG.debug device
+    expect(device).not_to be_nil
   end
-  return
 end
 
-RSpec.describe Protocol, production: true do
+RSpec.describe Protocol, dev: true do
   describe "config" do
-    current_version = 1
-
     context "when does not exist before" do
-      it "creates device_id record" do
-        device_before = Device.find_by(device_id: TEST_VALUES[:device_id_1])
-        device_before.destroy() if device_before
-
-        response = call_api("config", TEST_VALUES[:device_id_1],
-                            { 'user_agent' => TEST_VALUES[:user_agent],
-                              'version'    => current_version+1})
-
-        device_after = Device.find_by(device_id: TEST_VALUES[:device_id_1])
-        expect(device_after).not_to be_nil
+      it "makes sure device is not there" do
+        device = Device.find_by(device_id: TEST_VALUES[:device_id_1])
+        device.destroy() if device
+      end
+      it_should_behave_like "config request creates device_id if not present",
+      TEST_VALUES[:device_id_1], TEST_VALUES[:user_agent_1], 1 do
       end
     end
 
-    context "when does exist before"
-    it "device_id record is unchanged" do
-      device_before = Device.find_by(device_id: TEST_VALUES[:device_id_1])
-      device_before ||= Device.new(device_id:  TEST_VALUES[:device_id_1],
-                                   user_agent: TEST_VALUES[:user_agent])
-      expect(device_before).not_to be_nil
-
-      response = call_api("config", TEST_VALUES[:device_id_1],
-                          { 'user_agent' => TEST_VALUES[:user_agent],
-                            'version'    => current_version+1})
-
-      device_after = Device.find_by(device_id: TEST_VALUES[:device_id_1])
-      expect(device_after).not_to be_nil
-      expect(device_before.id).to eq(device_after.id)
+    context "when does exist before" do
+      before(:context) do
+        @device_before = Device.find_by(device_id: TEST_VALUES[:device_id_1])
+        $LOG.debug @device_before
+        @device_before.destroy if @device_before
+        @device_before = Device.new(device_id:  TEST_VALUES[:device_id_1],
+                                    user_agent: TEST_VALUES[:user_agent_1])
+        @device_before.save
+        $LOG.debug @device_before
+      end
+      it_should_behave_like "config request creates device_id if not present",
+      TEST_VALUES[:device_id_1], TEST_VALUES[:user_agent_1], 1 do
+      end
+      it "does not change device id" do
+        device_after = Device.find_by(device_id: TEST_VALUES[:device_id_1])
+        $LOG.debug device_after
+        $LOG.debug @device_before
+        expect(@device_before.id).to eq(device_after.id)
+      end
     end
 
-    context "when sent old version"
-    it "gets JS" do
-      response = call_api("config", TEST_VALUES[:device_id_1],
-                          { 'user_agent' => TEST_VALUES[:user_agent],
-                            'version'    => current_version,
-                          })
+    context "when sent old version" do
+      it "gets JS" do
+        response = call_api("config", TEST_VALUES[:device_id_1],
+                            { 'user_agent' => TEST_VALUES[:user_agent_1],
+                              'version'    => 0,
+                            })
 
-      expect(response[:js]).not_to be_nil
-    end
-  end
-end
-
-RSpec.describe Protocol, production: true do
-  describe "send_position" do
-    def look_for_sighting (device_id, gps_longitude, gps_latitude)
-      sql = "SELECT * FROM sightings
-             WHERE device_id = '#{device_id}' AND
-                   gps_longitude = #{gps_longitude} AND
-                   gps_latitude = #{gps_latitude} AND
-                   created_at < TIMESTAMPADD(SECOND, 5, NOW())
-            "
-      Sighting.find_by_sql(sql).first
-    end
-
-    context "with syntax 1"
-    it "creates sighting record" do
-      response = create_position(TEST_VALUES[:device_id_1], COORDS[:new_orleans]) 
-      expect(response[:status]).to eql("OK")
-
-      sighting = look_for_sighting(device_id, gps_longitude, gps_latitude)
-      expect(sighting).not_to be nil
-    end
-
-    context "with syntax 2"
-    it "creates sighting record" do
-      response = call_api("send_position", TEST_VALUES[:device_id_1],
-                          { 'location'      => {
-                              'longitude' => COORDS[:new_york][:longitude],
-                              'latitude'  => COORDS[:new_york][:latitude],
-                            }
-                          })
-
-      expect(response[:status]).to eql("OK")
-
-      sighting = look_for_sighting(device_id, gps_longitude, gps_latitude)
-      expect(sighting).not_to be nil
+        expect(response[:js]).not_to be_nil
+      end
     end
   end
 end
 
-RSpec.shared_examples "good sighting" do
-  | seer_device_id, seen_device_id, coords |
-  it "gets a sighting for coords" do
-    response = call_api("get_positions", seer_device_id)
-    $LOG.debug response
-    expect(response).not_to be_nil
-    expect(response["sightings"]).not_to be_nil
-    sighting = get_sighting(response["sightings"], seen_device_id, coords)
-    $LOG.debug coords
-    $LOG.debug sighting
-    expect(sighting).not_to be_nil
-  end
-end
+#
+# REGISTER_DEVICE API
+#
 
-RSpec.shared_examples "no sighting" do
-  | seer_device_id, seen_device_id, coords |
-  it "does not get a sighting for coords" do
-    response = call_api("get_positions", seer_device_id)
-    $LOG.debug response
-    expect(response).not_to be_nil
-    expect(response["sightings"]).not_to be_nil
-    sighting = get_sighting(response["sightings"], seen_device_id, coords)
-    $LOG.debug coords
-    $LOG.debug sighting
-    expect(sighting).to be_nil
-  end
-end
-
-RSpec.shared_examples "no redeem" do
-  | seer_device_id, seen_device_id, email |
-  it "checks for no redeem" do
-    share = get_email_share(seen_device_id, email)
-    expect(share).not_to be_nil
-    $LOG.debug share
-    redeem = get_redeem_by_share(share.id, seer_device_id)
-    $LOG.debug redeem
-    expect(redeem).to be_nil
-  end
-end
-
-RSpec.shared_examples "bad parameters" do
-  | method, device_id, new_account, name, email, mobile, error_message |
+RSpec.shared_examples "bad register parameters" do
+  | device_id, new_account, name, email, mobile, error_message |
   it "get error" do
-    response = call_api(method, device_id,
+    response = call_api('register_device', device_id,
                         { 'new_account' => new_account,
                           'name'        => name,
                           'email'       => email,
@@ -346,8 +230,12 @@ end
 
 RSpec.shared_examples "the 2nd step of the verification process" do
   | device_id, type, test_value |
-  it "puts #{type}: #{test_value} in account" do
+  it "put #{type}: #{test_value} in account" do
     auth = get_auth_by_device_id(device_id, test_value, type)
+    $LOG.debug device_id
+    $LOG.debug test_value
+    $LOG.debug type
+    $LOG.debug auth
     expect(auth).not_to be_nil
     verify_url = "https://eng.geopeers.com/api"
     uri = URI(verify_url)
@@ -362,7 +250,7 @@ RSpec.shared_examples "the 2nd step of the verification process" do
     expect(redirect_url).not_to be_nil
     query_params = parse_params(URI.parse(redirect_url).query)
     expect(query_params).not_to be_nil
-    expect(query_params['message_type']).to eq('message_success')
+    expect(query_params['message_type']).not_to eq('message_error')
 
     auth_after = Auth.find(auth.id)
     $LOG.debug auth_after
@@ -375,213 +263,306 @@ RSpec.shared_examples "the 2nd step of the verification process" do
   end
 end
 
-RSpec.describe Protocol do
 
-  before(:all) do
-    # clear the decks
-    clear_device_id (TEST_VALUES[:device_id_1])
-    clear_device_id (TEST_VALUES[:device_id_2])
-    clear_device_id (TEST_VALUES[:device_id_3])
-  end
-
-  context "when creating a new account (new_account == 'yes')" do
-
-    context "when no name/email/mobile" do
-      it_should_behave_like "bad parameters",
-      'register_device', TEST_VALUES[:device_id_1],
-      'yes', nil, nil, nil,
-      ERROR_MESSAGES[:no_name]
+RSpec.describe Protocol, production: true do
+  describe "register_device" do
+    before(:all) do
+      # clear the decks
+      clear_device_id (TEST_VALUES[:device_id_1])
+      clear_device_id (TEST_VALUES[:device_id_2])
+      clear_device_id (TEST_VALUES[:device_id_3])
     end
 
-    context "when bad email format" do
-      it_should_behave_like "bad parameters",
-      'register_device', TEST_VALUES[:device_id_1],
-      'yes', TEST_VALUES[:name_1], TEST_VALUES[:email_bad_2], nil,
-      ERROR_MESSAGES[:email_bad]
-    end
+    context "when creating a new account (new_account == 'yes')" do
 
-    context "when bad SMS format" do
-      it_should_behave_like "bad parameters",
-      'register_device', TEST_VALUES[:device_id_1],
-      'yes', TEST_VALUES[:name_1], nil, TEST_VALUES[:mobile_bad_1],
-      ERROR_MESSAGES[:mobile_bad]
-    end
-
-    context "when email" do
-      it_should_behave_like "start the verification process",
-      TEST_VALUES[:device_id_1],
-      'yes', TEST_VALUES[:name_1], TEST_VALUES[:email_good_1], nil
-    end
-
-    context "when verify email" do
-      it_should_behave_like "the 2nd step of the verification process",
-      TEST_VALUES[:device_id_1], 'email', TEST_VALUES[:email_good_1]
-    end
-
-    context "when mobile, new device_id" do
-      # This is from a different device_id
-      it_should_behave_like "start the verification process",
-      TEST_VALUES[:device_id_2],
-      'yes', TEST_VALUES[:name_2], nil, TEST_VALUES[:mobile_good_1], nil
-    end
-
-    context "when verify mobile for new device_id" do
-      it_should_behave_like "the 2nd step of the verification process",
-      TEST_VALUES[:device_id_2], 'mobile', TEST_VALUES[:mobile_good_1]
-    end
-
-    # When this context ends there are two accounts
-    #   [ name: name_1, email:  email_good_1 ]  bound to device_id_1
-    #   [ name: name_2, mobile: mobile_good_1 ] bound to device_id_2
-  end
-
-  context "when editing an account (new_account == 'no') associated with a single device" do
-    context "when no name/email/mobile" do
-      it_should_behave_like "bad parameters",
-      'register_device', TEST_VALUES[:device_id_2],
-      'no', nil, nil, nil,
-      ERROR_MESSAGES[:email_or_mobile]
-    end
-
-    context "when bad email format" do
-      it_should_behave_like "bad parameters",
-      'register_device', TEST_VALUES[:device_id_2],
-      'no', TEST_VALUES[:name_1], TEST_VALUES[:email_bad_2], nil,
-      ERROR_MESSAGES[:email_bad]
-    end
-
-    context "when bad SMS format" do
-      it_should_behave_like "bad parameters",
-      'register_device', TEST_VALUES[:device_id_2],
-      'no', TEST_VALUES[:name_1], nil, TEST_VALUES[:mobile_bad_1],
-      ERROR_MESSAGES[:mobile_bad]
-    end
-
-    context "when change name" do
-      it "changes name in account" do
-        response = call_api('register_device', TEST_VALUES[:device_id_2],
-                            { 'new_account' => 'no',
-                              'name'        => TEST_VALUES[:name_3],
-                            })
-        account = Protocol.get_account_from_device_id(TEST_VALUES[:device_id_2])
-        expect(account).not_to be_nil
-        expect(account.name).to eq (TEST_VALUES[:name_3])
+      context "when no name/email/mobile" do
+        it_should_behave_like "bad register parameters",
+        TEST_VALUES[:device_id_1],
+        'yes', nil, nil, nil,
+        ERROR_MESSAGES[:no_name]
       end
-    end
 
-    context "when adding mobile" do
-      it_should_behave_like "start the verification process",
-      TEST_VALUES[:device_id_1],
-      'no', nil, nil, TEST_VALUES[:mobile_good_2], nil
-    end
-
-    context "when verifing new mobile value" do
-      it_should_behave_like "the 2nd step of the verification process",
-      TEST_VALUES[:device_id_1], 'mobile', TEST_VALUES[:mobile_good_2]
-    end
-
-    context "when parameter doesn't change" do
-      it "doesn't do anything" do
-        response = call_api('register_device', TEST_VALUES[:device_id_1],
-                            { 'new_account' => 'no',
-                              'mobile'      => TEST_VALUES[:mobile_good_2],
-                            })
-        auth = get_auth_by_device_id(TEST_VALUES[:device_id_1], TEST_VALUES[:mobile_good_2], 'mobile')
-        expect(auth).to be_nil
+      context "when bad email format" do
+        it_should_behave_like "bad register parameters",
+        TEST_VALUES[:device_id_1],
+        'yes', TEST_VALUES[:name_1], TEST_VALUES[:email_bad_2], nil,
+        ERROR_MESSAGES[:email_bad]
       end
-    end
-    
-    context "when email changes" do
-      it_should_behave_like "start the verification process",
-      TEST_VALUES[:device_id_2],
-      'no', nil, TEST_VALUES[:email_good_2], nil
-    end
 
-    context "when change email again before last change was verified" do
-      it_should_behave_like "start the verification process",
-      TEST_VALUES[:device_id_2],
-      'no', nil, TEST_VALUES[:email_good_3], nil do
+      context "when bad SMS format" do
+        it_should_behave_like "bad register parameters",
+        TEST_VALUES[:device_id_1],
+        'yes', TEST_VALUES[:name_1], nil, TEST_VALUES[:mobile_bad_1],
+        ERROR_MESSAGES[:mobile_bad]
       end
+
+      context "when email" do
+        it_should_behave_like "start the verification process",
+        TEST_VALUES[:device_id_1],
+        'yes', TEST_VALUES[:name_1], TEST_VALUES[:email_good_1], nil
+      end
+
+      context "when verify email" do
+        it_should_behave_like "the 2nd step of the verification process",
+        TEST_VALUES[:device_id_1], 'email', TEST_VALUES[:email_good_1]
+      end
+
+      context "when mobile, new device_id" do
+        # This is from a different device_id
+        it_should_behave_like "start the verification process",
+        TEST_VALUES[:device_id_2],
+        'yes', TEST_VALUES[:name_2], nil, TEST_VALUES[:mobile_good_1], nil
+      end
+
+      context "when verify mobile for new device_id" do
+        it_should_behave_like "the 2nd step of the verification process",
+        TEST_VALUES[:device_id_2], 'mobile', TEST_VALUES[:mobile_good_1]
+      end
+
+      # When this context ends there are two accounts
+      #   [ name: name_1, email:  email_good_1 ]  bound to device_id_1
+      #   [ name: name_2, mobile: mobile_good_1 ] bound to device_id_2
     end
 
-    context "when trying to verify old value, fail" do
-      it_should_behave_like "the 2nd step of the verification process",
-      TEST_VALUES[:device_id_2], 'email', TEST_VALUES[:email_good_2]
-      # TODO      # try to verify email_good_2 auth - should fail
-    end
+    context "when editing an account (new_account == 'no') associated with a single device" do
+      context "when no name/email/mobile" do
+        it_should_behave_like "bad register parameters",
+        TEST_VALUES[:device_id_2],
+        'no', nil, nil, nil,
+        ERROR_MESSAGES[:email_or_mobile]
+      end
 
-    context "when verify email_good_3" do
-      it_should_behave_like "the 2nd step of the verification process",
-      TEST_VALUES[:device_id_2], 'email', TEST_VALUES[:email_good_3]
-    end
+      context "when bad email format" do
+        it_should_behave_like "bad register parameters",
+        TEST_VALUES[:device_id_2],
+        'no', TEST_VALUES[:name_1], TEST_VALUES[:email_bad_2], nil,
+        ERROR_MESSAGES[:email_bad]
+      end
 
-    # When this context ends there are two accounts
-    #   device_id_1 => [ name: name_1,
-    #                    email: email_good_2,
-    #                    mobile: mobile_good_2 ]
-    #   device_id_2 => [ name: name_3,
-    #                    email: email_good_3,
-    #                    mobile: mobile_good_1 ]
+      context "when bad SMS format" do
+        it_should_behave_like "bad register parameters",
+        TEST_VALUES[:device_id_2],
+        'no', TEST_VALUES[:name_1], nil, TEST_VALUES[:mobile_bad_1],
+        ERROR_MESSAGES[:mobile_bad]
+      end
+
+      context "when change name" do
+        it "changes name in account" do
+          response = call_api('register_device', TEST_VALUES[:device_id_2],
+                              { 'new_account' => 'no',
+                                'name'        => TEST_VALUES[:name_3],
+                              })
+          account = Protocol.get_account_from_device_id(TEST_VALUES[:device_id_2])
+          expect(account).not_to be_nil
+          expect(account.name).to eq (TEST_VALUES[:name_3])
+        end
+      end
+
+      context "when adding mobile" do
+        it_should_behave_like "start the verification process",
+        TEST_VALUES[:device_id_1],
+        'no', nil, nil, TEST_VALUES[:mobile_good_2], nil
+      end
+
+      context "when verifing new mobile value" do
+        it_should_behave_like "the 2nd step of the verification process",
+        TEST_VALUES[:device_id_1], 'mobile', TEST_VALUES[:mobile_good_2]
+      end
+
+      context "when parameter doesn't change" do
+        it "doesn't do anything" do
+          response = call_api('register_device', TEST_VALUES[:device_id_1],
+                              { 'new_account' => 'no',
+                                'mobile'      => TEST_VALUES[:mobile_good_2],
+                              })
+          auth = get_auth_by_device_id(TEST_VALUES[:device_id_1], TEST_VALUES[:mobile_good_2], 'mobile')
+          expect(auth).to be_nil
+        end
+      end
+      
+      context "when email changes" do
+        it_should_behave_like "start the verification process",
+        TEST_VALUES[:device_id_2],
+        'no', nil, TEST_VALUES[:email_good_2], nil
+      end
+
+      context "when change email again before last change was verified" do
+        it_should_behave_like "start the verification process",
+        TEST_VALUES[:device_id_2],
+        'no', nil, TEST_VALUES[:email_good_3], nil do
+        end
+      end
+
+      context "when trying to verify old value, fail" do
+        it_should_behave_like "the 2nd step of the verification process",
+        TEST_VALUES[:device_id_2], 'email', TEST_VALUES[:email_good_2]
+        # TODO      # try to verify email_good_2 auth - should fail
+      end
+
+      context "when verify email_good_3" do
+        it_should_behave_like "the 2nd step of the verification process",
+        TEST_VALUES[:device_id_2], 'email', TEST_VALUES[:email_good_3]
+      end
+
+      # When this context ends there are two accounts
+      #   device_id_1 => [ name: name_1,
+      #                    email: email_good_2,
+      #                    mobile: mobile_good_2 ]
+      #   device_id_2 => [ name: name_3,
+      #                    email: email_good_3,
+      #                    mobile: mobile_good_1 ]
+    end
   end
 end
 
-RSpec.describe Protocol do
-  before(:all) do
-    # clear the decks
-    clear_device_id (TEST_VALUES[:device_id_1])
-    clear_device_id (TEST_VALUES[:device_id_2])
-    clear_device_id (TEST_VALUES[:device_id_3])
-  end
-
-  context "when devices in multiple accounts" do
-    context "when add verified email to a new device" do
-      it_should_behave_like "start the verification process",
-      TEST_VALUES[:device_id_3],
-      'no', nil, TEST_VALUES[:email_good_2], nil
+RSpec.describe Protocol, production: true do
+  describe "register_device - multiple accounts" do
+    before(:all) do
+      # clear the decks
+      clear_device_id (TEST_VALUES[:device_id_1])
+      clear_device_id (TEST_VALUES[:device_id_2])
+      clear_device_id (TEST_VALUES[:device_id_3])
+      setup_devices()
     end
 
-    context "when verify email for new device_id" do
-      let(:account_before) { Protocol.get_account_from_device_id(TEST_VALUES[:device_id_3]) }
+    context "when multiple devices use the same verification value" do
+      # put verification in the air for device_id_1
+      it_should_behave_like "start the verification process",
+      TEST_VALUES[:device_id_1],
+      'no', TEST_VALUES[:name_1], TEST_VALUES[:email_good_2], nil do
+      end
+      let!(:account_device_id_1_before) { Protocol.get_account_from_device_id(TEST_VALUES[:device_id_1]) }
+
+      # put verification in the air for device_id_2
+      it_should_behave_like "start the verification process",
+      TEST_VALUES[:device_id_2],
+      'no', TEST_VALUES[:name_2], TEST_VALUES[:email_good_2], nil do
+      end
+      let!(:account_device_id_2_before) { Protocol.get_account_from_device_id(TEST_VALUES[:device_id_2]) }
+
+      # verify device_id_1
       it_should_behave_like "the 2nd step of the verification process",
-      TEST_VALUES[:device_id_3], 'email', TEST_VALUES[:email_good_2] do
+      TEST_VALUES[:device_id_1], 'email', TEST_VALUES[:email_good_2] do
+      end
+      it "should leave the account unchanged" do
+        account_device_id_1_after = Protocol.get_account_from_device_id(TEST_VALUES[:device_id_1])
+        $LOG.debug account_device_id_1_after
+        $LOG.debug account_device_id_1_before
+        expect(account_device_id_1_before.id).to eq account_device_id_1_after.id
+      end
+      
+      # verify device_id_2
+      it_should_behave_like "the 2nd step of the verification process",
+      TEST_VALUES[:device_id_2], 'email', TEST_VALUES[:email_good_2] do
       end
       it "should merge the accounts" do
-        account_deleted = Account.find(account_before.id)
-        expect(account_deleted).to be_nil
-
-        account_after = Protocol.get_account_from_device_id(TEST_VALUES[:device_id_3])
-        expect(account_before.id).not_to be eq(account_after.id)
+        account_device_id_2_after = Protocol.get_account_from_device_id(TEST_VALUES[:device_id_2])
+        $LOG.debug account_device_id_2_after
+        $LOG.debug account_device_id_2_before
+        expect(account_device_id_2_before.id).not_to be eq account_device_id_2_after.id
       end
     end
   end
+end
 
-  params = {}
-  context "when download_app == 1" do
+RSpec.describe Protocol, production: true do
+  describe "register_device - download_app" do
+    before(:all) do
+      clear_device_id (TEST_VALUES[:device_id_1])
+      clear_device_id (TEST_VALUES[:device_id_2])
+      clear_device_id (TEST_VALUES[:device_id_3])
+      setup_devices()
+    end
     context "desktop" do
-      xit "get verification, no download_app" do
-        params['new_account'] = 'no'
-        params['mobile'] = TEST_VALUES[:mobile_good_1]
-        params['email'] = TEST_VALUES[:email_good_1]
-        response = call_api('register_device', TEST_VALUES[:device_id_1], params)
+      it "get verification, no download_app" do
+        response = call_api('register_device', TEST_VALUES[:device_id_1],
+                            { 'new_account'  => 'no',
+                              'mobile'       => TEST_VALUES[:mobile_good_1],
+                              'email'        => TEST_VALUES[:email_good_1],
+                              'download_app' => 1,
+                            })
+        expect(response[:message]).to match(/#{TEST_VALUES[:no_native_app]}/i)
       end
     end
     context "ios browser" do
-      xit "get verification, redirect to iOS" do
-        response = call_api('register_device', TEST_VALUES[:device_id_1], params)
+      it "get verification, redirect to iOS" do
+        response = call_api('register_device', TEST_VALUES[:device_id_2],
+                            { 'new_account' => 'no',
+                              'mobile'      => TEST_VALUES[:mobile_good_1],
+                              'email'       => TEST_VALUES[:email_good_1],
+                              'download_app' => 1,
+                            })
+        expect(response['redirect_url']).to match(/#{DOWNLOAD_URLS[:ios]}/i)
       end
     end
     context "android browser" do
-      xit "get verification, redirect to android" do
-        params['new_account'] = 'no'
-        params['mobile'] = TEST_VALUES[:mobile_good_1]
-        params['email'] = TEST_VALUES[:email_good_1]
-        response = call_api('register_device', TEST_VALUES[:device_id_1], params)
+      it "get verification, redirect to android" do
+        response = call_api('register_device', TEST_VALUES[:device_id_3],
+                            { 'new_account' => 'no',
+                              'mobile'      => TEST_VALUES[:mobile_good_1],
+                              'email'       => TEST_VALUES[:email_good_1],
+                              'download_app' => 1,
+                            })
+        expect(response['redirect_url']).to match(/#{DOWNLOAD_URLS[:android]}/i)
       end
     end
   end
 end
 
-RSpec.describe Protocol do
+#
+# SEND_POSITION API
+#
+
+def create_position(device_id, coords)
+  call_api("send_position", device_id,
+           { 'gps_longitude' => coords[:longitude],
+             'gps_latitude'  => coords[:latitude],
+           })
+end
+
+RSpec.describe Protocol, production: true do
+  describe "send_position" do
+    def look_for_sighting (device_id, coords)
+      sql = "SELECT * FROM sightings
+             WHERE device_id = '#{device_id}' AND
+                   gps_longitude = #{coords[:longitude]} AND
+                   gps_latitude = #{coords[:latitude]} AND
+                   created_at < TIMESTAMPADD(SECOND, 5, NOW())
+            "
+      Sighting.find_by_sql(sql).first
+    end
+
+    context "with syntax 1"
+    it "creates sighting record" do
+      response = create_position(TEST_VALUES[:device_id_1], COORDS[:new_orleans]) 
+      expect(response[:status]).to eql("OK")
+
+      sighting = look_for_sighting(TEST_VALUES[:device_id_1], COORDS[:new_orleans]) 
+      expect(sighting).not_to be nil
+    end
+
+    context "with syntax 2"
+    it "creates sighting record" do
+      response = call_api("send_position", TEST_VALUES[:device_id_1],
+                          { 'location'      => {
+                              'longitude' => COORDS[:new_york][:longitude],
+                              'latitude'  => COORDS[:new_york][:latitude],
+                            }
+                          })
+
+      expect(response[:status]).to eql("OK")
+
+      sighting = look_for_sighting(TEST_VALUES[:device_id_1], COORDS[:new_york])
+      expect(sighting).not_to be nil
+    end
+  end
+end
+
+#
+# SHARE_LOCATION API
+#
+
+RSpec.describe Protocol, production: true do
   describe "share_location" do
     before(:all) do
       clear_shares(TEST_VALUES[:device_id_1])
@@ -610,7 +591,76 @@ RSpec.describe Protocol do
   end
 end
 
-RSpec.describe Protocol do
+#
+# REDEEM API
+#
+
+def call_redeem(seer_device_id, cred)
+  response = call_api('redeem', seer_device_id, {cred: cred})
+  $LOG.debug response
+  redeem = get_redeem(seer_device_id, cred)
+  redeem
+end
+
+def call_redeem_by_values(seer_device_id, seen_device_id, email)
+  share = get_email_share(seen_device_id, email)
+  $LOG.debug share
+  call_redeem(seer_device_id, share.share_cred)
+end
+
+def create_and_redeem_share(seer_device_id, seen_device_id, share_duration_unit, share_duration_number=nil)
+  email = TEST_VALUES[:email_good_2]
+  response = create_share(seen_device_id,
+                          { 'share_via'             => 'email',
+                            'share_to'              => email,
+                            'share_duration_unit'   => share_duration_unit,
+                            'share_duration_number' => share_duration_number,
+                            'num_uses'              => 1,
+                          })
+  call_redeem_by_values(seer_device_id, seen_device_id, email)
+end
+
+def get_redeem_by_seen(seer_device_id, seen_device_id)
+  quoted_seer_device_id = Mysql2::Client.escape(seer_device_id)
+  quoted_seen_device_id = Mysql2::Client.escape(seen_device_id)
+  sql = "SELECT redeems.* FROM redeems, shares
+         WHERE shares.device_id = '#{quoted_seen_device_id}' AND
+               shares.id = redeems.share_id AND
+               redeems.device_id = '#{quoted_seer_device_id}'"
+  redeem = Redeem.find_by_sql(sql).first
+  $LOG.debug redeem
+  redeem
+end
+
+def get_redeem_by_share(share_id, device_id)
+  Redeem.where("share_id=? AND device_id=?",share_id, device_id).first
+end
+
+def get_redeem(device_id, cred)
+  quoted_device_id = Mysql2::Client.escape(device_id)
+  quoted_cred = Mysql2::Client.escape(cred)
+  sql = "SELECT redeems.* FROM redeems, shares
+         WHERE shares.share_cred = '#{quoted_cred}' AND
+               shares.id = redeems.share_id AND
+               redeems.device_id = '#{quoted_device_id}'"
+  redeem = Redeem.find_by_sql(sql).first
+  $LOG.debug redeem
+  redeem
+end
+
+RSpec.shared_examples "no redeem" do
+  | seer_device_id, seen_device_id, email |
+  it "checks for no redeem" do
+    share = get_email_share(seen_device_id, email)
+    expect(share).not_to be_nil
+    $LOG.debug share
+    redeem = get_redeem_by_share(share.id, seer_device_id)
+    $LOG.debug redeem
+    expect(redeem).to be_nil
+  end
+end
+
+RSpec.describe Protocol, production: true do
   describe "redeem" do
     before(:all) do
       [:device_id_1, :device_id_2, :device_id_3].each do
@@ -738,14 +788,11 @@ RSpec.describe Protocol do
   end
 end
 
-RSpec.describe Protocol do
+RSpec.describe Protocol, production: true do
   describe "get_shares" do
     before(:all) do
       clear_test_shares()
-      create_and_redeem_share(TEST_VALUES[:device_id_2],
-                              TEST_VALUES[:device_id_1],
-                              'manual')
-      # TODO: make sure device_id_1/2 are registered
+      setup_devices()
     end
     context "when the user doesn't have any shares"
     it "return the empty list" do
@@ -755,6 +802,9 @@ RSpec.describe Protocol do
     end
     context "when the user does have any shares"
     it "returns shares" do
+      create_and_redeem_share(TEST_VALUES[:device_id_2],
+                              TEST_VALUES[:device_id_1],
+                              'manual')
       response = call_api("get_shares", TEST_VALUES[:device_id_2])
       $LOG.debug response
       expect(response).not_to be_nil
@@ -763,7 +813,7 @@ RSpec.describe Protocol do
   end
 end
 
-RSpec.describe Protocol do
+RSpec.describe Protocol, production: true do
   describe "get_registration" do
     before(:all) do
       # TODO: make sure device_id_1 is registered
@@ -782,53 +832,83 @@ RSpec.describe Protocol do
   end
 end
 
-RSpec.describe Protocol, development: true do
+#
+# GET_POSITIONS API
+#
+
+def get_sighting(sightings, seen_device_id, coords)
+  sightings.each do
+    |sighting|
+    if  sighting['gps_longitude'] == coords[:longitude] &&
+        sighting['gps_latitude'] == coords[:latitude] &&
+        sighting['device_id'] == seen_device_id
+      return sighting
+    end
+  end
+  return
+end
+
+RSpec.shared_examples "no sighting" do
+  | seer_device_id, seen_device_id, coords |
+  it "does not get a sighting for coords" do
+    response = call_api("get_positions", seer_device_id)
+    $LOG.debug response
+    expect(response).not_to be_nil
+    expect(response["sightings"]).not_to be_nil
+    sighting = get_sighting(response["sightings"], seen_device_id, coords)
+    $LOG.debug coords
+    $LOG.debug sighting
+    expect(sighting).to be_nil
+  end
+end
+
+RSpec.shared_examples "good sighting" do
+  | seer_device_id, seen_device_id, coords |
+  it "gets a sighting for coords" do
+    response = call_api("get_positions", seer_device_id)
+    $LOG.debug response
+    expect(response).not_to be_nil
+    expect(response["sightings"]).not_to be_nil
+    sighting = get_sighting(response["sightings"], seen_device_id, coords)
+    $LOG.debug coords
+    $LOG.debug sighting
+    expect(sighting).not_to be_nil
+  end
+end
+
+RSpec.describe Protocol, production: true do
   describe "get_positions" do
 
     before(:all) do
       setup_devices()
       clear_test_shares()
+
+      # create sightings to test
+      create_position(TEST_VALUES[:device_id_1], COORDS[:new_orleans])
+
+      # create share/redeem to test
+      # device_id_3 (seer) to see device_id_1 (seen)
+      create_and_redeem_share(TEST_VALUES[:device_id_3],
+                              TEST_VALUES[:device_id_1],
+                              'manual',
+                              )
     end
     context "when single sighting" do
-      it "returns GPS coords of sighting" do
-        # create sightings to test
-        create_position(TEST_VALUES[:device_id_1], COORDS[:new_orleans])
-
-        # create share/redeem to test
-        # device_id_3 (seer) to see device_id_1 (seen)
-        create_and_redeem_share(TEST_VALUES[:device_id_3],
-                                TEST_VALUES[:device_id_1],
-                                'manual',
-                                )
-        
-        response = call_api("get_positions", TEST_VALUES[:device_id_3])
-        $LOG.debug response
-
-        expect(response).not_to be_nil
-        expect(response["sightings"]).not_to be_nil
-        sighting = get_sighting(response["sightings"], TEST_VALUES[:device_id_1], COORDS[:new_orleans])
-        expect(sighting).not_to be_nil
+      it_should_behave_like "good sighting",
+      TEST_VALUES[:device_id_3], TEST_VALUES[:device_id_1], COORDS[:new_orleans] do
       end
     end
     context "when multiple sightings for a seen" do
-      it "returns GPS coords of latest sighting" do
-        # make sure the timestamp on this sighting is
-        # at least one sec after the sighting in the earlier test
+      it "waits to make sure next sighting is later (different) timestamp" do
         sleep(1)
         create_position(TEST_VALUES[:device_id_1], COORDS[:us_center]) 
-
-        response = call_api("get_positions", TEST_VALUES[:device_id_3])
-        $LOG.debug response
-
-        expect(response).not_to be_nil
-        expect(response["sightings"]).not_to be_nil
-        sighting = get_sighting(response["sightings"], TEST_VALUES[:device_id_1], COORDS[:us_center])
-        expect(sighting).not_to be_nil
+      end
+      it_should_behave_like "good sighting",
+      TEST_VALUES[:device_id_3], TEST_VALUES[:device_id_1], COORDS[:us_center] do
       end
     end
     context "when share expires" do
       before(:all) do
-        # device_id_3 position
         create_position(TEST_VALUES[:device_id_3], COORDS[:new_york])
         
         # seer device_id_2, seen device_id_3
@@ -857,16 +937,10 @@ RSpec.describe Protocol, development: true do
         end
       end
     end
-
-    context "when account has not been verified" do
-      xit "does not return sightings" do
-        
-      end
-    end
   end
 end
 
-RSpec.describe Protocol do
+RSpec.describe Protocol, dev: true do
   context "when device is bound" do
     xit "both devices can see the shares that were redeemed by both devices" do
       response = call_api("device_id_bind", TEST_VALUES[:device_id_1])
