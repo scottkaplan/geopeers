@@ -201,12 +201,18 @@ DOWNLOAD_URLS = {
 }
 
 def get_client_type (user_agent)
-  if (/android/.match(user_agent))
+  $LOG.debug user_agent
+  return (:web) unless user_agent
+  if (user_agent.match(/android/i))
+    $LOG.debug 'Android'
     :android
-  elsif (/iphone/.match(user_agent) ||
-         /ipad/.match(user_agent))
+  elsif (user_agent.match(/iphone/i) ||
+         user_agent.match(/ipad/i) ||
+         user_agent.match(/ios/i))
+    $LOG.debug 'ios'
     :ios
   else
+    $LOG.debug 'web'
     :web
   end
   
@@ -218,7 +224,8 @@ end
 #
 # The protocol consists of a series of REST API request/responses.
 # The server implements each method of the request with a corresponding private method in this class.
-# There is a single, public method, process_request() which dispatches the request to appropriate private method.
+# There is a single, public method, process_request()
+# which dispatches the request to appropriate private method.
 # The naming convention for the private routines is:
 #   process_request_<method>
 # 
@@ -743,8 +750,9 @@ class Protocol
   end
 
   def Protocol.get_download_app_info (params)
+    $LOG.debug params
     if (params['download_app'])
-      client_type = get_client_type ()
+      client_type = get_client_type (params['user_agent'])
       redirect_url = DOWNLOAD_URLS[client_type]
       if (redirect_url)
         return nil, redirect_url
@@ -837,6 +845,7 @@ class Protocol
     $LOG.debug errs
 
     # handle native app download redirection
+    params['user_agent'] = device.user_agent
     err_msg, redirect_url = Protocol.get_download_app_info (params)
     errs.push (err_msg) if (err_msg)
 
@@ -1004,7 +1013,7 @@ end
       if  account_from_val &&
           account_from_val.id != device.account_id
         # this value is used in another account, merge 
-        msg "#{params[type]} is used by #{account_from_val.name}.  Your device has been added to this account."
+        msg = "#{auth_cred.auth_key} is used by #{account_from_val.name}.  Your device has been added to this account."
         message_type = 'message_info'
         merge_accounts(account_from_val, account_for_device)
         device.account_id = account_from_val.id
@@ -1029,31 +1038,63 @@ end
   end
   
   def Protocol.process_request_device_id_bind (params)
-    # A native app redirected to:
-    #   /api?method=device_id_bind&my_device_id=<native app device_id>"
+    ##
+    # device_id_bind
+    #
+    # This routine is the server-side of a 3-way handshake
+    # initiated by a mobile device to merge the accounts for
+    # a web app and a native app running on the same device
+    #
+    # In practice, this means that shares that are redeemed by the web app
+    # will be available in the native app and vice versa
+    #
+    # The 3-way handshake looks like this:
+    #   1) at first startup, the native app creates a URL to call this API:
+    #        /api?method=device_id_bind&my_device_id=<native app device_id>
+    #      Next, it sends (redirects) that URL to be opened in the device's browser (e.g. Safari)
+    #      as opposed to a webview in the native app
+    #   2) the device's browser opens the URL which causes a request to this API
+    #   3) this routine has both the native app device_id from the URL parms and
+    #      the webapp device_id from the cookie.
+    #      If the web app cookie hasn't been set yet, that is done here.
+    #      This routine does the bookkeeping to merge the device_ids into the same account
+    #      This routine then creates a deeplink URL which it returns as a redirect to
+    #      the device's browser, completing the handshake and returning the user to the native app
+    #
+    # params
+    #   my_device_id - device id of the native app
+    #
+    # returns
+    #   redirect_url - deeplink to get back to the native app
+    #     
 
-    # redirect back to the native app with the device_ids
     native_app_deeplink = "geopeers://api?method=device_id_bind"
 
     native_app_device = Device.find_by(device_id: params['my_device_id'])
     $LOG.debug native_app_device
     if ! native_app_device
       log_error ("No native app device")
-      {redirect_url: native_app_deeplink}
+      return {redirect_url: native_app_deeplink}
     end
 
-    # The webview opens this URL, so the webapp device_id is in the cookie
+    # manage_device_id should have been called already, so if there isn't a device_id set,
+    # something has gone very wrong
+    if ! params['device_id']
+      log_error ("No web app device id")
+      return {redirect_url: native_app_deeplink}
+    end
+
     web_app_device = Device.find_by(device_id: params['device_id'])
     $LOG.debug web_app_device
-    if ! web_app_device
-      log_error ("No web app device")
-      {redirect_url: native_app_deeplink}
-    end
+
+    # The deeplink includes these parameters for completeness.
+    # Since we will merge the accounts here, the native app doesn't need to do anything with these params
     native_app_deeplink += "&native_app_device_id="
     native_app_deeplink += native_app_device.device_id
     native_app_deeplink += "&web_app_device_id="
     native_app_deeplink += web_app_device.device_id
 
+    # merge the native and web app accounts
     if native_app_device.account_id
       if web_app_device.account_id
         if native_app_device.account_id == web_app_device.account_id
@@ -1107,25 +1148,27 @@ end
       log_dos ("No device for #{params['device_id']}")
       return {error: "No device"}
     end
-    if device.account_id
-      device_filter = "devices.account_id = #{device.account_id} AND redeems.device_id = devices.device_id"
-      devices_table = ", devices"
-    else
-      device_id_parm = Mysql2::Client.escape(params['device_id'])
-      device_filter = "redeems.device_id = #{device_id_parm}"
-    end
-
     # get all the shares with those device_ids
     # and a list of the device_id that redeemed the shares
     sql = "SELECT shares.share_to, shares.share_via, shares.expire_time,
                     shares.updated_at, shares.created_at,
                     redeems.id AS redeem_id,
-                    redeems.created_at AS redeem_time,
-                    accounts.name AS redeem_name
-             FROM accounts #{devices_table}, shares
-             LEFT JOIN redeems ON shares.id = redeems.share_id
-             WHERE  #{device_filter}
-            "
+                    redeems.created_at AS redeem_time
+          "
+    if device.account_id
+      sql += ", accounts.name AS redeem_name"
+      sql += " FROM accounts, devices, shares"
+      sql += " LEFT JOIN redeems ON shares.id = redeems.share_id"
+      sql += " WHERE devices.account_id = #{device.account_id} AND
+                     accounts.id = devices.account_id AND
+                     redeems.device_id = devices.device_id"
+    else
+      device_id_parm = Mysql2::Client.escape(params['device_id'])
+      sql += " FROM accounts, devices, shares"
+      sql += " LEFT JOIN redeems ON shares.id = redeems.share_id"
+      sql += " WHERE redeems.device_id = #{device_id_parm}"
+    end
+    $LOG.debug sql.gsub("\n"," ")
     # Find the names associated with the redeemed device_ids
     elems = []
     Share.find_by_sql(sql).each { |row|
@@ -1169,9 +1212,8 @@ class ProtocolEngine < Sinatra::Base
   set :static, true
 
   def manage_device_id (device_id)
-
     if device_id
-      device = Device.find_by(device_id: params['device_id'])
+      device = Device.find_by(device_id: device_id)
       if device
         device.id
       else
@@ -1218,7 +1260,7 @@ class ProtocolEngine < Sinatra::Base
     end
 
     # parameters to add
-    params['user_agent'] = request.user_agent
+    params['user_agent'] = request.user_agent unless params['user_agent']
     params['device_id'] ||= manage_device_id(params['device_id'])
   end
 
