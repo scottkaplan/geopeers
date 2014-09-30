@@ -145,6 +145,9 @@ var device_id_mgr = {
     device_id: null,
     phonegap:  null,
     init: function () {
+	// This will not create a device_id for the web app,
+	// that happens in the config API call
+	// This will create a device_id for the native app
 	device_id_mgr.phonegap = true;
 	try {
 	    device_id_mgr.device_id = device.uuid;
@@ -615,6 +618,20 @@ function config_callback (data, textStatus, jqXHR) {
         console.log (data.js);
         eval (data.js);
     }
+
+    // Initialization that requires the device_id to be set
+    if (device_id_mgr.phonegap) {
+	background_gps.init ();
+	db.init();
+	device_id_bind_check();
+    }
+
+    // sets registration.status
+    registration.init();
+
+    heartbeat();
+
+    return;
 }
 
 function send_config () {
@@ -1040,27 +1057,23 @@ function init () {
     console.log ("device_id="+device_id_mgr.get());
     send_config ();
 
-    if (device_id_mgr.phonegap) {
-	background_gps.init ();
-	db.init();
-	device_id_bind_check();
-    }
+    // There is more initialization, but it happens in the config callback
+    // because it relies on the device_id being set
 
-    // sets registration.status
-    registration.init();
+    // There are some things that can be done while we wait for the config API to return
 
     // server can pass parameters when it redirected to us
     var message_type = getParameterByName('message_type') ? getParameterByName('message_type') : 'message_error'
     display_message(getParameterByName('alert'), message_type);
-    if (getParameterByName('download_app')) {
-	download.download_app();
-    }
-
-    heartbeat();
 
     // This is a bad hack.
     // If the map isn't ready when the last display_message fired, the reposition will be wrong
     setTimeout(function(){update_map_canvas_pos()}, 500);
+
+    // This may cause a redirect to the download URL, so do this last
+    if (getParameterByName('download_app')) {
+	download.download_app();
+    }
 
     return;
 }
