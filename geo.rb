@@ -320,12 +320,13 @@ class Protocol
     end
   end
 
-  def Protocol.send_email (msg, from_email, from_name, to_email, subject)
+  def Protocol.send_email (msg, from_email, from_name, to_email, subject, is_html=nil)
     from = "#{from_name} <#{from_email}>"
-    msg = "From: #{from}\nTo: #{to_email}\nSubject: #{subject}\n" + msg
+    header = "From: #{from}\nTo: #{to_email}\nSubject: #{subject}\n"
+    header += "MIME-Version: 1.0\nContent-type: text/html\n" if is_html
     begin
       Net::SMTP.start('127.0.0.1') do |smtp|
-        smtp.send_message msg, from_email, to_email
+        smtp.send_message header+msg, from_email, to_email
         $LOG.info "Sent email to #{to_email}"
       end
     rescue Exception => e  
@@ -1176,6 +1177,31 @@ end
       elems.push (row)
     }
     {'shares' => elems }
+  end
+
+  def Protocol.process_request_send_support (params)
+    msg = ""
+    account = Protocol.get_account_from_device_id (params['device_id'])
+    msg = '<div style="font-size:20px; font-weight:bold">User Info</div>'
+    msg += '<div style="font-size:18px; font-weight:normal; margin-left:10px; margin-bottom:10px">'
+    msg += "From "
+    msg += account.name ? account.name : "Anonymous User" + ' '
+    msg += "(" + params['device_id'] + ")" + '<br>'
+    msg += "Email:" + account.email + '<br>' if account.email
+    msg += "Mobile:" + account.mobile + '<br>' if account.mobile
+    msg += '</div>'
+    ['problem', 'reproduction', 'feature', 'cool_use'].each do | field |
+      field_name = 'support_form_'+field
+      val = params[field_name]
+      next unless val
+      field_display = field.capitalize.gsub("_", " ")
+      msg += '<div style="font-size:20px; font-weight:bold">'+field_display+'</div>'
+      msg += '<div style="font-size:18px; font-weight:normal; margin-left:10px">'+val+'</div>'
+    end
+    Protocol.send_email(msg, 'support@geopeers.com',
+                        'Geopeers Support', 'support@geopeers.com',
+                        'Geopeers Customer Request', 1)
+    {message:"Message sent, thanks!"}
   end
 
   public
