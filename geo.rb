@@ -142,17 +142,6 @@ def parse_params (params_str)
   params
 end
 
-def merge_accounts (account_dst, account_src)
-  # move any devices using account_src
-  Device.where("account_id = ?", account_src.id)
-    .update_all(account_id: account_dst.id)
-  # move any un-verified auths
-  Auth.where("auth_time IS NULL AND account_id = ?", account_src.id)
-    .update_all(account_id: account_dst.id)
-  account_src.update(active: nil)
-  return
-end
-
 def init
   $LOG = Logger.new(STDOUT)
   # $LOG = Logger.new(log_file, 'daily')
@@ -200,7 +189,9 @@ DOWNLOAD_URLS = {
 #  web:     'https://www.geopeers.com/bin/android/index.html',
 }
 
-def get_client_type (user_agent)
+def get_client_type (device_id)
+  device = Device.find_by(device_id: device_id)
+  user_agent = device.user_agent
   $LOG.debug user_agent
   return (:web) unless user_agent
   if (user_agent.match(/android/i))
@@ -231,20 +222,6 @@ end
 # 
 class Protocol
   private
-
-  def Protocol.get_account_from_device (device)
-    return unless device
-    if (device.account_id)
-      Account.find(device.account_id)
-    else
-      nil
-    end
-  end
-
-  def Protocol.get_account_from_device_id (device_id)
-    device = Device.find_by(device_id: device_id)
-    Protocol.get_account_from_device (device)
-  end
 
   def Protocol.compute_expire_time (params)
     multiplier = {
@@ -400,18 +377,94 @@ class Protocol
     end
   end
 
+  def Protocol.create_device(device_id, user_agent)
+    device = Device.new(device_id:  device_id,
+                        user_agent: user_agent)
+    account = Account.new()
+    account.save
+    device[:account_id] = account.id
+    device.save
+    log_info ("created device #{device_id},\nuser agent=#{user_agent.to_s}, account=#{account.id}")
+  end
+
   def Protocol.create_device_id (user_agent)
     require 'securerandom'
     device_id = SecureRandom.uuid
     begin
-      device = Device.new(device_id:  device_id,
-                          user_agent: user_agent)
-      device.save
-      log_info ("created device "+device_id+",\nuser agent="+user_agent.to_s)
+      Protocol.create_device(device_id, user_agent)
     rescue => err
       log_error (err)
     end
     device_id
+  end
+
+  def Protocol.device_id_bind (params)
+    ##
+    # device_id_bind
+    #
+    # This routine is the server-side of a 3-way handshake
+    # initiated by a mobile device to merge the accounts for
+    # a web app and a native app running on the same device
+    #
+    # In practice, this means that shares that are redeemed by the web app
+    # will be available in the native app and vice versa
+    #
+    # The 3-way handshake looks like this:
+    #   1) at first startup, the native app creates a URL to call this API:
+    #        /api?method=device_id_bind&my_device_id=<native app device_id>
+    #      Next, it sends (redirects) that URL to be opened in the device's browser (e.g. Safari)
+    #      as opposed to a webview in the native app
+    #   2) the device's browser opens the URL which causes a request to this API
+    #   3) this routine has both the native app device_id from the URL parms and
+    #      the webapp device_id from the cookie.
+    #      If the web app cookie hasn't been set yet, that is done here.
+    #      This routine does the bookkeeping to merge the device_ids into the same account
+    #      This routine then creates a deeplink URL which it returns as a redirect to
+    #      the device's browser, completing the handshake and returning the user to the native app
+    #
+    # params
+    #   native_device_id - device id of the native app
+    #
+    # returns
+    #   redirect_url - deeplink to get back to the native app
+    #     
+
+    native_app_deeplink = "geopeers://api?method=device_id_bind"
+
+    native_app_device = Device.find_by(device_id: params['native_device_id'])
+    $LOG.debug native_app_device
+    if ! native_app_device
+      log_error ("No native app device")
+      return {redirect_url: native_app_deeplink}
+    end
+
+    # manage_device_id should have been called already, so if there isn't a device_id set,
+    # something has gone very wrong
+    if ! params['device_id']
+      log_error ("No web app device id")
+      return {redirect_url: native_app_deeplink}
+    end
+
+    web_app_device = Device.find_by(device_id: params['device_id'])
+    $LOG.debug web_app_device
+
+    # The deeplink includes these parameters for completeness.
+    # Since we will merge the accounts here, the native app doesn't need to do anything with these params
+    native_app_deeplink += "&native_app_device_id="
+    native_app_deeplink += native_app_device.device_id
+    native_app_deeplink += "&web_app_device_id="
+    native_app_deeplink += web_app_device.device_id
+
+    errs = Protocol.merge_accounts(Account.find(native_app_device.account_id),
+                                   Account.find(web_app_device.account_id))
+    if ! errs.empty?
+      msg = errs.join('<br>')
+      msg = URI.escape (msg)
+      native_app_deeplink += "&alert=#{msg}"
+      native_app_deeplink += "&message_type=message_info"
+    end
+                            
+    {redirect_url: native_app_deeplink}
   end
 
   def Protocol.process_request_config (params)
@@ -422,27 +475,27 @@ class Protocol
     #
     # params
     #   device_id
-    #   version - current client version
+    #   version          - current client version
+    #   native_device_id - initiate the device_id binding handshake
     #
     # returns
     #   js      - client will execute this js
     #     
 
-    # manage the device_id
-    device = Device.find_by(device_id: params['device_id'])
-    if ! device
-      # We haven't seen device_id yet, create it
-      device = Device.new(device_id:  params['device_id'],
-                          user_agent: params['user_agent'])
-      device.save
+    response = {}
+    # handle upgrade
+    $LOG.debug params
+    $LOG.debug params['version']
+    if (params['version'] && params['version'].to_f < 1.0)
+      response.merge! ({js: "alert('If we had an upgrade, this would be it')"})
     end
 
-    # handle upgrade
-    if (params[:version].to_i < 1)
-      {js: "alert('If we had an upgrade, this would be it')"}
-    else
-      {}
+    if (params['native_device_id'])
+      response_elem = device_id_bind (params)
+      response.merge! (response_elem)
     end
+
+    response
   end
 
   def Protocol.process_request_send_position (params)
@@ -662,12 +715,16 @@ class Protocol
 
   def Protocol.get_existing_account (params, type)
     if (params[type])
-      return Account.where(type+"=?", params[type]).first
+      return Account.where(type+"=? AND active = 1", params[type]).first
     end
     return
   end
 
   def Protocol.process_new_account (params)
+    # The user has indicated that these parameters (email/mobile) are for a new account
+    # So if they are used for another account, we throw an error
+    # If the user wanted to merge this device into another account,
+    # then they should not have checked 'Yes' to new_account
 
     device = Device.find_by(device_id: params['device_id'])
     $LOG.debug device
@@ -678,7 +735,8 @@ class Protocol
 
     err_msgs = []
 
-    err_msgs.push ("Your device is already registered") if device.account_id
+    # The account is now created when the device is created
+    # err_msgs.push ("Your device is already registered") if device.account_id
 
     # make sure account (email and/or mobile) doesn't already exist
     account = Protocol.get_existing_account(params, 'mobile')
@@ -687,13 +745,9 @@ class Protocol
     err_msgs.push (params['email']+" is already registered") if account && account.id != device.account_id
     return err_msgs, nil if err_msgs && ! err_msgs.empty?
 
-    # If we get here, it's time to create the account and bind it to the device
-    account = Account.new()
+    account = Account.find(device.account_id)
     account[:name] = params['name']
     account.save
-    $LOG.debug "Created account #{account.id}"
-    device[:account_id] = account.id
-    device.save
 
     Protocol.send_verifications (params)
   end
@@ -752,7 +806,7 @@ class Protocol
   def Protocol.get_download_app_info (params)
     $LOG.debug params
     if (params['download_app'])
-      client_type = get_client_type (params['user_agent'])
+      client_type = get_client_type (params['device_id'])
       redirect_url = DOWNLOAD_URLS[client_type]
       if (redirect_url)
         return nil, redirect_url
@@ -814,10 +868,11 @@ class Protocol
     end
 
     device = Device.find_by(device_id: params['device_id'])
+
+    # The device should have been created in manage_device_id()
     if ! device
-      device = Device.new(device_id:  params['device_id'],
-                          user_agent: params['user_agent'])
-      device.save
+      log_error ("No device")
+      return;
     end
 
     errs = Protocol.validate_register_params (params)
@@ -841,8 +896,8 @@ class Protocol
         errs, user_msgs = Protocol.bind_to_account(params)
       end
     end
-    $LOG.debug user_msgs
-    $LOG.debug errs
+    $LOG.debug user_msgs if ! user_msgs.empty?
+    $LOG.debug errs if ! errs.empty?
 
     # handle native app download redirection
     params['user_agent'] = device.user_agent
@@ -1008,14 +1063,15 @@ end
       #   2) There is an account associated with the value 
       account_for_device = Account.find(device.account_id)
       $LOG.debug account_for_device
-      account_from_val = Account.where("#{auth_cred.auth_type}=?",auth_cred.auth_key).first
+      account_from_val = Account.where("#{auth_cred.auth_type}=? AND active = 1",auth_cred.auth_key).first
       $LOG.debug account_from_val
       if  account_from_val &&
           account_from_val.id != device.account_id
         # this value is used in another account, merge 
         msg = "#{auth_cred.auth_key} is used by #{account_from_val.name}.  Your device has been added to this account."
         message_type = 'message_info'
-        merge_accounts(account_from_val, account_for_device)
+        errs = Protocol.merge_accounts(account_from_val, account_for_device)
+        msg += errs.join('<br>') unless (errs.empty?)
         device.account_id = account_from_val.id
         device.save
         account = account_from_val
@@ -1036,110 +1092,53 @@ end
     redirect_url += "&message_type=#{message_type}" if message_type
     return {:redirect_url => redirect_url}
   end
-  
-  def Protocol.process_request_device_id_bind (params)
-    ##
-    # device_id_bind
-    #
-    # This routine is the server-side of a 3-way handshake
-    # initiated by a mobile device to merge the accounts for
-    # a web app and a native app running on the same device
-    #
-    # In practice, this means that shares that are redeemed by the web app
-    # will be available in the native app and vice versa
-    #
-    # The 3-way handshake looks like this:
-    #   1) at first startup, the native app creates a URL to call this API:
-    #        /api?method=device_id_bind&my_device_id=<native app device_id>
-    #      Next, it sends (redirects) that URL to be opened in the device's browser (e.g. Safari)
-    #      as opposed to a webview in the native app
-    #   2) the device's browser opens the URL which causes a request to this API
-    #   3) this routine has both the native app device_id from the URL parms and
-    #      the webapp device_id from the cookie.
-    #      If the web app cookie hasn't been set yet, that is done here.
-    #      This routine does the bookkeeping to merge the device_ids into the same account
-    #      This routine then creates a deeplink URL which it returns as a redirect to
-    #      the device's browser, completing the handshake and returning the user to the native app
-    #
-    # params
-    #   my_device_id - device id of the native app
-    #
-    # returns
-    #   redirect_url - deeplink to get back to the native app
-    #     
 
-    native_app_deeplink = "geopeers://api?method=device_id_bind"
+  def Protocol.merge_accounts(account_1, account_2)
+    # merge account_2 into account_1
 
-    native_app_device = Device.find_by(device_id: params['my_device_id'])
-    $LOG.debug native_app_device
-    if ! native_app_device
-      log_error ("No native app device")
-      return {redirect_url: native_app_deeplink}
-    end
+    $LOG.debug account_1
+    $LOG.debug account_2
 
-    # manage_device_id should have been called already, so if there isn't a device_id set,
-    # something has gone very wrong
-    if ! params['device_id']
-      log_error ("No web app device id")
-      return {redirect_url: native_app_deeplink}
-    end
-
-    web_app_device = Device.find_by(device_id: params['device_id'])
-    $LOG.debug web_app_device
-
-    # The deeplink includes these parameters for completeness.
-    # Since we will merge the accounts here, the native app doesn't need to do anything with these params
-    native_app_deeplink += "&native_app_device_id="
-    native_app_deeplink += native_app_device.device_id
-    native_app_deeplink += "&web_app_device_id="
-    native_app_deeplink += web_app_device.device_id
-
-    # merge the native and web app accounts
-    if native_app_device.account_id
-      if web_app_device.account_id
-        if native_app_device.account_id == web_app_device.account_id
-          $LOG.debug "native/web app account_id match: "+native_app_device.account_id
-          return
+    err_msgs = []
+    ['name', 'mobile', 'email'].each do | type |
+      if account_2[type]
+        # merge the attributes of the account record
+        if account_1[type]
+          if account_1[type] != account_2[type]
+            # This is bad
+            msg = "The #{type} #{account_2[type]} will no longer be used. You can continue to use #{account_1[type]}."
+            err_msgs.push (msg)
+          end
         else
-          # This is not good, the webapp and native app got different accounts
-          log_error ("Account conflict:"+native_app_device.inspect+","+web_app_device.inspect)
+          # account_1[type] is nil, copy value from account_2
+          account_1[type] = account_2[type]
         end
-      else
-        # Native app was installed on a device where the web app was never run
-        # Associate the web app with this native app
-        # so the native app gets any shares that wind up in the web app
-        $LOG.debug "setting web app to account_id "+native_app_device.account_id
-        web_app_device.account_id = native_app_device.account_id
-        web_app_device.save
-      end
-    else
-      if web_app_device.account_id
-        # This is the common case
-        # An account was created in the web app, probably when the native app was downloaded
-        # The native app was installed on the same device
-        # When the native app started,
-        # it redirected to the webview where the registration/download happened
-        $LOG.debug "setting native app to account_id "+web_app_device.account_id
-        native_app_device.account_id = web_app_device.account_id
-        native_app_device.save
-      else
-        # This shouldn't happen, there should be an account somewhere
-        # Create the account and assign to both web and native app
-        # But this means there is no user-generated name
-        # It's better to generate the account with a nil name than have no account
-        name = "anon_"+SecureRandom.hex(6)
-        account = Account.new(name: name)
-        account.save
-        $LOG.debug "created new account "+account.id+" with name "+account.name
-        native_app_device.account_id = account.id
-        native_app_device.save
-        web_app_device.account_id = account.id
-        web_app_device.save
+        if type != 'name'
+          # We have to null out the entry in account_2
+          # so that the email/mobile values can be unique in the DB
+          account_2[type] = nil
+        end
       end
     end
-    {redirect_url: native_app_deeplink}
-  end
+    # Have to save account_2 before account_1
+    # To make sure the values account_1 is using are available
+    account_2.save
+    account_1.save
 
+    # move any devices using account_2
+    Device.where("account_id = ?", account_2.id)
+      .update_all(account_id: account_1.id)
+
+    # move any un-verified auths
+    Auth.where("auth_time IS NULL AND account_id = ?", account_2.id)
+      .update_all(account_id: account_1.id)
+
+    # don't delete account_2, just mark it inactive
+    account_2.active = nil
+    account_2.save
+    err_msgs
+  end
+  
   def Protocol.process_request_get_shares (params)
     # get a list of device_ids that are registered with the same device.email as params['device_id']
     # and create a comma-separate list, suitable for putting in the SQL IN clause
@@ -1177,12 +1176,22 @@ end
     {'shares' => elems }
   end
 
-  def Protocol.process_request_clear_device_KILLME (params)
-    clear_device_id(params['device_id'])
-    return;
-  end
-  
   public
+
+  def Protocol.get_account_from_device (device)
+    return unless device
+    if (device.account_id)
+      Account.find(device.account_id)
+    else
+      nil
+    end
+  end
+
+  def Protocol.get_account_from_device_id (device_id)
+    device = Device.find_by(device_id: device_id)
+    Protocol.get_account_from_device (device)
+  end
+
   def Protocol.process_request (params)
     begin
       $LOG.info (params)
@@ -1209,7 +1218,22 @@ end
 end
 
 class ProtocolEngine < Sinatra::Base
+
   set :static, true
+
+  def before_proc (params)
+    $LOG.debug params
+    # empty form variables are empty strings, not nil
+    params.each do |key, val|
+      $LOG.debug "#{key}, #{val}"
+      params[key] = nil if (val.to_s.length == 0)
+    end
+
+    # parameters to add
+    params['user_agent'] = request.user_agent unless params['user_agent']
+    params['device_id'] ||= manage_device_id(params['device_id'])
+    $LOG.debug params
+  end
 
   def manage_device_id (device_id)
     if device_id
@@ -1252,16 +1276,8 @@ class ProtocolEngine < Sinatra::Base
     renderer.result(binding)
   end
 
-
   before do
-    # empty form variables are empty strings, not nil
-    params.each do |key, val|
-      params[key] = nil if (val.length == 0)
-    end
-
-    # parameters to add
-    params['user_agent'] = request.user_agent unless params['user_agent']
-    params['device_id'] ||= manage_device_id(params['device_id'])
+    before_proc (params)
   end
 
   get '/api' do
