@@ -1,0 +1,77 @@
+<form id="support_form">
+  <div id="support_form_info" class="info"></div>
+  <div id="support_form_spinner" style="text-align:center; display:none">
+    <img src="images/ajax-loader.gif">
+  </div>
+  <div class="box_outer">
+    <div class="box_title">
+      Help!
+    </div>
+    <div class="box_frame">
+      <div class="box_content">
+	<label for="support_form_problem"
+	       class="ui-hidden-accessible">
+	  What went wrong
+	</label>
+	<input type="text"
+	       name="support_form_problem"
+	       id="support_form_problem"
+	       placeholder="This is what happened..."
+	       style="padding:5px"
+	       >
+	<label for="support_form_reproduction"
+	       class="ui-hidden-accessible">
+	  How I did it
+	</label>
+	<input type="text"
+	       name="support_form_reproduction"
+	       id="support_form_reproduction"
+	       placeholder="...when I did this"
+	       style="padding:5px"
+	       >
+      </div>
+    </div>
+  </div>
+  <div class="box_outer">
+    <div class="box_title">
+      It would be great if it did this
+    </div>
+    <div class="box_frame">
+      <div class="box_content">
+	<label for="support_form_feature"
+	       class="ui-hidden-accessible">
+	  How I did it
+	</label>
+	<input type="text"
+	       name="support_form_feature"
+	       id="support_form_feature"
+	       placeholder="got a push notification when I got a new share"
+	       style="padding:5px"
+	       >
+      </div>
+    </div>
+  </div>
+  <div class="box_outer">
+    <div class="box_title">
+      I found a cool use for Geopeers
+    </div>
+    <div class="box_frame">
+      <div class="box_content">
+	<label for="support_form_cool_use"
+	       class="ui-hidden-accessible">
+	  I used it for:
+	</label>
+	<input type="text"
+	       name="support_form_cool_use"
+	       id="support_form_cool_use"
+	       placeholder="keep track of my parked car"
+	       style="padding:5px"
+	       >
+      </div>
+    </div>
+  </div>
+  <input type="hidden" name="method" value="send_support">
+  <button style="background-color:#3eb1dd; color:white; text-shadow:0 0; font-weight:normal"
+	  type="button"
+	  onclick="send_support()">Send</button>
+</form>
