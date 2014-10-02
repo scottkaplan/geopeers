@@ -610,6 +610,39 @@ function share_location () {
 
 
 //
+// SEND_SUPPORT
+//
+
+function send_support_callback  (data, textStatus, jqXHR) {
+    $('#support_form_spinner').hide();
+    var css_class = data.css_class ? data.css_class : 'message_success'
+    display_message(data.message, css_class);
+    $('#support_form_popup').popup('close')
+    return;
+}
+
+function send_support () {
+    var support_fields = ['problem', 'reproduction', 'feature', 'cool_use'];
+    var typed_something;
+    for (var i=0; i<support_fields.length; i++) {
+	var val = $('#support_form_'+support_fields[i]).val();
+	if (val) {
+	    typed_something = 1;
+	    break;
+	}
+    }
+    if (typeof (typed_something) === 'undefined') {
+	display_in_div ("Please type something in at least one box",
+			'support_form_info', {color:'red'});
+	return;
+    }
+    $('#support_form_spinner').show();
+    var params = $('#support_form').serialize();
+    ajax_request (params, send_support_callback, geo_ajax_fail_callback);
+}
+
+
+//
 // CONFIG
 //
 
@@ -932,8 +965,7 @@ var registration = {
 }
 
 function display_support () {
-    alert ("display_support");
-    // $('#registration_popup').popup('open');
+    $('#support_form_popup').popup('open');
     return;
 }
 
@@ -1031,14 +1063,39 @@ var download = {
 		     android: 'https://www.geopeers.com/bin/android/index.html',
 		     // web:     'https://www.geopeers.com/bin/android/index.html',
     },
-    download_app: function () {
+    if_else_native: function (is_native_function, is_not_native_function) {
 	var client_type = get_client_type();
-	var download_url = download_app.download_urls[client_type];
+	var download_url = download.download_urls[client_type];
 	if (download_url) {
-	    window.location = download_url;
+	    if (is_native_function) {
+		is_native_function(client_type, download_url);
+	    }
+	} else {
+	    if (is_not_native_function) {
+		is_not_native_function(client_type, download_url);
+	    }
 	}
-	return;
     },
+    download_app: function () {
+	download.if_else_native (
+				 function (client_type, download_url) {
+				     window.location = download_url;
+				 });
+    },
+    send_native_app: function () {
+	download.if_else_native (
+				 function (client_type, download_url) {
+				     download.download_app();
+				 },
+				 function (client_type, download_url) {
+				     var msg = "Sorry, there isn't a native app available for your device";
+				     display_message(msg, 'message_info');
+				 });
+    },
+};
+
+function call_send_native_app () {
+    download.send_native_app();
 }
 
 
@@ -1055,6 +1112,7 @@ function init () {
     // At this point, it's safe to let the JS control them
     $('#share_location_popup').show();
     $('#manage_popup').show();
+    $('#support_form_popup').show();
 
     // show the spinner in 200mS (.2 sec)
     // if there are no GPS issues, the map will display quickly and
