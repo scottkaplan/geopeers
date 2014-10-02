@@ -52,3 +52,5 @@ gem 'rmagick', '~> 2.13.3'
 
 # Use debugger
 # gem 'debugger', group: [:development, :test]
+
+gem 'simplecov', :require => false, :group => :test
