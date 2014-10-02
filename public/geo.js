@@ -339,6 +339,7 @@ var marker_mgr = {
 	.prop('selected', true);
 	$('#share_to').val('scott@kaplans.com');
 	$('#share_location_popup').popup('open');
+	$('#share_location_popup').show();
 	return;
     },
     create_marker: function (sighting) {
@@ -552,6 +553,7 @@ function share_location_popup () {
 		display_message (display_mgr.last_msg, 'message_warning');
 	    } else {
 		$('#share_location_popup').popup('open');
+		$('#share_location_popup').show();
 	    }
 	} else if (! registration.status ||
 		   registration.status == 'NOT REGISTERED') {
@@ -564,6 +566,7 @@ function share_location_popup () {
 	}
     } else {
 	$('#share_location_popup').popup('open');
+	$('#share_location_popup').show();
 	// $('#registration_popup').popup('open');
     }
     return;
@@ -772,6 +775,8 @@ function manage_shares_callback (data, textStatus, jqXHR) {
     if (!  $.fn.dataTable.isDataTable( '#manage_table' ) ) {
 	DT = $('#manage_table').DataTable( {
 		retrieve:     true,
+		searching:    false,
+		lengthChange: false,
 		aoColumnDefs: [ { "iDataSort": 0, "aTargets": [ 3 ] },
 	                        { "iDataSort": 1, "aTargets": [ 4 ] },
 				],
@@ -1045,6 +1050,11 @@ function init () {
     // This is called after we are ready
     // for webapp, this is $.ready, for phonegap, this is deviceready
     console.log ("in init");
+
+    // The popups have 'display:none' in the markup, so we aren't depending on any JS loading to hide them.
+    // At this point, it's safe to let the JS control them
+    $('#share_location_popup').show();
+    $('#manage_popup').show();
 
     // show the spinner in 200mS (.2 sec)
     // if there are no GPS issues, the map will display quickly and

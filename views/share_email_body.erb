@@ -25,8 +25,8 @@
 
 	<% if message %>
 	<div style="padding-top: 12px">
-	  A message from <%= name %>:
-	  <div style="margin:5px">
+	  They included a message:
+	  <div style="margin:10px; font-weight: bold; font-size: 18px">
 	    <%= message %>
 	  </div>
 	</div>
@@ -36,19 +36,19 @@
 	  <span style="font-size: 24px; color: #333;padding-top: 12px;">
 	    <a href="<%= url %>">this link</a>
 	  </span>
-	  to open a map with <%= name %>'s location.
+	  to open a map with <%= possessive %> location.
 	</div>
 
 	<div style="font-size: 13px; background-color: #FFF;">
 	  <span style="color: #666;">
-	    <pre style="font-size: 13px;font-family: ArialMT, Arial, sans-serif;white-space: pre-wrap;white-space: -moz-pre-wrap !important;word-wrap: break-word;" itemprop="description">
-	      When you click on it, you will see <%= name %>'s current location.
-	      There is no signup or registration necessary to view this link.
-	      <% if expire_time %>
-	      The link will expire <%= expire_time %>.
-	      Until then, the link will show you <%= name %>'s current position.
-	      After that, you will no longer see <%= name %>'s position.
-	      <% end %>
+	    <pre style="margin-left:10px; font-size: 13px;font-family: ArialMT, Arial, sans-serif;white-space: pre-wrap;white-space: -moz-pre-wrap !important;word-wrap: break-word;" itemprop="description">
+When you click on it, you will see <%= possessive %> current location.
+There is no signup or registration necessary to view this link.
+<% if expire_time %>
+The link will expire <%= expire_time %>.
+Until then, the link will show you <%= possessive %> current position.
+After that, you will no longer see <%= possessive %> position.
+<% end %>
 	    </pre>
 	  </span>
 	</div>

@@ -270,7 +270,8 @@ class Protocol
     url = Protocol.create_share_url(share, params)
     expire_time = Protocol.format_expire_time(share, params)
     account = Protocol.get_account_from_device_id (params['device_id'])
-    name = account ? account.name : 'Geopeers'
+    name = account && account.name ? account.name : 'Someone'
+    possessive = account && account.name ? "#{account.name}'s" : 'their'
     message = params['share_message']
     if (share.share_via == 'sms')
       template_file = 'views/share_text_msg.erb'
@@ -340,10 +341,11 @@ class Protocol
       log_error ("No account")
       {message: 'There was a problem sending your email.  Support has been contacted', css_class: 'message_error'}
     else
-      subject = "#{account.name} shared a location with you"
+      name = account.name ? account.name : 'Someone'
+      subject = "#{name} shared their location with you"
       msg = Protocol.create_share_msg(share, params)
       $LOG.debug account
-      email = account.email ? account.email : 'email_unknown@geopeers.com'
+      email = account.email ? account.email : 'anon_user@geopeers.com'
       $LOG.debug email
       err = Protocol.send_email(msg, email, account.name, share.share_to, subject)
       if (err)
