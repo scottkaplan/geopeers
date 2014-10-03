@@ -1220,6 +1220,50 @@ end
     shares
   end
 
+  def Protocol.process_request_unsolicited (params)
+    # params
+    #   cred
+    #   device_id
+    msg = "\n\n"
+    msg += "cred: #{params['cred']}\n"
+    msg += "device_id: #{params['device_id']}\n\n"
+    if params['cred']
+      auth = Auth.find_by(cred: params['cred'])
+      if auth
+        msg += "auth_type: #{auth.auth_type}\n"
+        msg += "auth_key: #{auth.auth_key}\n\n"
+        account_auth = Account.find(auth.account_id)
+        msg += "account id: #{account_auth.id}\n"
+        msg += "account name: #{account_auth.name}\n"
+        msg += "account email: #{account_auth.email}\n"
+        msg += "account mobile: #{account_auth.mobile}\n"
+      else
+        msg += "No share for cred\n"
+      end
+    end
+    if params['device_id']
+      account = Protocol.get_account_from_device_id (params['device_id'])
+      if account
+        if account.id == account_auth.id
+          msg += "Matches auth account"
+        else
+          msg += "Different than auth account"
+          msg += "account id: #{account.id}\n"
+          msg += "account name: #{account.name}\n"
+          msg += "account email: #{account.email}\n"
+          msg += "account mobile: #{account.mobile}\n"
+        end
+      else
+        msg += "No account for device_id\n"
+      end
+    end
+
+    Protocol.send_email(msg, 'support@geopeers.com', 'Geopeers Support', 'support@geopeers.com',
+                        'Geopeers Unsolicited Verification Report')
+    html = "<html><body>Not much in the way of formatting, but thanks.</body></html>"
+    {html: html}
+  end
+
   def Protocol.process_request_send_support (params)
     msg = ""
     account = Protocol.get_account_from_device_id (params['device_id'])
@@ -1356,6 +1400,9 @@ class ProtocolEngine < Sinatra::Base
       halt 500, {'Content-Type' => 'text/html'}, html
     elsif (resp[:redirect_url])
       redirect resp[:redirect_url]
+    elsif (resp[:html])
+      content_type :html
+      resp[:html]
     else
       content_type :json
       resp.to_json
