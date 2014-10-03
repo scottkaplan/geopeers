@@ -246,6 +246,10 @@ class Protocol
     "https://eng.geopeers.com/api?method=verify&cred=#{params['cred']}&device_id=#{params['device_id']}"
   end
 
+  def Protocol.create_unsolicited_url (params)
+    "https://eng.geopeers.com/api?method=unsolicited&cred=#{params['cred']}&device_id=#{params['device_id']}"
+  end
+
   def Protocol.format_expire_time (share, params)
     return unless share.expire_time
     expire_time = share.expire_time.in_time_zone(params['tz'])
@@ -291,6 +295,7 @@ class Protocol
   def Protocol.send_msg (params, type)
     device = Device.find_by(device_id: params['device_id'])
     url = Protocol.create_verification_url(params)
+    url_unsolicited = Protocol.create_unsolicited_url(params)
     if (type == 'email')
       boundary_random = SecureRandom.base64(21)
       template_file = 'views/verify_email_body.erb'
