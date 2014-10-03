@@ -760,6 +760,7 @@ function manage_shares_callback (data, textStatus, jqXHR) {
     head.append($('<th></th>').text('Shared To'));
     head.append($('<th></th>').text('Used'));
     head.append($('<th></th>').text('Expires'));
+    head.append($('<th></th>').text('Go/Pause'));
     table.append($('<thead></thead>').append(head));
     var tbody = $('<tbody></tbody>');
     for (var i=0,len=data.shares.length; i<len; i++){
@@ -767,7 +768,7 @@ function manage_shares_callback (data, textStatus, jqXHR) {
 
 	var redeem_name = share.redeem_name ? share.redeem_name : '<Unopened>';
 	var expires = share.expire_time ? format_time(share.expire_time) : 'Never';
-	// console.log (share.expire_time);
+	console.log (share);
 	var expire_time = new Date(share.expire_time);
 	var now = Date.now();
 
@@ -791,20 +792,45 @@ function manage_shares_callback (data, textStatus, jqXHR) {
 	}
 	
 	var row = $('<tr></tr>');
+	var status_div = $('<div style="font-size:24px"></div>');
 	if (expired) {
 	    row.css('color', 'red');
 	    row.css('text-decoration', 'line-through');
+	    status_div.text('Expired');
+	} else {
+	    var onclick_cmd = "share_active_toggle("+share.share_id+")";
+	    var button = $('<img></img>')
+		.css('margin-left', '5px')
+		.attr('onclick', onclick_cmd);
+	    var button_wrapper = $('<span></span>');
+	    var status_text_wrapper = $('<span></span>');
+	    status_text_wrapper.css('position', 'relative').css('top', '-5px');
+	    button_wrapper.append (button)
+	    if (share.active) {
+		status_text_wrapper.text('On');
+		status_div.append(status_text_wrapper);
+		button.attr('src', 'https://eng.geopeers.com/images/red_button_30x30.png')
+		status_div.append(button_wrapper);
+	    } else {
+		status_text_wrapper.text('Off');
+		status_div.append(status_text_wrapper);
+		button.attr('src', 'https://eng.geopeers.com/images/green_button_30x30.png')
+		status_div.append(button_wrapper);
+		row.css('opacity', '0.6');
+		row.css('filter', 'alpha(opacity=60)');
+	    }
 	}
 	row.append($('<td></td>').text(share.redeem_time));
 	row.append($('<td></td>').text(share.expire_time));
 	row.append($('<td></td>').text(share_to));
 	row.append($('<td></td>').text(redeemed));
 	row.append($('<td></td>').text(expires));
+	row.append($('<td></td>').html(status_div));
 	tbody.append(row);
     }
     table.append(tbody);
 
-    $('#manage_info').replaceWith(table);
+    $('#manage_info').html(table);
     if (!  $.fn.dataTable.isDataTable( '#manage_table' ) ) {
 	DT = $('#manage_table').DataTable( {
 		retrieve:     true,
@@ -818,7 +844,7 @@ function manage_shares_callback (data, textStatus, jqXHR) {
 	DT.column(0).visible(false);
 	DT.column(1).visible(false);
     }
-    $('#manage_popup').show();
+    $('#manage_form_spinner').hide();
     $('#manage_popup').popup("open");
 }
 
@@ -834,6 +860,19 @@ function manage_shares () {
     } else {
 	$('#registration_popup').popup('open');
     }
+    return;
+}
+
+function share_active_toggle(share_id) {
+    var device_id = device_id_mgr.get();
+    if (! device_id)
+	return
+    var request_parms = { method: 'share_active_toggle',
+			  device_id: device_id,
+			  share_id:  share_id,
+	};
+    $('#manage_form_spinner').show();
+    ajax_request (request_parms, manage_shares_callback, geo_ajax_fail_callback);
     return;
 }
 

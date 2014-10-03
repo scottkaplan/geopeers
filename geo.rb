@@ -944,6 +944,7 @@ class Protocol
                       share_cred:   share_cred,
                       num_uses:     0,
                       num_uses_max: params["num_uses"],
+                      active:       1,
                       )
     share.save
     Protocol.send_share(share, params)
@@ -1152,7 +1153,8 @@ end
     end
     # get all the shares with those device_ids
     # and a list of the device_id that redeemed the shares
-    sql = "SELECT shares.share_to, shares.share_via, shares.expire_time,
+    sql = "SELECT   shares.id AS share_id, shares.share_to, shares.share_via,
+                    shares.expire_time, shares.active,
                     shares.updated_at, shares.created_at,
                     redeems.id AS redeem_id,
                     redeems.created_at AS redeem_time
@@ -1177,6 +1179,40 @@ end
       elems.push (row)
     }
     {'shares' => elems }
+  end
+
+  def Protocol.process_request_share_active_toggle (params)
+    ##
+    #
+    # share_active_toggle
+    #
+    # params
+    #   device_id
+    #   share_id
+    #
+    error_response = {message: 'There was a problem with your request.  Support has been contacted', message_class: 'message_error'}
+    if (! params['device_id'])
+      log_error ("no device_id")
+      return (error_response)
+    end
+    if (! params['share_id'])
+      log_error ("no share_id")
+      return (error_response)
+    end
+    share = Share.find(params['share_id'])
+    if (! share)
+      log_error ("Share for #{params['share_id']}")
+      return (error_response)
+    end
+    if (share.device_id != params['device_id'])
+      log_error ("Device ID for share #{params['share_id']} is #{share.device_id}, does not match #{params['device_id']}")
+      return (error_response)
+    end
+    share.active = share.active == 1 ? 0 : 1
+    share.save
+    shares = Protocol.process_request_get_shares (params)
+    $LOG.debug shares
+    shares
   end
 
   def Protocol.process_request_send_support (params)

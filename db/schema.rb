@@ -11,7 +11,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20140919151657) do
+ActiveRecord::Schema.define(version: 20141002231419) do
 
   create_table "accounts", force: true do |t|
     t.string   "name"
@@ -19,7 +19,7 @@ ActiveRecord::Schema.define(version: 20140919151657) do
     t.string   "mobile"
     t.datetime "created_at"
     t.datetime "updated_at"
-    t.integer  "active"
+    t.integer  "active",     default: 1
   end
 
   add_index "accounts", ["email"], name: "email", unique: true, using: :btree
@@ -66,6 +66,7 @@ ActiveRecord::Schema.define(version: 20140919151657) do
     t.integer  "num_uses_max"
     t.datetime "created_at"
     t.datetime "updated_at"
+    t.integer  "active"
   end
 
   add_index "shares", ["share_cred"], name: "index_shares_on_share_cred", unique: true, using: :btree
