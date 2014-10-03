@@ -535,11 +535,11 @@ RSpec.describe Protocol, production: true do
   end
 end
 
-RSpec.describe Protocol, production: true do
+RSpec.describe Protocol, dev: true do
   describe "register_device - multiple accounts" do
     before(:all) do
       # clear the decks
-      setup_devices()
+      reset_devices()
     end
 
     context "when multiple devices use the same verification value" do
