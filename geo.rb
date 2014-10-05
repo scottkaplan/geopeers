@@ -393,20 +393,16 @@ class Protocol
     device[:account_id] = account.id
     device.save
     log_info ("created device #{device_id},\nuser agent=#{user_agent.to_s}, account=#{account.id}")
+    device
   end
 
   def Protocol.create_device_id (user_agent)
     require 'securerandom'
     device_id = SecureRandom.uuid
-    begin
-      Protocol.create_device(device_id, user_agent)
-    rescue => err
-      log_error (err)
-    end
-    device_id
+    Protocol.create_device(device_id, user_agent)
   end
 
-  def Protocol.device_id_bind (params)
+  def Protocol.process_request_device_id_bind (params)
     ##
     # device_id_bind
     #
@@ -415,7 +411,10 @@ class Protocol
     # a web app and a native app running on the same device
     #
     # In practice, this means that shares that are redeemed by the web app
-    # will be available in the native app and vice versa
+    # will be available in the native app.
+    # This is important because we send URLs to the device to redeem a share.
+    # These URLs will be opened in the device browser.
+    # If we don't join the accounts, we don't have a way to get state into the native app
     #
     # The 3-way handshake looks like this:
     #   1) at first startup, the native app creates a URL to call this API:
@@ -431,7 +430,7 @@ class Protocol
     #      the device's browser, completing the handshake and returning the user to the native app
     #
     # params
-    #   native_device_id - device id of the native app
+    #   native_device_id   - device id of the native app
     #
     # returns
     #   redirect_url - deeplink to get back to the native app
@@ -457,11 +456,14 @@ class Protocol
     $LOG.debug web_app_device
 
     # The deeplink includes these parameters for completeness.
-    # Since we will merge the accounts here, the native app doesn't need to do anything with these params
-    native_app_deeplink += "&native_app_device_id="
-    native_app_deeplink += native_app_device.device_id
-    native_app_deeplink += "&web_app_device_id="
-    native_app_deeplink += web_app_device.device_id
+    # Since we will merge the accounts here,
+    # the native app doesn't need to do anything with these params
+    #
+    # Commented because we're paranoid about sending info we don't have to
+    # native_app_deeplink += "&native_device_id="
+    # native_app_deeplink += native_app_device.device_id
+    # native_app_deeplink += "&web_device_id="
+    # native_app_deeplink += web_app_device.device_id
 
     errs = Protocol.merge_accounts(Account.find(native_app_device.account_id),
                                    Account.find(web_app_device.account_id))
@@ -484,7 +486,6 @@ class Protocol
     # params
     #   device_id
     #   version          - current client version
-    #   native_device_id - initiate the device_id binding handshake
     #
     # returns
     #   js      - client will execute this js
@@ -492,15 +493,8 @@ class Protocol
 
     response = {}
     # handle upgrade
-    $LOG.debug params
-    $LOG.debug params['version']
     if (params['version'] && params['version'].to_f < 1.0)
       response.merge! ({js: "alert('If we had an upgrade, this would be it')"})
-    end
-
-    if (params['native_device_id'])
-      response_elem = device_id_bind (params)
-      response.merge! (response_elem)
     end
 
     response
@@ -578,12 +572,11 @@ class Protocol
                     'expire_time'   => row.share_expire_time,
                   })
     }
-    $LOG.debug elems
     {'sightings' => elems }
   end
 
   def Protocol.process_request_get_registration (params)
-    if params.has_key?('device_id')
+    if params['device_id']
       device = Device.find_by(device_id: params['device_id'])
       if device
         if device.account_id
@@ -593,6 +586,7 @@ class Protocol
         end
       else
         # This shouldn't happen.  If there is a device_id, it should be in the DB
+        $LOG.debug params['device_id']
         log_dos ("No record for "+params['device_id'])
         error_response "Unknown device ID"
       end
@@ -1291,6 +1285,17 @@ end
 
   public
 
+  def Protocol.create_if_not_exists_device (params)
+    device = Device.find_by(device_id: params[:device_id])
+    $LOG.debug device
+    if device
+      device
+    else
+      # This is a device_id we haven't see yet
+      Protocol.create_device(params[:device_id], params[:user_agent])
+    end
+  end
+
   def Protocol.get_account_from_device (device)
     return unless device
     if (device.account_id)
@@ -1335,46 +1340,46 @@ class ProtocolEngine < Sinatra::Base
   set :static, true
 
   def before_proc (params)
-    $LOG.debug params
     # empty form variables are empty strings, not nil
     params.each do |key, val|
-      $LOG.debug "#{key}, #{val}"
       params[key] = nil if (val.to_s.length == 0)
     end
 
     # parameters to add
     params['user_agent'] = request.user_agent unless params['user_agent']
-    params['device_id'] ||= manage_device_id(params['device_id'])
-    $LOG.debug params
+    device = manage_device_id(params['device_id'])
+    params['device_id'] = device.device_id
   end
 
   def manage_device_id (device_id)
+    #
+    # Params:
+    #   device_id - can be nil or device_id that doesn't have a device row in DB
+    # Returns:
+    #   device
+
     if device_id
-      device = Device.find_by(device_id: device_id)
-      if device
-        device.id
-      else
-        # This is a device_id we haven't see yet
-        Protocol.create_device_id (request.user_agent)
-      end
+      Protocol.create_if_not_exists_device({ device_id: device_id,
+                                             user_agent: request.user_agent})
     else
       # there is no device_id
       # since the native apps create their own device_id from the uuid,
       # this must be a webapp
 
       # The device_id is stored in the client's cookie
-      # retrieve it if one already has been assigned,
-      # create and send a new device_id if one was not sent by the client
       if (request.cookies['device_id'])
-        request.cookies['device_id']
+        # a device_id has been set in the cookie
+        Protocol.create_if_not_exists_device({ device_id: request.cookies['device_id'],
+                                               user_agent: request.user_agent})
       else
-        device_id = Protocol.create_device_id (request.user_agent)
+        # Brand new web app
+        device = Protocol.create_device_id (request.user_agent)
         response.set_cookie('device_id',
                             { :value   => device_id,
                               :domain  => 'geopeers.com',
                               :expires => Time.new(2038,1,17),
                             })
-        device_id
+        device
       end
     end
   end
