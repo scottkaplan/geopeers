@@ -8,7 +8,8 @@ function get_parms (url) {
     if (! parm_str) {
 	return;
     }
-    var parm_strs = parm_str.split('&');
+    console.log (parm_str[0]);
+    var parm_strs = parm_str[0].split('&');
     var parms = {};
     for (var i=0; i<parm_strs.length; i++) {
 	var key_val = parm_strs[i].split('=');
@@ -38,8 +39,14 @@ function display_message (message, css_class) {
     }
     var msg_id = md5(message);
     if ($('#'+msg_id).length) {
-	// we already got this message, just make sure it is visible
-	$('#'+msg_id).show();
+	// we already got this message
+	if ($('#'+msg_id).is(":hidden")) {
+	    // it's hidden, show it
+	    $('#'+msg_id).show()
+	} else{
+	    // It is already visible, "flash" it
+	    $('#'+msg_id).fadeOut(10).fadeIn(100);
+	}
     } else {
 	// create new divs - message and close button
 	// append to geo_info
@@ -248,7 +255,7 @@ var display_mgr = {
 	}
 	display_mgr.geo_down = true;
 	display_mgr.message_displayed = true;
-	// Don't do this anymore.  It does not make in the webapp (need native to share)
+	// Don't do this anymore.  It does not make sense in the webapp (need native to share)
 	// msg += "<p>You can view others, but your shares will not display your location";
 	display_mgr.last_msg = msg;
 	display_message (msg, 'message_warning');
@@ -402,80 +409,88 @@ var marker_mgr = {
 // Web/Native app handshake
 //
 
-function device_id_bind_check (tx, results) {
-    // this is called in init() to kick off the process
-    console.log (tx);
-    console.log (results);
-    // we only want to do this once, presumably at native app first start
-    // check a global variable in the DB to see if we've done this
-    db.get_global ('device_id_bind_complete', device_id_bind_phase_1);
-}
+var device_id_bind = {
+    ran_bind: null,
+    check: function (tx, results) {
+	// called with the DB result for device_id_bind_complete
+	// If we have never run the device_id_bind for this native app,
+	// start the handshake
+	console.log (tx);
+	console.log (results);
 
-function device_id_bind_phase_1 (tx, results) {
-    console.log (results);
-
-    // Two conditions to launch phase_1:
-    //   1) phonegap (native app)
-    //   2) haven't done this before (this is only done once at app first start)
-    // The phonegap test is superfluous
-    // We got here in a db callback, so we only get here in the phonegap app
-    if (device_id_mgr.phonegap) {
-	if (! results) return;
-	var row = results.rows.item(0);
-	console.log (row);
-	if (! row) return;
-
-	if (! row.device_id_bind_complete) {
-	    // implements the first half of a 2 part handshake
-	    web_app_redirect ();
+	// Two conditions to launch phase_1:
+	//   1) phonegap (native app)
+	//   2) haven't done this before (this is only done once at app first start)
+	// The phonegap test is superfluous
+	// We got here in a db callback, so we only get here in the phonegap app
+	if (device_id_mgr.phonegap) {
+	    if (! results) return;
+	    var row = results.rows.item(0);
+	    console.log (row);
+	    if (! row || ! row.device_id_bind_complete) {
+		// kick off the handshake by redirecting to the device browser
+		// Bet you didn't know you could get out of the native app's webview :-)
+		device_id_bind.web_app_redirect ();
+	    }
 	}
-    }
+    },
+    web_app_redirect: function () {
+	// Defensive coding:
+	// This is an in-memory version of globals.device_id_bind_complete
+	// This prevents the infinite redirectly loop between the native and web apps if the DB call fails
+	if (device_id_bind.ran_bind) {
+	    // this is not good.
+	    // we should not have been called if this already ran
+	    // ran_bind is an in-memory safety net
+	    // If the persistant storage check failed, the handshake will be re-run the next time the native app starts
+	    // But can't fix it here.  The best we can do is prevent an endless redirect loop
+	    console.log ("Prevented redirect loop");
+	    return
+	} else {
+	    device_id_bind.ran_bind = 1;
+	}
+
+	// redirect to the web app (webview) telling the webview what our device_id is
+	var url = "http://eng.geopeers.com/api?method=device_id_bind";
+	url += "&native_device_id=" + device_id_mgr.device_id;
+	// MAGIC HERE:
+	// This is how we get state from the native app to the web app.
+	// The _system parm will cause url to be opened in the device browser,
+	// not a webview in the app
+	alert ("About to redirect to "+url);
+	window.open(url, '_system');
+	// While we don't get back to here,
+	// we do get back to this JS file
+	// The webview will redirect back to a deeplink
+	// which will be handled in handleOpenURL
+    },
+    phase_2: function (url) {
+	// this is the 2nd part of a handshake between the native app (running this routine) and
+	// the webapp which called the native app via a deeplink (geopeers://api?<parms>)
+
+	console.log (url);
+
+	// Don't do this check.
+	// If we got any kind of deeplink, don't redo the handshake
+	// var parms = get_parms (url);
+	// if (parms['method'] != 'device_id_bind') {
+	//   return;
+	// }
+
+	// set this so we don't try to do it again (safety net for DB)
+	device_id_bind.ran_bind = 1;
+
+	// if we got this far through the handshake, assume we're good and don't do it again
+	db.set_global ('device_id_bind_complete', 1);
+    },
 }
 
-function device_id_bind_phase_2 (parms) {
-    // this is the 2nd part of a handshake between the native app (running this routine) and
-    // the webapp which called the native app via a deeplink
-
-    // if we got this far through the handshake, assume we're good and don't do it again
-    db.set_global ('device_id_bind_complete', 1);
-
-    if (parms['device_id'] != parms['native_app_device_id']) {
-	// this is not good
-    }
-
-    // Tell the server we got the handshake
-    // don't worry about the callback
-    parms['phase'] = 3;
-    ajax_request (parms);
-    return;
-}
-
-function web_app_redirect () {
-    // redirect to the web app (webview) telling the webview what our device_id is
-    var url = "http://eng.geopeers.com/api?method=device_id_bind&my_device_id=";
-    url += device_id_mgr.device_id;
-    // MAGIC HERE:
-    // this is how we get state from the native app to the webview
-    // this form will cause url to be opened in the device browser, not a webview in the app
-    window.open(url, '_system');
-    // While we don't get back to here,
-    // we do get back to this JS file
-    // The webview will redirect back to a deeplink
-    // which will be handled in handleOpenURL
-}
-
+// this is a magic function name for catching a deeplink call
 function handleOpenURL(url) {
-    setTimeout(function() {process_deeplink (url)}, 0);
-}
-
-function process_deeplink (url) {
-    console.log (url);
-    // geopeers://api?<parms>
-    var parms = get_parms (url);
-    if (parms['method'] == 'device_id_bind') {
-	device_id_bind_phase_2 (parms);
-    }
-    return;
+    alert ("in handleOpenURL");
+    device_id_bind.ran_bind = 1;
+    // let the browser catch up
+    setTimeout(function() {device_id_bind.phase_2 (url)}, 0);
 }
 
 
@@ -548,25 +563,13 @@ function send_position_request (position) {
 
 function share_location_popup () {
     if (device_id_mgr.phonegap) {
-	if (registration.status == 'REGISTERED') {
-	    if (display_mgr.geo_down) {
-		display_message (display_mgr.last_msg, 'message_warning');
-	    } else {
-		$('#share_location_popup').popup('open');
-		$('#share_location_popup').show();
-	    }
-	} else if (! registration.status ||
-		   registration.status == 'NOT REGISTERED') {
-	    $('#registration_popup').popup('open');
-	} else if (registration.status == 'CHECKING') {
-	    display_message ('Checking your registration status.  Try again in a few seconds', 'message_warning');
+	if (display_mgr.geo_down) {
+	    display_message (display_mgr.last_msg, 'message_warning');
 	} else {
-	    // Not sure what's going on, try registration
-	    $('#registration_popup').popup('open');
+	    $('#share_location_popup').popup('open');
 	}
     } else {
 	$('#share_location_popup').popup('open');
-	$('#share_location_popup').show();
 	// $('#registration_popup').popup('open');
     }
     return;
@@ -655,11 +658,11 @@ function config_callback (data, textStatus, jqXHR) {
         eval (data.js);
     }
 
-    // Initialization that requires the device_id to be set
+    // things that need device_id to be configured at the server
     if (device_id_mgr.phonegap) {
 	background_gps.init ();
-	db.init();
-	device_id_bind_check();
+
+	db.get_global ('device_id_bind_complete', device_id_bind.check);
     }
 
     // sets registration.status
@@ -671,12 +674,16 @@ function config_callback (data, textStatus, jqXHR) {
 }
 
 function send_config () {
+    // Timing Hack: launch this here so it's done by the time the config response gets back
+    db.init();
+
     var device_id = device_id_mgr.get();
     var request_parms = { method: 'config',
 			  device_id: device_id,
 			  version: 1,
     };
     ajax_request (request_parms, config_callback, geo_ajax_fail_callback);
+
     return;
 }
 
@@ -949,7 +956,10 @@ function display_registration () {
 var registration = {
     // registration.init() launches request to get registration status
     // manages the callback and the status variable
+
+    // status isn't used anymore
     status : null,
+
     reg_info : null,
     init: function () {
 	if (registration.status == 'REGISTERED' || registration.status == 'CHECKING')
@@ -967,6 +977,7 @@ var registration = {
 	}
     },
     get_callback: function (data, textStatus, jqXHR) {
+	console.log("in get_callback");
 	if (data) {
 	    if (data.id) {
 		registration.status = 'REGISTERED';
@@ -1142,60 +1153,62 @@ function call_send_native_app () {
 // Init and startup
 //
 
-function init () {
-    // This is called after we are ready
-    // for webapp, this is $.ready, for phonegap, this is deviceready
-    console.log ("in init");
+var init = {
+    after_ready: function () {
+	// This is called after we are ready
+	// for webapp, this is $.ready, for phonegap, this is deviceready
 
-    // The popups have 'display:none' in the markup, so we aren't depending on any JS loading to hide them.
-    // At this point, it's safe to let the JS control them
-    $('#share_location_popup').show();
-    $('#manage_popup').show();
-    $('#support_form_popup').show();
+	alert ("in init");
+	console.log ("in init");
 
-    // show the spinner in 200mS (.2 sec)
-    // if there are no GPS issues, the map will display quickly and
-    // we don't want the spinner to flash up
-    setTimeout($('#gps_spinner').show, 200);
+	// The popups have 'display:none' in the markup, so we aren't depending on any JS loading to hide them.
+	// At this point, it's safe to let the JS control them
+	$('#share_location_popup').show();
+	$('#manage_popup').show();
+	$('#support_form_popup').show();
 
-    run_position_function (function(position) {create_map(position)});
+	// show the spinner in 200mS (.2 sec)
+	// if there are no GPS issues, the map will display quickly and
+	// we don't want the spinner to flash up
+	setTimeout($('#gps_spinner').show, 200);
 
-    device_id_mgr.init ();
-    console.log ("device_id="+device_id_mgr.get());
-    send_config ();
+	run_position_function (function(position) {create_map(position)});
 
-    // There is more initialization, but it happens in the config callback
-    // because it relies on the device_id being set
+	device_id_mgr.init ();
+	console.log ("device_id="+device_id_mgr.get());
 
-    // There are some things that can be done while we wait for the config API to return
+	send_config ();
 
-    // server can pass parameters when it redirected to us
-    var message_type = getParameterByName('message_type') ? getParameterByName('message_type') : 'message_error'
-    display_message(getParameterByName('alert'), message_type);
+	// There is more initialization, but it happens in the config callback
+	// because it relies on the device_id being set
 
-    // This is a bad hack.
-    // If the map isn't ready when the last display_message fired, the reposition will be wrong
-    setTimeout(function(){update_map_canvas_pos()}, 500);
+	// There are some things that can be done while we wait for the config API to return
 
-    // This may cause a redirect to the download URL, so do this last
-    if (getParameterByName('download_app')) {
-	download.download_app();
-    }
+	// server can pass parameters when it redirected to us
+	var message_type = getParameterByName('message_type') ? getParameterByName('message_type') : 'message_error'
+	display_message(getParameterByName('alert'), message_type);
 
-    return;
-}
+	// This is a bad hack.
+	// If the map isn't ready when the last display_message fired, the reposition will be wrong
+	setTimeout(function(){update_map_canvas_pos()}, 500);
+
+	// This may cause a redirect to the download URL, so do this last
+	if (getParameterByName('download_app')) {
+	    download.download_app();
+	}
+    },
+};
 
 function start () {
-    alert ("start");
     function call_init () {
 	// the call_init shim is needed because
 	// if we call init in addEventListener, it doesn't get called
-	init();
+	init.after_ready();
     }
     $(document).ready(function(e,data){
 	    if (is_phonegap()) {
 		// Wait for device API libraries to load
-		document.addEventListener("deviceready", call_init);
+		document.addEventListener("deviceready", init.after_ready);
 	    } else {
 		call_init();
 	    }
