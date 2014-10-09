@@ -1,0 +1,41 @@
+<form id="download_link_form">
+  <div id="download_link_form_info" class="info"></div>
+  <div id="download_link_form_spinner"
+       style="display:none; text-align:center">
+    <img src="https://eng.geopeers.com/images/ajax-loader.gif">
+  </div>
+  <div class="box_outer">
+    <div class="box_frame">
+      <div class="box_content">
+	<div id="field_label">
+	  You need a native app to share your location and
+	  there isn't a native app available for your device.
+	  We can send a link to download the app.
+	  Supply an email and/or mobile to send the link to.
+	</div>
+	<label for="email" class="ui-hidden-accessible">
+	  Email
+	</label>
+	<input type="text"
+	       name="email"
+	       id="email"
+	       placeholder="fred_friendly@gmail.com"
+	       >
+	<label for="mobile" class="ui-hidden-accessible">
+	  Mobile
+	</label>
+	<input type="text"
+	       name="mobile"
+	       id="mobile"
+	       placeholder="415-555-1212"
+	       >
+	<input type="hidden" name="method" value="send_download_link">
+	<button class="reg_button"
+		type="button"
+		onclick="download.send_link()">
+	  Send Download Link
+	</button>
+      </div>
+    </div>
+  </div>
+</form>

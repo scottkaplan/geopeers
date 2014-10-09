@@ -1,0 +1,41 @@
+<form id="download_type_form">
+  <div id="download_type_form_info" class="info"></div>
+  <div id="download_type_form_spinner"
+       style="display:none; text-align:center">
+    <img src="https://eng.geopeers.com/images/ajax-loader.gif">
+  </div>
+  <div class="box_outer">
+    <div class="box_frame">
+      <div class="box_content">
+	<div id="field_label">
+	  It doesn't look like we have a native app for your device.
+	  You can still download the app file,
+	  but you probably won't be able to run it on the device you are on.
+	</div>
+	<div id="client_type" data-role="fieldcontain">
+	  <fieldset data-role="controlgroup" data-type="vertical">
+	    <legend>
+	      The native app is specific to a device.
+	      What device do you want the native app for?
+	    </legend>
+
+	    <label for="client_type_ios" style="margin-right:10px">
+	      <input type="radio" name="client_type" id="client_type_ios" value="ios" />
+	      iOS (iPhone/iPad)
+	    </label>
+
+	    <label for="client_type_android">
+	      <input type="radio" name="client_type" id="client_type_android" value="android" />
+	      Android
+	    </label>
+	  </fieldset>
+	</div>
+	<button class="reg_button"
+		type="button"
+		onclick="download.download_app_direct()">
+	  Download App
+	</button>
+      </div>
+    </div>
+  </div>
+</form>
