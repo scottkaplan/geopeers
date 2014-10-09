@@ -1,22 +1,22 @@
-Content-Type: multipart/alternative; boundary=<%= boundary_random %>
+Content-Type: multipart/alternative; boundary=<%= @boundary_random %>
 
---<%= boundary_random %>
+--<%= @boundary_random %>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed; delsp=yes
 
 You have supplied this email for your Geopeers account
 
 Please click on this URL:
 
-  <%= url %>
+  <%= @url %>
 
 to verify that you have received this email.
 
 By supplying and verifying this email, you will be able to see all your Geopeers shares
 on all the devices you use.
 
---<%= boundary_random %>
+--<%= @boundary_random %>
 Content-Type: text/html; charset=ISO-8859-1
 Content-Transfer-Encoding: quoted-printable
 
-<%= quoted_html_body %>
---<%= boundary_random %>--
+<%= @quoted_html_body %>
+--<%= @boundary_random %>--
