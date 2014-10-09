@@ -48,6 +48,18 @@ end
 class Auth < ActiveRecord::Base
 end
 
+class ERBContext
+  def initialize(hash)
+    hash.each_pair do |key, value|
+      instance_variable_set('@' + key.to_s, value)
+    end
+  end
+
+  def get_binding
+    binding
+  end
+end
+
 class Sms
   def initialize
     Eztexting.connect!('magtogo', 'Codacas')
@@ -125,9 +137,10 @@ def log_error(err)
   else
     backtrace = parse_backtrace caller
     backtrace_str = backtrace[0][:file_base] + ':' + backtrace[0][:line_num] + ' ' + backtrace[0][:routine]
+    backtrace_str += backtrace.join("\n")
     msg += "Error: " + err.inspect + "\n\n" + backtrace_str
   end
-  $LOG.error msg
+  $LOG.info msg
   Protocol.send_email(msg, 'support@geopeers.com', 'Geopeers Support', 'support@geopeers.com', 'Geopeers Server Error')
   msg
 end
@@ -246,6 +259,10 @@ class Protocol
     "https://eng.geopeers.com/api?method=verify&cred=#{params['cred']}&device_id=#{params['device_id']}"
   end
 
+  def Protocol.create_download_url (params)
+    "https://eng.geopeers.com/api?method=download_app&device_id=#{params['device_id']}"
+  end
+
   def Protocol.create_unsolicited_url (params)
     "https://eng.geopeers.com/api?method=unsolicited&cred=#{params['cred']}&device_id=#{params['device_id']}"
   end
@@ -292,25 +309,34 @@ class Protocol
     ERB.new(msg_erb).result(binding)
   end
 
-  def Protocol.send_msg (params, type)
-    device = Device.find_by(device_id: params['device_id'])
-    url = Protocol.create_verification_url(params)
-    url_unsolicited = Protocol.create_unsolicited_url(params)
+  def Protocol.send_sms (msg, num)
+    sms_obj = Sms.new
+    sms_obj.send(num, msg)
+  end
+
+  def Protocol.send_html_email(body_template, msg_template, subject, email_addr, erb_params)
+    # This is done with nested ERB templates
+    # msg_template is a multipart MIME template
+    # body_template is the HTML 
+    erb_params[:boundary_random] = SecureRandom.base64(21)
+    msg_erb = File.read(body_template)
+    html_body = ERB.new(msg_erb).result(ERBContext.new(erb_params).get_binding)
+    require 'mail'
+    erb_params[:quoted_html_body] = Mail::Encodings::QuotedPrintable.encode(html_body)
+    msg_erb = File.read(msg_template)
+    msg = ERB.new(msg_erb).result(ERBContext.new(erb_params).get_binding)
+    Protocol.send_email(msg, 'sherpa@geopeers.com', 'Geopeers Helper', email_addr, subject)
+  end
+
+  def Protocol.send_verification_msg (params, type)
     if (type == 'email')
-      boundary_random = SecureRandom.base64(21)
-      template_file = 'views/verify_email_body.erb'
-      msg_erb = File.read(template_file)
-      html_body = ERB.new(msg_erb).result(binding)
-      require 'mail'
-      quoted_html_body = Mail::Encodings::QuotedPrintable.encode(html_body)
-      template_file = 'views/verify_email_msg.erb'
-      msg_erb = File.read(template_file)
-      msg = ERB.new(msg_erb).result(binding)
-      Protocol.send_email(msg, 'sherpa@geopeers.com', 'Geopeers Helper', params[type], "Please verify your email with Geopeers")
+      Protocol.send_html_email('views/verify_email_body.erb', 'views/verify_email_msg.erb',
+                               "Please verify your email with Geopeers", params['email'],
+                               { url: Protocol.create_verification_url(params),
+                                 url_unsolicited: Protocol.create_unsolicited_url(params)})
     elsif (type == 'mobile')
       msg = "Press this #{url} to verify your Geopeers account"
-      sms_obj = Sms.new
-      sms_obj.send(params[type], msg)
+      Protocol.send_sms(msg, params['mobile'])
     end
   end
 
@@ -406,7 +432,7 @@ class Protocol
     ##
     # device_id_bind
     #
-    # This routine is the server-side of a 3-way handshake
+    # This routine is the server-side of a handshake
     # initiated by a mobile device to merge the accounts for
     # a web app and a native app running on the same device
     #
@@ -416,7 +442,7 @@ class Protocol
     # These URLs will be opened in the device browser.
     # If we don't join the accounts, we don't have a way to get state into the native app
     #
-    # The 3-way handshake looks like this:
+    # The handshake looks like this:
     #   1) at first startup, the native app creates a URL to call this API:
     #        /api?method=device_id_bind&my_device_id=<native app device_id>
     #      Next, it sends (redirects) that URL to be opened in the device's browser (e.g. Safari)
@@ -572,7 +598,23 @@ class Protocol
                     'expire_time'   => row.share_expire_time,
                   })
     }
-    {'sightings' => elems }
+    response = {'sightings' => elems }
+
+    # get the most recent location of device_id
+    my_latest_location = Sighting.where("device_id=?", device.device_id)
+      .order(created_at: :desc)
+      .limit(1)
+      .first
+    if my_latest_location
+      response['current_position'] = {
+        'coords' => {
+          'longitude' => my_latest_location.gps_longitude,
+          'latitude'  => my_latest_location.gps_latitude,
+          },
+        'timestamp' => my_latest_location.updated_at,
+      }
+    end
+    response
   end
 
   def Protocol.process_request_get_registration (params)
@@ -694,7 +736,7 @@ class Protocol
       auth.save
       user_msg = "A verification was sent to #{new_val}"
     end
-    err = Protocol.send_msg(params, type)
+    err = Protocol.send_verification_msg(params, type)
     if (err)
       log_error (err)
       verification_type = (type == 'email') ? 'email' : 'text msg'
@@ -855,7 +897,6 @@ class Protocol
   def Protocol.process_request_register_device (params)
     # params:
     #   method = 'register_device'
-    #   download_app = [ 0 | 1 ]	response sends redirect to download URL
     #   new_account = [ 'yes' | 'no' ]	
     #   name
     #   email
@@ -902,9 +943,10 @@ class Protocol
     $LOG.debug errs if ! errs.empty?
 
     # handle native app download redirection
-    params['user_agent'] = device.user_agent
-    err_msg, redirect_url = Protocol.get_download_app_info (params)
-    errs.push (err_msg) if (err_msg)
+    # No longer done here
+    # params['user_agent'] = device.user_agent
+    # err_msg, redirect_url = Protocol.get_download_app_info (params)
+    # errs.push (err_msg) if (err_msg)
 
     response = {}
     if (errs && ! errs.empty?)
@@ -1091,7 +1133,7 @@ end
     end
     msg = URI.escape (msg)
     redirect_url += "?alert=#{msg}"
-    redirect_url += "&download_app=1&device_id=#{device.device_id}"
+    redirect_url += "&device_id=#{device.device_id}"
     redirect_url += "&message_type=#{message_type}" if message_type
     return {:redirect_url => redirect_url}
   end
@@ -1180,6 +1222,54 @@ end
     {'shares' => elems }
   end
 
+  def Protocol.process_request_send_download_link (params)
+    # params:
+    #   device_id
+    #   email
+    #   mobile
+    
+    response_msg = ""
+    response_err = ""
+    if params['email']
+      email_err = Protocol.send_html_email('views/download_email_body.erb', 'views/download_email_msg.erb',
+                                           "Download your Geopeers app", params['email'],
+                                           { url: Protocol.create_download_url(params)}
+                                           )
+      if email_err
+        response_err += "There was a problem sending email to #{params['email']}<br>"
+        log_error (err)
+      else
+        response_msg += "A download link was sent to #{params['email']}<br>"
+      end
+    end
+
+    if params['mobile']
+      msg = "Press this #{url} to download the Geopeers native app"
+      sms_obj = Sms.new
+      sms_err = sms_obj.send(params['mobile'], msg)
+      if sms_err
+        response_err += "There was a problem sending a text to #{params['mobile']}<br>"
+        log_error (sms_err)
+      else
+        response_msg += "A download link was sent to #{params['mobile']}<br>"
+      end
+    end
+    if response_err
+      {message: response_err+response_msg, message_class: 'message_error'}
+    else
+      {message: response_msg, message_class: 'message_ok'}
+    end
+  end
+  
+  def Protocol.process_request_download_app (params)
+    # params:
+    #   device_id - of device that sent the link
+    #
+    # This doesn't really download the app
+    # It redirects to the webapp with instructions to download the native app
+    {redirect_url: "https://eng.geopeers.com/?download_app=1"}
+  end
+  
   def Protocol.process_request_share_active_toggle (params)
     ##
     #
@@ -1340,6 +1430,15 @@ class ProtocolEngine < Sinatra::Base
   set :static, true
 
   def before_proc (params)
+    # If the client sent a JSON object in the body of the request,
+    # (typically used to send a >1 layer parms in a request)
+    # merge that object with any parms that were passed in the request
+    if (request.content_type == 'application/json')
+      request.body.rewind
+      params.merge!(JSON.parse(request.body.read))
+      $LOG.debug params
+    end
+
     # empty form variables are empty strings, not nil
     params.each do |key, val|
       params[key] = nil if (val.to_s.length == 0)
@@ -1347,16 +1446,18 @@ class ProtocolEngine < Sinatra::Base
 
     # parameters to add
     params['user_agent'] = request.user_agent unless params['user_agent']
-    device = manage_device_id(params['device_id'])
+    device = manage_device_id(params)
     params['device_id'] = device.device_id
   end
 
-  def manage_device_id (device_id)
+  def manage_device_id (params)
     #
     # Params:
     #   device_id - can be nil or device_id that doesn't have a device row in DB
     # Returns:
     #   device
+
+    device_id = params['device_id']
 
     if device_id
       Protocol.create_if_not_exists_device({ device_id: device_id,
@@ -1373,6 +1474,10 @@ class ProtocolEngine < Sinatra::Base
                                                user_agent: request.user_agent})
       else
         # Brand new web app
+        $LOG.debug request.env
+        $LOG.debug params
+        request.body.rewind
+        $LOG.debug request.body.read
         device = Protocol.create_device_id (request.user_agent)
         response.set_cookie('device_id',
                             { :value   => device_id,
@@ -1404,6 +1509,8 @@ class ProtocolEngine < Sinatra::Base
       html = create_error_html (resp)
       halt 500, {'Content-Type' => 'text/html'}, html
     elsif (resp[:redirect_url])
+      # If this is a GET and the API wants to redirect,
+      # we do it here and the rest of the response is ignored
       redirect resp[:redirect_url]
     elsif (resp[:html])
       content_type :html
@@ -1415,13 +1522,6 @@ class ProtocolEngine < Sinatra::Base
   end
 
   post '/api' do
-    # If the client sent a JSON object in the body of the request,
-    # (typically used to send a >1 layer parms in a request)
-    # merge that object with any parms that were passed in the request
-    if (request.content_type == 'application/json')
-        params.merge!(JSON.parse(request.body.read))
-    end
-
     resp = Protocol.process_request params
     if (resp && resp.class == 'Hash' && resp[:error])
       # Don't send JSON to 500 ajax response
@@ -1440,9 +1540,6 @@ class ProtocolEngine < Sinatra::Base
   ['/', '/geo/?'].each do |path|
     get path do
       if request.secure?
-        # we don't need the device_id to build the page
-        # but we do want to make sure the client gets a device_id
-        # in case they don't have one
         erb :index
       else
         redirect request.url.gsub(/^http/, "https")
