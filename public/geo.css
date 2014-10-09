@@ -119,6 +119,7 @@ body {
 .popup_content {
     background-color:#d2e9ff;
     margin: 5px;
+    font-size:16px;
 }
 
 .popup_close_x {
@@ -143,6 +144,7 @@ body {
 .box_frame {
     border-style:solid;
     border-width:1px;
+    border-color:#3eb1dd;
     -moz-border-radius:10px;
     -webkit-border-radius:10px;
     border-radius:10px;
@@ -150,6 +152,17 @@ body {
 
 .box_content {
     padding:5px;
+}
+
+.field_label {
+    
+}
+
+.reg_button {
+    background-color:#3eb1dd;
+    color:white;
+    text-shadow:0 0;
+    font-weight:normal;
 }
 
 /* Menu */
