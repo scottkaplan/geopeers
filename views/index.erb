@@ -46,7 +46,7 @@
 		      <hr>
 		      <li><a onclick="display_support()">Make Us Better</a></li>
 		      <hr>
-		      <li><a onclick="call_send_native_app()">Get Native App</a></li>
+		      <li><a onclick="send_native_app_wrapper()">Get Native App</a></li>
 		    </ul>
 		  </li>
 		</ul>
@@ -65,18 +65,59 @@
 	   >
 	<div class="popup_frame">
 	  <div class="popup_header">
-	    Get the Native App
-	    <div class="popup_title">
-	      To share your location, you need the native app.
-	    </div>
+	    Setup your Account
 	    <div class="popup_close_x"
 		 onclick="$('#registration_popup').popup('close')">
 	      <img src="https://eng.geopeers.com/images/x.png">
 	    </div>
-	    <div style="font-size:18px">
-	      <div class="popup_content">
-		<%= ERB.new(File.read('views/registration_form.erb'), nil, "%").result(binding) %>
-	      </div>
+	  </div>
+	  <div style="font-size:18px">
+	    <div class="popup_content">
+	      <%= ERB.new(File.read('views/registration_form.erb'), nil, "%").result(binding) %>
+	    </div>
+	  </div>
+	</div>
+      </div>
+
+      <!-- popup download link -->
+      <div id="download_link_popup"
+	   data-role="popup"
+	   data-transition="fade"
+	   style="display:none"
+	   >
+	<div class="popup_frame">
+	  <div class="popup_header">
+	    Send Download Link
+	    <div class="popup_close_x"
+		 onclick="$('#download_link_popup').popup('close')">
+	      <img src="https://eng.geopeers.com/images/x.png">
+	    </div>
+	  </div>
+	  <div style="font-size:18px">
+	    <div class="popup_content">
+	      <%= ERB.new(File.read('views/download_link_form.erb'), nil, "%").result(binding) %>
+	    </div>
+	  </div>
+	</div>
+      </div>
+
+      <!-- popup download type -->
+      <div id="download_type_popup"
+	   data-role="popup"
+	   data-transition="fade"
+	   style="display:none"
+	   >
+	<div class="popup_frame">
+	  <div class="popup_header">
+	    Download Native App
+	    <div class="popup_close_x"
+		 onclick="$('#download_type_popup').popup('close')">
+	      <img src="https://eng.geopeers.com/images/x.png">
+	    </div>
+	  </div>
+	  <div style="font-size:18px">
+	    <div class="popup_content">
+	      <%= ERB.new(File.read('views/download_type_form.erb'), nil, "%").result(binding) %>
 	    </div>
 	  </div>
 	</div>
@@ -138,7 +179,7 @@
 	  </div>
 	  <div class="popup_content">
 	    <div id="manage_form_spinner" style="text-align:center; display:none">
-	      <img src="images/ajax-loader.gif">
+	      <img src="https://eng.geopeers.com/images/ajax-loader.gif">
 	    </div>
 	    <div id="manage_info" style="padding:5px"></div>
 	  </div>
@@ -169,8 +210,9 @@
     <script src="https://eng.geopeers.com/jquery-ui-timepicker-addon.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jstimezonedetect/1.0.4/jstz.min.js"></script>
     <script src="https://eng.geopeers.com/db.js"></script>
-    <script src="https://eng.geopeers.com/geo.js"></script>
     <script src="https://eng.geopeers.com/menu.js"></script>
+    <script src="https://eng.geopeers.com/geo.js"></script>
+    <script src="https://eng.geopeers.com/gps.js"></script>
   </body>
 
 </html>
