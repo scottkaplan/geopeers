@@ -118,35 +118,89 @@ function getParameterByName(name) {
     return results == null ? "" : decodeURIComponent(results[1].replace(/\+/g, " "));
 }
 
-function run_position_function (post_func) {
-    // post_func should be prepared to be called with 0 (gps failed) or 1 (position) parameter
-    if(navigator.geolocation) {
-	navigator.geolocation.getCurrentPosition(function (position) {post_func(position);
-		                                                      display_mgr.display_ok(position)},
-						 function (err)      {post_func();
-						                      display_mgr.display_err(err)},
-                                                 {timeout:3000, enableHighAccuracy: true});
+function gps_position_succeeded (post_func, position) {
+    post_func(position);
+    display_mgr.display_ok(position);
+    return;
+}
+
+function gps_position_failed (post_func, err) {
+    if (marker_mgr.current_position &&
+	device_id_mgr.phonegap) {
+	console.log (marker_mgr.current_position);
+	post_func(marker_mgr.current_position);
+    } else {
+	post_func();
+	console.log ("No position");
+	display_mgr.display_err(err);
     }
     return;
 }
 
-function update_current_pos () {
-    run_position_function (function(position) {
-	    if (! position) {
-		return;
-	    }
-	    $('#map_canvas').gmap('find', 'markers',
-				  { 'property': 'marker_id', 'value': 'my_pos' },
-				  function(marker, found) {
-				      if (found) {
-					  var my_pos = new google.maps.LatLng(position.coords.latitude,
-									      position.coords.longitude)
-					  marker.setPosition(my_pos);
-				      }
-				  });
-	});
+function run_position_function (post_func) {
+    // post_func should be prepared to be called with 0 (gps failed) or 1 (position) parameter
+    var options = {timeout:3000, enableHighAccuracy: true};
+    if(navigator.geolocation) {
+	navigator.geolocation.getCurrentPosition (
+						  function (position) {
+						      gps_position_succeeded (post_func, position);
+							  },
+						  function (err) {
+						      gps_position_failed (post_func, err);
+							  },
+						  options);
+    }
+    return;
 }
 
+var my_pos = {
+    marker: null,
+    pan_needed: null,
+    current_position: null,
+    update_pan: function (position_from_server) {
+	my_pos.current_position = position_from_server;
+	// the server sends us our position
+	// For native (phonegap) apps, the background GPS, kills our GPS
+	// so the server has to send us our position.  Go figure.
+
+	if (! device_id_mgr.phonegap ||
+	    ! position_from_server ||
+	    ! my_pos.pan_needed) {
+	    return;
+	}
+	my_pos.create (my_pos.current_position);
+	map.panTo(new google.maps.LatLng(marker_mgr.current_position.coords.latitude,
+					 marker_mgr.current_position.coords.longitude));
+	my_pos.pan_needed = false;
+    },
+
+    create: function (position) {
+	if (my_pos.marker)
+	    return;
+	var image = 'https://eng.geopeers.com/images/green_star_32x32.png';
+
+	var marker_parms = { marker_id: 'my_pos',
+			     icon: image,
+			     position: 	new google.maps.LatLng(position.coords.latitude,
+							       position.coords.longitude)};
+	var map = $('#map_canvas').gmap('get','map');
+	my_pos.marker = $('#map_canvas').gmap('addMarker', marker_parms);
+	return;
+    },
+    move_pos: function (position) {
+	my_pos.marker[0].setPosition(new google.maps.LatLng(position.coords.latitude,
+							    position.coords.longitude));
+    },
+    reposition: function (position) {
+	run_position_function (function(position) {
+		if (my_pos.marker) {
+		    my_pos.move_pos (position);
+		} else {
+		    my_pos.create (position);
+		}
+	    });
+    },
+};
 
 var device_id_mgr = {
     device_id: null,
@@ -363,6 +417,9 @@ var marker_mgr = {
     update_markers: function (data, textStatus, jqXHR) {
 	if (! data)
 	    return;
+
+	my_pos.update_pan (data.current_position);
+
 	var sightings = data.sightings;
 	if (! sightings)
 	    return;
@@ -411,12 +468,11 @@ var marker_mgr = {
 
 var device_id_bind = {
     ran_bind: null,
-    check: function (tx, results) {
+    check: function (val) {
 	// called with the DB result for device_id_bind_complete
 	// If we have never run the device_id_bind for this native app,
 	// start the handshake
-	console.log (tx);
-	console.log (results);
+	console.log (val);
 
 	// Two conditions to launch phase_1:
 	//   1) phonegap (native app)
@@ -424,14 +480,14 @@ var device_id_bind = {
 	// The phonegap test is superfluous
 	// We got here in a db callback, so we only get here in the phonegap app
 	if (device_id_mgr.phonegap) {
-	    if (! results) return;
-	    var row = results.rows.item(0);
-	    console.log (row);
-	    if (! row || ! row.device_id_bind_complete) {
-		// kick off the handshake by redirecting to the device browser
-		// Bet you didn't know you could get out of the native app's webview :-)
-		device_id_bind.web_app_redirect ();
-	    }
+	    if (val == 1) return;
+
+	    // kick off the handshake by redirecting to the device browser
+	    // Bet you didn't know you could get out of the native app's webview :-)
+	    device_id_bind.web_app_redirect ();
+	    return;
+	} else {
+	    return 1;
 	}
     },
     web_app_redirect: function () {
@@ -457,7 +513,7 @@ var device_id_bind = {
 	// This is how we get state from the native app to the web app.
 	// The _system parm will cause url to be opened in the device browser,
 	// not a webview in the app
-	alert ("About to redirect to "+url);
+	// alert ("About to redirect to "+url);
 	window.open(url, '_system');
 	// While we don't get back to here,
 	// we do get back to this JS file
@@ -487,7 +543,7 @@ var device_id_bind = {
 
 // this is a magic function name for catching a deeplink call
 function handleOpenURL(url) {
-    alert ("in handleOpenURL");
+    // alert ("in handleOpenURL");
     device_id_bind.ran_bind = 1;
     // let the browser catch up
     setTimeout(function() {device_id_bind.phase_2 (url)}, 0);
@@ -504,13 +560,13 @@ function create_map (position) {
     if (position) {
 	initial_location = new google.maps.LatLng(position.coords.latitude,
 						  position.coords.longitude);
-	console.log (initial_location);
     }
     $('#map_canvas').gmap({center: initial_location, zoom: zoom});
     if (position) {
-	console.log ("lat=" + position.coords.latitude + ", lng=" + position.coords.longitude);
-	var image = 'https://eng.geopeers.com/images/green_star_32x32.png';
-	$('#map_canvas').gmap('addMarker', {marker_id: 'my_pos', icon: image, position: initial_location});
+	console.log (position);
+	my_pos.update_pan (position);
+    } else {
+	my_pos.pan_needed = true;
     }
 }
 
@@ -569,7 +625,8 @@ function share_location_popup () {
 	    $('#share_location_popup').popup('open');
 	}
     } else {
-	$('#share_location_popup').popup('open');
+	download.send_native_app();
+	// $('#share_location_popup').popup('open');
 	// $('#registration_popup').popup('open');
     }
     return;
@@ -660,22 +717,28 @@ function config_callback (data, textStatus, jqXHR) {
 
     // things that need device_id to be configured at the server
     if (device_id_mgr.phonegap) {
-	background_gps.init ();
-
 	db.get_global ('device_id_bind_complete', device_id_bind.check);
+	// if we didn't get redirected, we'll still be here after 1000 msec
+	setTimeout(function() {
+		background_gps.init ();
+
+		// sets registration.status
+		registration.init();
+		heartbeat();
+	    }, 1000);
+    } else {
+	// sets registration.status
+	registration.init();
+	heartbeat();
     }
-
-    // sets registration.status
-    registration.init();
-
-    heartbeat();
-
     return;
 }
 
 function send_config () {
     // Timing Hack: launch this here so it's done by the time the config response gets back
-    db.init();
+    if (device_id_mgr.phonegap) {
+	db.init();
+    }
 
     var device_id = device_id_mgr.get();
     var request_parms = { method: 'config',
@@ -711,10 +774,7 @@ function format_time (time) {
 
     // date will be in the browser's TZ
     var date = new Date(time);
-    console.log (date.toString());
-
     var now = new Date();
-    console.log (now.toString());
 
     var date_format_str, time_format_str;
     if (date.getFullYear() !== now.getFullYear()) {
@@ -775,7 +835,6 @@ function manage_shares_callback (data, textStatus, jqXHR) {
 
 	var redeem_name = share.redeem_name ? share.redeem_name : '<Unopened>';
 	var expires = share.expire_time ? format_time(share.expire_time) : 'Never';
-	console.log (share);
 	var expire_time = new Date(share.expire_time);
 	var now = Date.now();
 
@@ -977,7 +1036,6 @@ var registration = {
 	}
     },
     get_callback: function (data, textStatus, jqXHR) {
-	console.log("in get_callback");
 	if (data) {
 	    if (data.id) {
 		registration.status = 'REGISTERED';
@@ -1033,69 +1091,13 @@ function heartbeat () {
     get_positions();
 
     // keep the green star in the right spot
-    update_current_pos();
+    my_pos.reposition();
 
     // if we get here, schedule the next iteration
     setTimeout(heartbeat, period_minutes * 60 * 1000);
     return;
 }
 
-
-//
-// Background GPS (phonegap)
-//
-
-var background_gps = {
-    handle: null,
-    init: function () {
-	console.log ("init_background_gps - start");
-	background_gps.handle = window.plugins.backgroundGeoLocation;
-	background_gps.handle.configure(background_gps.callback, background_gps.callback_error, {
-		// Android only
-		url: 'http://eng.geopeers.com/api',
-		    params: {
-		    method:    'send_position',
-			device_id: device_id_mgr.get(),
-			},
-		    notificationTitle: 'Background tracking', // customize the title of the notification
-		    notificationText: 'ENABLED',              // customize the text of the notification
-
-		    desiredAccuracy: 10,
-		    stationaryRadius: 20,
-		    distanceFilter: 30, 
-		    activityType: 'AutomotiveNavigation',
-		    debug: false	// <-- enable this hear sounds for background-geolocation life-cycle.
-		    });
-
-	// Turn ON the background-geolocation system.  The user will be tracked whenever they suspend the app.
-	background_gps.handle.start();
-
-	// If you wish to turn OFF background-tracking, call the #stop method.
-	// background_gps.handle.stop();
-	console.log ("init_background_gps - end");
-    },
-    callback: function (location) {
-	// executed every time a geolocation is recorded in the background.
-	console.log('callback:' + location.latitude + ',' + location.longitude);
-	console.log (this);
-	// You must execute the #finish method here
-	// to inform the native plugin that you're finished,
-	// and the background-task may be completed.
-	// IF YOU DON'T, ios will CRASH YOUR APP for spending too much time in the background.
-	background_gps.handle.finish();
-
-	// POST location to server
-	var request_parms = { gps_longitude: location.longitude,
-			      gps_latitude:  location.latitude,
-			      method:        'send_position',
-			      device_id:     device_id_mgr.get(),
-	};
-	ajax_request (request_parms);
-    },
-    callback_error: function(error) {
-	console.log('callback error' + error);
-    },
-};
 
 function get_client_type () {
     if (/android/i.exec(navigator.userAgent)) {
@@ -1126,25 +1128,57 @@ var download = {
 	    }
 	}
     },
+    download_app_direct: function () {
+	var client_type = $("input[type='radio'][name='client_type']:checked").val();
+	var download_url = download.download_urls[client_type];
+	display_message ("Downloaded " + client_type + " native app", "message_ok");
+	window.location = download_url;
+    },
     download_app: function () {
+	// download the correct native app or prompt the user to select a native app type
+	// called when the download link is opened in the webapp
 	download.if_else_native (
 				 function (client_type, download_url) {
 				     window.location = download_url;
+				 },
+				 function (client_type, download_url) {
+				     // we get here because we are opening a geopeers.com URL
+				     // with download_app=1
+				     // and this browser is not on a device we have a native app for
+				     // 
+				     // But the map hasn't been put up yet
+				     // We have to wait for the map to get up before we can put up this popup
+				     setTimeout(function(){
+					     $('#download_type_popup').popup('open');
+					 }, 1000);
 				 });
     },
     send_native_app: function () {
+	// download the correct native app or a popup to send the download link
+	// called from the settings menu
 	download.if_else_native (
 				 function (client_type, download_url) {
 				     download.download_app();
 				 },
 				 function (client_type, download_url) {
-				     var msg = "Sorry, there isn't a native app available for your device";
-				     display_message(msg, 'message_info');
+				     $('#download_link_popup').popup();
+				     $('#download_link_popup').popup('open');
 				 });
+    },
+    send_link: function () {
+	var parms = $('#download_link_form').serialize();
+	$('#download_link_form_spinner').show();
+	ajax_request (parms, download.send_link_callback);
+    },
+    send_link_callback: function (data, textStatus, jqXHR) {
+	$('#download_link_form_spinner').hide();
+	$('#download_link_popup').popup('close');
+	var css_class = data.css_class ? data.css_class : 'message_success'
+	display_message(data.message, css_class);
     },
 };
 
-function call_send_native_app () {
+function send_native_app_wrapper () {
     download.send_native_app();
 }
 
@@ -1166,6 +1200,8 @@ var init = {
 	$('#share_location_popup').show();
 	$('#manage_popup').show();
 	$('#support_form_popup').show();
+	$('#download_link_popup').show();
+	$('#download_type_popup').show();
 
 	// show the spinner in 200mS (.2 sec)
 	// if there are no GPS issues, the map will display quickly and
@@ -1200,17 +1236,12 @@ var init = {
 };
 
 function start () {
-    function call_init () {
-	// the call_init shim is needed because
-	// if we call init in addEventListener, it doesn't get called
-	init.after_ready();
-    }
     $(document).ready(function(e,data){
 	    if (is_phonegap()) {
 		// Wait for device API libraries to load
 		document.addEventListener("deviceready", init.after_ready);
 	    } else {
-		call_init();
+		init.after_ready();
 	    }
 	});
 }
