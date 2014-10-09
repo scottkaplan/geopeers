@@ -1,60 +1,115 @@
 var db = {
-    // this is only supported in phonegap, not web app
     handle: null,
-    init: function () {
-	if (db.handle) {
+    init: function (callback) {
+	// this is only supported in phonegap, not web app
+	if (! device_id_mgr.phonegap) {
 	    return;
 	}
-	db.handle = window.sqlitePlugin.openDatabase({name: "geopeers.db"});
+	if (! db.handle) {
+	    db.handle = window.sqlitePlugin.openDatabase({name: "geopeers.db"});
+	}
 	db.handle.transaction(function(tx) {
-		tx.executeSql('CREATE TABLE IF NOT EXISTS globals ("key" text unique, value text)');
+		sql = 'CREATE TABLE IF NOT EXISTS globals ("key" text unique, value text)';
+		tx.executeSql(sql, [],
+			      function (tx, response) {
+				  // nothing to return to callback
+				  callback();
+			      },
+			      db.error_callback);
 	    });
     },
-    reset: function () {
+    reset: function (callback) {
+	if (! device_id_mgr.phonegap) {
+	    return;
+	}
 	db.handle.transaction(function(tx) {
-		tx.executeSql('DROP TABLE IF EXISTS globals');
-	    }, db.init())
+		sql = 'DROP TABLE IF EXISTS globals';
+		tx.executeSql(sql, [], db.init(callback), db.error_callback)
+	    });
     },
     get_global: function (key, callback) {
+	if (! device_id_mgr.phonegap) {
+	    return;
+	}
 	db.handle.transaction(function (tx) {
-		tx.executeSql('SELECT value FROM globals WHERE "key" = ?', [key], function(tx, response) {
-			callback (tx, response);
-		    },
-		    db.error_callback);
+		sql = 'SELECT value FROM globals WHERE "key" = ?';
+		tx.executeSql(sql, [key],
+			      function (tx, response) {
+				  // just call callback with returned value
+				  // not sqlite vars
+				  callback(db.get_val_from_response(response));
+			      },
+			      db.error_callback);
 	    });
     },
-    set_global: function (key, value) {
+    set_global: function (key, value, callback) {
+	if (! device_id_mgr.phonegap) {
+	    return;
+	}
 	db.handle.transaction(function (tx) {
-		tx.executeSql('REPLACE INTO globals ("key", value) VALUES (?,?)', [key, value], set_callback , db.error_callback);
+		sql = 'REPLACE INTO globals ("key", value) VALUES (?,?)';
+		tx.executeSql(sql, [key, value],
+			      function (tx, response) {
+				  if (callback) {
+				      // nothing to return to callback
+				      callback();
+				  }
+			      },
+			      db.error_callback);
 	    });
-    },
-    set_callback: function  (tx, results) {
-	console.log (tx);
-	console.log (results);
-	console.log (results.rows);
     },
     error_callback: function (err) {
 	console.log (err);
 	console.log (err.message);
     },
+    get_val_from_response: function (response) {
+	if (response &&
+	    response.rows &&
+	    response.rows.item(0)) {
+	    return (response.rows.item(0).value);
+	} else {
+	    return (null);
+	}
+    },
 };
 
-function display_db_row (response) {
-    if (response && response.rows && response.rows.item(0)) {
-	console.log (response.rows.item(0).value);
-    } else {
-	console.log (null);
-    }
+function log_msg (msg) {
+    $('#results').append(msg + '<br>');
     return;
 }
 
-// document.addEventListener("deviceready", unit_test, false);
-
-function unit_test() {
-    alert ("Start");
-
-    db.init ();
-    db.get_global ('foo', display_db_row);
-    db.set_global ('foo', '32');
-    db.get_global ('foo', display_db_row);
+function step_4 (val) {
+    log_msg (val);
 }
+
+function step_3 () {
+    log_msg ("getting foo again");
+    db.get_global ('foo', step_4);
+}
+
+function step_2 (val) {
+    log_msg (val);
+    if (val) {
+	val = parseInt(val) + 10;
+    } else {
+	val = 10;
+    }
+    log_msg ("setting foo = "+val);
+    db.set_global ('foo', val, step_3);
+}
+
+function step_1 () {
+    log_msg ("getting foo");
+    db.get_global ('foo', step_2);
+}
+
+function unit_test () {
+    log_msg ("starting");
+    db.init (step_1);
+}
+
+function reset_test () {
+    db.init (function () {db.reset(step_1)});
+}
+
+document.addEventListener("deviceready", unit_test, false);
