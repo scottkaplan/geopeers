@@ -1474,10 +1474,6 @@ class ProtocolEngine < Sinatra::Base
                                                user_agent: request.user_agent})
       else
         # Brand new web app
-        $LOG.debug request.env
-        $LOG.debug params
-        request.body.rewind
-        $LOG.debug request.body.read
         device = Protocol.create_device_id (request.user_agent)
         response.set_cookie('device_id',
                             { :value   => device_id,
