@@ -375,7 +375,8 @@ var marker_mgr = {
     },
     create_label_text: function (sighting) {
 	var elapsed_str = marker_mgr.create_elapsed_str (sighting);
-	var label_text = '<span style="text-align:center;font-size:20px;font-weight:bold;color:#453345"><div>' + sighting.name + '</div><div style="font-size:16px">' + elapsed_str + '</div></span>';
+	var name = sighting.name ? sighting.name : 'Anonymous';
+	var label_text = '<span style="text-align:center;font-size:20px;font-weight:bold;color:#453345"><div>' + name + '</div><div style="font-size:16px">' + elapsed_str + '</div></span>';
 	return (label_text);
     },
     update_marker_view: function (marker_info) {
@@ -405,7 +406,7 @@ var marker_mgr = {
     },
     create_marker: function (sighting) {
 	var label_text = marker_mgr.create_label_text (sighting);
-	marker = $('#map_canvas').gmap('addMarker', {
+	var marker = $('#map_canvas').gmap('addMarker', {
 		'device_id':    sighting.device_id,
 		'position':     new google.maps.LatLng(sighting.gps_latitude,sighting.gps_longitude),
 		'marker':       MarkerWithLabel,
@@ -619,11 +620,7 @@ function send_position_request (position) {
 
 function share_location_popup () {
     if (device_id_mgr.phonegap) {
-	if (display_mgr.geo_down) {
-	    display_message (display_mgr.last_msg, 'message_warning');
-	} else {
-	    $('#share_location_popup').popup('open');
-	}
+	$('#share_location_popup').popup('open');
     } else {
 	download.send_native_app();
 	// $('#share_location_popup').popup('open');
@@ -665,6 +662,7 @@ function share_location () {
     var params = $('#share_location_form').serialize();
     var tz = jstz.determine();
     params += '&tz='+tz.name();
+    params += '&device_id='+device_id_mgr.get();
     ajax_request (params, share_location_callback, geo_ajax_fail_callback);
 }
 
