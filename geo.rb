@@ -382,7 +382,7 @@ class Protocol
       err = Protocol.send_email(msg, email, account.name, share.share_to, subject)
       if (err)
         log_error (err)
-        {message: 'There was a problem sending your email.  Support has been contacted', css_class: 'message_error'}
+        {message: 'There was a problem sending your email.  Support has been contacted', message_class: 'message_error'}
       else
         {message: 'Email sent'}
       end
@@ -568,16 +568,16 @@ class Protocol
                   sightings.gps_longitude, sightings.gps_latitude,
                   sightings.updated_at,
                   current_sightings.share_expire_time,
-                  current_sightings.account_name
-           FROM   sightings
+                  accounts.name AS account_name,
+                  accounts.email AS account_email,
+                  accounts.mobile AS account_mobile
+           FROM   accounts, devices, sightings
            JOIN (
                   SELECT sightings.device_id,
                          MAX(sightings.updated_at) AS max_updated_at,
-                         shares.expire_time AS share_expire_time,
-                         accounts.name AS account_name
-                  FROM sightings, devices, shares, redeems, accounts
+                         shares.expire_time AS share_expire_time
+                  FROM sightings, devices, shares, redeems
                   WHERE  devices.account_id = #{device.account_id} AND
-                         devices.account_id = accounts.id AND
                          redeems.device_id = devices.device_id AND
                          redeems.share_id = shares.id AND
                          shares.device_id = sightings.device_id AND
@@ -586,11 +586,14 @@ class Protocol
                 ) current_sightings
            ON current_sightings.device_id = sightings.device_id AND
               current_sightings.max_updated_at = sightings.updated_at
+           WHERE sightings.device_id = devices.device_id AND
+                 devices.account_id = accounts.id
           "
     $LOG.debug sql.gsub("\n"," ")
     elems = []
     Sighting.find_by_sql(sql).each { |row|
-      elems.push ({ 'name'          => row.account_name,
+      elems.push ({ 'name'          => row.account_name ? row.account_name : 'Anonymous',
+                    'have_addr'     => row.account_email || row.account_mobile ? 1 : 0,
                     'device_id'     => row.device_id,
                     'gps_longitude' => row.gps_longitude,
                     'gps_latitude'  => row.gps_latitude,
@@ -962,33 +965,55 @@ class Protocol
     # create a share and send it
     raise ArgumentError.new("No share via") unless params['share_via']
     raise ArgumentError.new("No device ID")  unless params['device_id']
-    
-    raise ArgumentError.new("Please supply the address to send the share to") unless params['share_to']
 
-    if params["share_via"] == 'sms'
-      sms_num = Sms.clean_num(params["share_to"])
-      raise ArgumentError.new("The phone number (share to) must be 10 digits") unless /^\d{10}$/.match(sms_num)
-    end
-
-    if params["share_via"] == 'email'
-      # In general, RFC-822 email validation can't be done with regex
-      # For now, just make sure it has an '@'
-      raise ArgumentError.new("Email should be in the form 'fred@company.com'") unless /.+@.+/.match(params["share_to"])
-    end
-    share_cred = SecureRandom.urlsafe_base64(10)
     expire_time = compute_expire_time params
     expire_time = Time.now + expire_time if expire_time
-    share = Share.new(expire_time:  expire_time,
-                      device_id:    params["device_id"],
-                      share_via:    params["share_via"],
-                      share_to:     params["share_to"],
-                      share_cred:   share_cred,
-                      num_uses:     0,
-                      num_uses_max: params["num_uses"],
-                      active:       1,
-                      )
-    share.save
-    Protocol.send_share(share, params)
+    share_parms = {
+      expire_time:  expire_time,
+      device_id:    params["device_id"],
+      share_via:    params["share_via"],
+      share_to:     params["share_to"],
+      share_cred:   SecureRandom.urlsafe_base64(10),
+      num_uses:     0,
+      num_uses_max: params["num_uses"],
+      active:       1,
+    }
+
+    if params['seer_device_id']
+      account = Protocol.get_account_from_device_id (params['seer_device_id'])
+      response = {}
+      ['mobile','email'].each do | type |
+        if account[type]
+          share_parms['share_via'] = type
+          share_parms['share_to']  = account[type]
+          share = Share.new(share_parms)
+          share.save
+          response = Protocol.send_share(share, params)
+        end
+      end
+      # TODO: This only returns the last response
+      #       if both mobile and email are set in account, the first response is ignored
+      response
+    else
+      raise ArgumentError.new("Please supply the address to send the share to") unless params['share_to']
+
+      if params["share_via"] == 'sms'
+        sms_num = Sms.clean_num(params["share_to"])
+        raise ArgumentError.new("The phone number (share to) must be 10 digits") unless /^\d{10}$/.match(sms_num)
+      end
+
+      if params["share_via"] == 'email'
+        # In general, RFC-822 email validation can't be done with regex
+        # For now, just make sure it has an '@'
+        raise ArgumentError.new("Email should be in the form 'fred@company.com'") unless /.+@.+/.match(params["share_to"])
+      end
+
+      share_parms['share_via'] = params['share_via']
+      share_parms['share_to']  = params['share_to']
+      share = Share.new(share_parms)
+      share.save
+      Protocol.send_share(share, params)
+    end
   end
 
   def Protocol.process_request_redeem (params)

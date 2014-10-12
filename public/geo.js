@@ -335,6 +335,7 @@ var marker_mgr = {
     //            device_id_2: {sighting: sighting_2, marker: marker_2, label: label_2}, ...
     //           }
     markers: {},
+    selected_sighting: null,
     create_time_elem_str: function (num, unit) {
 	if (num == 0) {    
 	    return '';
@@ -375,8 +376,7 @@ var marker_mgr = {
     },
     create_label_text: function (sighting) {
 	var elapsed_str = marker_mgr.create_elapsed_str (sighting);
-	var name = sighting.name ? sighting.name : 'Anonymous';
-	var label_text = '<span style="text-align:center;font-size:20px;font-weight:bold;color:#453345"><div>' + name + '</div><div style="font-size:16px">' + elapsed_str + '</div></span>';
+	var label_text = '<span style="text-align:center;font-size:20px;font-weight:bold;color:#453345"><div>' + sighting.name + '</div><div style="font-size:16px">' + elapsed_str + '</div></span>';
 	return (label_text);
     },
     update_marker_view: function (marker_info) {
@@ -394,14 +394,28 @@ var marker_mgr = {
 			      });
 	return;
     },
-    popup_share_location_with_email: function () {
-	$('#share_via option[value="email"]')
-	.prop('selected', false)
-	.filter('[value="email"]')
-	.prop('selected', true);
-	$('#share_to').val('scott@kaplans.com');
+    marker_menu: function (e, sighting) {
+	marker_mgr.selected_sighting = sighting;
+
+	// This is probably not the right way to dereference the event
+	var event = e.nb;
+	$("#marker_menu").css( {position:"absolute", top:event.pageY, left: event.pageX});
+	if (marker_mgr.selected_sighting.have_addr == 1) {
+	    $('#share_location_menu_item').show();
+	} else {
+	    $('#share_location_menu_item').hide();
+	}
+	$('.menu_account_name').text(marker_mgr.selected_sighting.name);
+
+	$('#marker_menu .js ul').slideToggle(200);
+	event.stopPropagation();
+    },
+    popup_share_location: function () {
+	$('#share_via').hide();
+	$('#share_with').show();
+	$('#share_account_name').text(marker_mgr.selected_sighting.name);
+	$("input[type='hidden'][name='seer_device_id']").val(marker_mgr.selected_sighting.device_id);
 	$('#share_location_popup').popup('open');
-	$('#share_location_popup').show();
 	return;
     },
     create_marker: function (sighting) {
@@ -412,7 +426,7 @@ var marker_mgr = {
 		'marker':       MarkerWithLabel,
 		'icon':         '/images/pin_wings.png',
 		'labelAnchor':  new google.maps.Point(60, 0),
-		'labelContent': label_text}).click(function() {marker_mgr.popup_share_location_with_email()});
+		'labelContent': label_text}).click(function(e) {marker_mgr.marker_menu(e, sighting)});
 	return ({marker: marker});
     },
     update_markers: function (data, textStatus, jqXHR) {
@@ -618,8 +632,10 @@ function send_position_request (position) {
 // SHARE_LOCATION
 //
 
-function share_location_popup () {
+function main_page_share_location_popup () {
     if (device_id_mgr.phonegap) {
+	$('#share_via').show();
+	$('#share_with').hide();
 	$('#share_location_popup').popup('open');
     } else {
 	download.send_native_app();
@@ -640,23 +656,30 @@ function share_location_callback (data, textStatus, jqXHR) {
 function share_location () {
     var share_via = $("#share_via").val();
     var share_to = $("#share_to").val();
+    var seer_device_id = $('input:input[name=seer_device_id]');
 
-    if (share_to.length == 0) {
-	display_in_div ("Please supply the address to send your share to",
-			'share_location_form_info', {color:'red'});
-	return;
-    }
-    if (share_via == 'email' && ! share_to.match(/.+@.+/)) {
-	display_in_div ("Email should be in the form 'fred@company.com'",
-			'share_location_form_info', {color:'red'});
-	return;
-    }
-    share_to.replace(/[\s\-\(\)]/, null);
-    console.log (share_to);
-    if (share_via == 'sms' && ! share_to.match(/^\d{10}$/)) {
-	display_in_div ("The phone number (share to) must be 10 digits",
-			'share_location_form_info', {color:'red'});
-	return;
+    // location can be shared either by:
+    //   1) share_via (email | sms) / share_to (<addr>)
+    //   2) seer_device_id - get location from seer_device.account
+
+    if (seer_device_id.length == 0) {
+	if (share_to.length == 0) {
+	    display_in_div ("Please supply the address to send your share to",
+			    'share_location_form_info', {color:'red'});
+	    return;
+	}
+	if (share_via == 'email' && ! share_to.match(/.+@.+/)) {
+	    display_in_div ("Email should be in the form 'fred@company.com'",
+			    'share_location_form_info', {color:'red'});
+	    return;
+	}
+	share_to.replace(/[\s\-\(\)]/, null);
+	console.log (share_to);
+	if (share_via == 'sms' && ! share_to.match(/^\d{10}$/)) {
+	    display_in_div ("The phone number (share to) must be 10 digits",
+			    'share_location_form_info', {color:'red'});
+	    return;
+	}
     }
     $('#share_location_form_spinner').show();
     var params = $('#share_location_form').serialize();
@@ -985,9 +1008,9 @@ function validate_registration_form () {
 
 function update_registration_popup () {
     // set the 'New Account' radio to 'no' and hide the control
-    var $radios = $('input:radio[name=new_account]');
-    $radios.filter('[value=yes]').prop('checked', false);
-    $radios.filter('[value=no]').prop('checked', true);
+    var radios = $('input:radio[name=new_account]');
+    radios.filter('[value=yes]').prop('checked', false);
+    radios.filter('[value=no]').prop('checked', true);
     $('#new_account_div').hide();
 
     $('#registration_form #name').val(registration.reg_info.name);
