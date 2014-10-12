@@ -3,7 +3,7 @@
   <div id="share_location_form_spinner" style="text-align:center; display:none">
     <img src="https://eng.geopeers.com/images/ajax-loader.gif">
   </div>
-  <div class="box_outer">
+  <div class="box_outer" id="share_via" style="display:none">
     <div class="box_title">
       Share via:
     </div>
@@ -25,6 +25,16 @@
 	       placeholder="Share To"
 	       style="padding:5px"
 	       >
+      </div>
+    </div>
+  </div>
+  <div class="box_outer" id="share_with" style="display:none">
+    <div class="box_frame">
+      <div class="box_content" style="font-size:18px; font-weight:bold; text-align:center">
+	Share with 
+	<span id="share_account_name">
+	</span>
+	<input type="hidden" name="seer_device_id">
       </div>
     </div>
   </div>
