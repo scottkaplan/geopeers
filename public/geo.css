@@ -166,23 +166,23 @@ body {
 }
 
 /* Menu */
-.click-nav ul li {
+.dropdown_menu ul li {
     list-style:none;
     cursor:pointer;
 }
-.click-nav {
+.dropdown_menu {
     margin-left: 150px;
 }
-.click-nav .js {
+.dropdown_menu .js {
     margin-top: 0px;
     margin-bottom: 0px;
 }
 
 /* Fallbacks */
-.click-nav .no-js ul {
+.dropdown_menu .no-js ul {
 	display:none;
 }
-.click-nav .no-js:hover ul {
+.dropdown_menu .no-js:hover ul {
     display:block;
 }
 

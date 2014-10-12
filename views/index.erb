@@ -31,10 +31,10 @@
             <div id="flying_pin" class="icon_div">
               <img src="https://eng.geopeers.com/images/pin_wings.png"
                    class="icon_img"
-                   onclick="share_location_popup()">
+                   onclick="main_page_share_location_popup()">
             </div>
             <div class="icon_div">
-	      <div class="click-nav">
+	      <div id="main_menu" class="dropdown_menu">
 		<ul class="no-js">
 		  <li>
 		    <img src="https://eng.geopeers.com/images/mobile-menu-icon.png"
@@ -198,6 +198,31 @@
       </div>
 
     </div>
+
+    <div id="marker_menu" class="dropdown_menu">
+      <ul class="no-js">
+	<li>
+	  <ul id="navContainer">
+	    <div id="share_location_menu_item">
+	    <li>
+	      <a onclick="marker_mgr.popup_share_location()">
+		Share your location with 
+		<span class="menu_account_name"></span>
+	      </a>
+	    </li>
+	    </div>
+	    <hr>
+	    <li>
+	      <a onclick="show_directions()">
+		Show Directions to
+		<span class="menu_account_name"></span>
+	      </a>
+	    </li>
+	  </ul>
+	</li>
+      </ul>
+    </div>
+
     <script src="https://code.jquery.com/ui/1.11.0/jquery-ui.js"></script>
     <script src="https://prod1.magtogo.com/library/jquery.mobile-1.4.2.min.js"></script>
     <script src="https://eng.geopeers.com/jqm_map/ui/jquery.ui.map.js"></script>
