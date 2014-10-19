@@ -147,12 +147,20 @@ end
 
 def parse_params (params_str)
   params_str = /\??(.*)/.match(params_str).to_s	# strip optional leading '?'
-  params = {}
+
   params_str.split('&').each { |param_str|
     key, val = param_str.split('=')
     params[key] = val
   }
   params
+end
+
+def create_alert_url(url, msg, message_type=nil)
+  message_type ||= 'message_success'
+  msg = URI.escape (msg)
+  url = "#{url}/?alert=#{msg}"
+  url += "&message_type=#{message_type}" if message_type
+  url
 end
 
 def init
@@ -460,6 +468,8 @@ class Protocol
     #
     # returns
     #   redirect_url - deeplink to get back to the native app
+    #   - or -
+    #   HTML
     #     
 
     native_app_deeplink = "geopeers://api?method=device_id_bind"
@@ -468,14 +478,17 @@ class Protocol
     $LOG.debug native_app_device
     if ! native_app_device
       log_error ("No native app device")
-      return {redirect_url: native_app_deeplink}
+      url = create_alert_url("https://eng.geopeers.com",
+                             "There was a problem with your request.  Support has been contacted.")
+      return {redirect_url: url}
     end
 
     # manage_device_id should have been called already, so if there isn't a device_id set,
     # something has gone very wrong
     if ! params['device_id']
       log_error ("No web app device id")
-      return {redirect_url: native_app_deeplink}
+      url = create_alert_url("https://eng.geopeers.com",
+                             "There was a problem with your request.  Support has been contacted.")
     end
 
     web_app_device = Device.find_by(device_id: params['device_id'])
@@ -484,23 +497,23 @@ class Protocol
     # The deeplink includes these parameters for completeness.
     # Since we will merge the accounts here,
     # the native app doesn't need to do anything with these params
-    #
-    # Commented because we're paranoid about sending info we don't have to
-    # native_app_deeplink += "&native_device_id="
-    # native_app_deeplink += native_app_device.device_id
-    # native_app_deeplink += "&web_device_id="
-    # native_app_deeplink += web_app_device.device_id
 
-    errs = Protocol.merge_accounts(Account.find(native_app_device.account_id),
-                                   Account.find(web_app_device.account_id))
-    if ! errs.empty?
-      msg = errs.join('<br>')
-      msg = URI.escape (msg)
-      native_app_deeplink += "&alert=#{msg}"
-      native_app_deeplink += "&message_type=message_info"
+    if native_app_device.account_id == web_app_device.account_id
+      # This was already done
+      msg = "Your shared locations have been transferred to the native app<p><div class='message_button' onclick='native_app_redirect()'><div class='message_button_text'>Switch to Native App</div></div>";
+      error_url = create_alert_url("https://eng.geopeers.com", msg);
+      {redirect_url: error_url}
+    else
+      errs = Protocol.merge_accounts(Account.find(native_app_device.account_id),
+                                     Account.find(web_app_device.account_id))
+      if ! errs.empty?
+        msg = errs.join('<br>')
+        native_app_deeplink = create_alert_url(native_app_deeplink, msg);
+        native_app_deeplink += "&message_type=message_info"
+      end
+      
+      {redirect_url: native_app_deeplink}
     end
-                            
-    {redirect_url: native_app_deeplink}
   end
 
   def Protocol.process_request_config (params)
@@ -1074,14 +1087,12 @@ class Protocol
       else
         # This share has been used up
         msg = "That credential is not valid.  You can't view the location.  You can still use the other features of GeoPeers"
-        msg = URI.escape (msg)
-        redirect_url += "?alert=#{msg}"
+        redirect_url = create_alert_url(redirect_url, msg)
       end
     else
       msg = "That credential is not valid.  You can't view the location.  You can still use the other features of GeoPeers"
-      msg = URI.escape (msg)
-      redirect_url += "?alert=#{msg}"
-end
+      redirect_url = create_alert_url(redirect_url, msg)
+    end
     {:redirect_url => redirect_url}
   end
 
@@ -1156,10 +1167,8 @@ end
       account.save
       $LOG.debug account
     end
-    msg = URI.escape (msg)
-    redirect_url += "?alert=#{msg}"
+    redirect_url = create_alert_url(redirect_url, msg, message_type)
     redirect_url += "&device_id=#{device.device_id}"
-    redirect_url += "&message_type=#{message_type}" if message_type
     return {:redirect_url => redirect_url}
   end
 
