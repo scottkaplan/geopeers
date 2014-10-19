@@ -157,8 +157,7 @@ var my_pos = {
     marker: null,
     pan_needed: null,
     current_position: null,
-    update_pan: function (position_from_server) {
-	my_pos.current_position = position_from_server;
+    update_position: function (position_from_server) {
 	// the server sends us our position
 	// For native (phonegap) apps, the background GPS, kills our GPS
 	// so the server has to send us our position.  Go figure.
@@ -168,10 +167,14 @@ var my_pos = {
 	    ! my_pos.pan_needed) {
 	    return;
 	}
+	my_pos.current_position = position_from_server;
 	my_pos.create (my_pos.current_position);
-	map.panTo(new google.maps.LatLng(marker_mgr.current_position.coords.latitude,
-					 marker_mgr.current_position.coords.longitude));
-	my_pos.pan_needed = false;
+	if (my_pos.pan_needed) {
+	    var map = $('#map_canvas').gmap('get','map');
+	    map.panTo(new google.maps.LatLng(my_pos.current_position.coords.latitude,
+					     my_pos.current_position.coords.longitude));
+	    my_pos.pan_needed = false;
+	}
     },
 
     create: function (position) {
@@ -185,11 +188,15 @@ var my_pos = {
 							       position.coords.longitude)};
 	var map = $('#map_canvas').gmap('get','map');
 	my_pos.marker = $('#map_canvas').gmap('addMarker', marker_parms);
+	my_pos.current_position = position;
 	return;
     },
     move_pos: function (position) {
-	my_pos.marker[0].setPosition(new google.maps.LatLng(position.coords.latitude,
-							    position.coords.longitude));
+	if (position) {
+	    my_pos.current_position = position;
+	    my_pos.marker[0].setPosition(new google.maps.LatLng(position.coords.latitude,
+								position.coords.longitude));
+	}
     },
     reposition: function (position) {
 	run_position_function (function(position) {
@@ -290,13 +297,14 @@ var display_mgr = {
 	} else if (err.code === 2) {
 	    msg = "Your current location is not available.";
 	} else if (err.code === 3) {
+	    return;
 	    msg = "Getting your current location timed out.  We'll keep trying.";
 	    // store the div id for this message so we can hide it when the position becomes available
 	    display_mgr.timeout_warning_md5 = md5(msg);
 	} else {
 	    msg = "There was an unknown error getting your current location.";
 	}
-	if (err.code) {
+	if (err.code && msg) {
 	    var client_type = get_client_type ();
 	    if (device_id_mgr.phonegap) {
 		msg = "It looks like you don't have location enabled."
@@ -309,8 +317,6 @@ var display_mgr = {
 	}
 	display_mgr.geo_down = true;
 	display_mgr.message_displayed = true;
-	// Don't do this anymore.  It does not make sense in the webapp (need native to share)
-	// msg += "<p>You can view others, but your shares will not display your location";
 	display_mgr.last_msg = msg;
 	display_message (msg, 'message_warning');
     },
@@ -399,12 +405,20 @@ var marker_mgr = {
 
 	// This is probably not the right way to dereference the event
 	var event = e.nb;
+
+	// reposition the menu so it is next to the marker that was clicked
 	$("#marker_menu").css( {position:"absolute", top:event.pageY, left: event.pageX});
+
+	// The menu item to share your location with the marker
+	// We only put up this menu item if the server has account info
+	// for the currently selected marker
 	if (marker_mgr.selected_sighting.have_addr == 1) {
 	    $('#share_location_menu_item').show();
 	} else {
 	    $('#share_location_menu_item').hide();
 	}
+
+	// the name can appear in multiple menu items
 	$('.menu_account_name').text(marker_mgr.selected_sighting.name);
 
 	$('#marker_menu .js ul').slideToggle(200);
@@ -433,7 +447,7 @@ var marker_mgr = {
 	if (! data)
 	    return;
 
-	my_pos.update_pan (data.current_position);
+	my_pos.update_position (data.current_position);
 
 	var sightings = data.sightings;
 	if (! sightings)
@@ -474,6 +488,16 @@ var marker_mgr = {
 	    $('#map_canvas').gmap('option', 'zoom', max_zoom);
 	}
 	return;
+    },
+    show_directions: function () {
+	var url = "https://maps.google.com/maps";
+	url += "?daddr="+marker_mgr.selected_sighting.gps_latitude;
+	url += ","+marker_mgr.selected_sighting.gps_longitude;
+	if (my_pos.current_position) {
+	    url += "&saddr="+my_pos.current_position.coords.latitude;
+	    url += ","+my_pos.current_position.coords.longitude;
+	}
+	window.location = url;
     },
 };
 
@@ -577,11 +601,10 @@ function create_map (position) {
 						  position.coords.longitude);
     }
     $('#map_canvas').gmap({center: initial_location, zoom: zoom});
+    my_pos.pan_needed = true;
     if (position) {
 	console.log (position);
-	my_pos.update_pan (position);
-    } else {
-	my_pos.pan_needed = true;
+	my_pos.update_position (position);
     }
 }
 
@@ -738,6 +761,7 @@ function config_callback (data, textStatus, jqXHR) {
 
     // things that need device_id to be configured at the server
     if (device_id_mgr.phonegap) {
+	device_id_bind.web_app_redirect ();
 	db.get_global ('device_id_bind_complete', device_id_bind.check);
 	// if we didn't get redirected, we'll still be here after 1000 msec
 	setTimeout(function() {
@@ -1201,6 +1225,11 @@ var download = {
 
 function send_native_app_wrapper () {
     download.send_native_app();
+}
+
+function native_app_redirect () {
+    var url = "geopeers://";
+    window.location = url;
 }
 
 
