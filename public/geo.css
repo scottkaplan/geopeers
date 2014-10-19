@@ -86,6 +86,21 @@ body {
     background-color: #DFF2BF;
     background-image:url('/images/success.png');
 }
+
+.message_button {
+    -moz-border-radius:10px;
+    -webkit-border-radius:10px;
+    border-radius:10px;
+    border: 1px solid #4F8A10;
+    height: 25px;
+}
+
+.message_button_text {
+    color: #4F8A10;
+    font-size: 18px;
+    padding-top: 5px;
+}
+
 .message_warning {
     color: #9F6000;
     background-color: #FEEFB3;
