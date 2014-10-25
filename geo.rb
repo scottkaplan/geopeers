@@ -47,6 +47,8 @@ class Account < ActiveRecord::Base
 end
 class Auth < ActiveRecord::Base
 end
+class Global < ActiveRecord::Base
+end
 
 class ERBContext
   def initialize(hash)
@@ -148,6 +150,7 @@ end
 def parse_params (params_str)
   params_str = /\??(.*)/.match(params_str).to_s	# strip optional leading '?'
 
+  params = {}
   params_str.split('&').each { |param_str|
     key, val = param_str.split('=')
     params[key] = val
@@ -164,6 +167,7 @@ def create_alert_url(url, msg, message_type=nil)
 end
 
 def init
+  Dir.chdir ("/home/geopeers/sinatra/geopeers")
   $LOG = Logger.new(STDOUT)
   # $LOG = Logger.new(log_file, 'daily')
   $LOG.datetime_format = "%Y-%m-%d %H:%M:%S.%L"
@@ -227,7 +231,41 @@ def get_client_type (device_id)
     $LOG.debug 'web'
     :web
   end
-  
+end
+
+def get_global (key)
+  row = Global.find_by(key:key)
+  return unless row
+  row['value']
+end
+
+def set_global (key, value)
+  row = Global.find_by(key:key)
+  if row
+    row.update(value:value)
+  else
+    row = Global.new(key:key, value:value)
+  end
+  row.save
+end
+
+def global_test ()
+  value = get_global('build_id')
+  puts value
+  set_global('build_id', 1)
+  value = get_global('build_id')
+  puts value
+end
+
+def get_build_id
+  build_id = get_global('build_id')
+  build_id ? build_id.to_i : 1
+end
+
+def bump_build_id
+  build_id = get_build_id()
+  set_global('build_id', ++build_id)
+  build_id
 end
 
 ##
@@ -302,7 +340,7 @@ class Protocol
     name = account && account.name ? account.name : 'Someone'
     possessive = account && account.name ? "#{account.name}'s" : 'their'
     message = params['share_message']
-    if (share.share_via == 'sms')
+    if (share.share_via == 'mobile')
       template_file = 'views/share_text_msg.erb'
     else
       boundary_random = SecureRandom.base64(21)
@@ -337,10 +375,11 @@ class Protocol
   end
 
   def Protocol.send_verification_msg (params, type)
+    url = Protocol.create_verification_url(params)
     if (type == 'email')
       Protocol.send_html_email('views/verify_email_body.erb', 'views/verify_email_msg.erb',
                                "Please verify your email with Geopeers", params['email'],
-                               { url: Protocol.create_verification_url(params),
+                               { url: url,
                                  url_unsolicited: Protocol.create_unsolicited_url(params)})
     elsif (type == 'mobile')
       msg = "Press this #{url} to verify your Geopeers account"
@@ -348,7 +387,7 @@ class Protocol
     end
   end
 
-  def Protocol.send_share_sms (share, params)
+  def Protocol.send_share_mobile (share, params)
     sms_obj = Sms.new
     msg = Protocol.create_share_msg(share, params)
     err = sms_obj.send(share.share_to, msg)
@@ -426,7 +465,8 @@ class Protocol
     account.save
     device[:account_id] = account.id
     device.save
-    log_info ("created device #{device_id},\nuser agent=#{user_agent.to_s}, account=#{account.id}")
+    
+    log_info ("created device #{device_id}, user agent=#{user_agent.to_s}, account=#{account.id}, params=#{$params.inspect}")
     device
   end
 
@@ -958,18 +998,11 @@ class Protocol
     $LOG.debug user_msgs if ! user_msgs.empty?
     $LOG.debug errs if ! errs.empty?
 
-    # handle native app download redirection
-    # No longer done here
-    # params['user_agent'] = device.user_agent
-    # err_msg, redirect_url = Protocol.get_download_app_info (params)
-    # errs.push (err_msg) if (err_msg)
-
     response = {}
     if (errs && ! errs.empty?)
       response = error_response errs.join('<br>')
     else
       response = {message: user_msgs.join('<br>'), style: {color:"red"}} if (user_msgs)
-      response['redirect_url'] = redirect_url if (redirect_url)
     end
     response
   end
@@ -984,21 +1017,22 @@ class Protocol
     share_parms = {
       expire_time:  expire_time,
       device_id:    params["device_id"],
-      share_via:    params["share_via"],
-      share_to:     params["share_to"],
-      share_cred:   SecureRandom.urlsafe_base64(10),
       num_uses:     0,
       num_uses_max: params["num_uses"],
       active:       1,
     }
 
     if params['seer_device_id']
+      # share location of requesting device
+      # with account associated with a share
+      # (i.e. share my location with pin)
       account = Protocol.get_account_from_device_id (params['seer_device_id'])
       response = {}
       ['mobile','email'].each do | type |
         if account[type]
           share_parms['share_via'] = type
           share_parms['share_to']  = account[type]
+          share_parms['share_cred'] = SecureRandom.urlsafe_base64(10)
           share = Share.new(share_parms)
           share.save
           response = Protocol.send_share(share, params)
@@ -1008,9 +1042,10 @@ class Protocol
       #       if both mobile and email are set in account, the first response is ignored
       response
     else
+      # supply mobile
       raise ArgumentError.new("Please supply the address to send the share to") unless params['share_to']
 
-      if params["share_via"] == 'sms'
+      if params["share_via"] == 'mobile'
         sms_num = Sms.clean_num(params["share_to"])
         raise ArgumentError.new("The phone number (share to) must be 10 digits") unless /^\d{10}$/.match(sms_num)
       end
@@ -1023,6 +1058,7 @@ class Protocol
 
       share_parms['share_via'] = params['share_via']
       share_parms['share_to']  = params['share_to']
+      share_parms['share_cred'] = SecureRandom.urlsafe_base64(10)
       share = Share.new(share_parms)
       share.save
       Protocol.send_share(share, params)
@@ -1407,12 +1443,56 @@ class Protocol
     {message:"Message sent, thanks!"}
   end
 
+  def Protocol.make_popup(popup_id, popup_title, nested_erb)
+    nested_html = ERB.new(File.read(nested_erb)).result()
+    ERB.new(File.read('views/popup.erb')).result(binding)
+  end
+
   public
 
+  def Protocol.create_index(params=nil)
+    version = "0.7"
+    phonegap_html = nil
+    share_location_my_contacts_tag = nil
+    if params && params[:is_phonegap]
+      build_id = bump_build_id()
+      phonegap_html = '<script type="text/javascript" charset="utf-8" src="cordova.js"></script>'
+      share_location_my_contacts_tag = '<option value="contacts">Select from My Contacts</option>'
+    else
+      build_id = get_build_id()
+    end
+    registration_popup =
+      make_popup("registration_popup",
+                 "Setup your Account",
+                 "views/registration_form.erb")
+    download_link_popup =
+      make_popup("download_link_popup",
+                 "Send Download Link",
+                 "views/download_link_form.erb")
+    download_type_popup =
+      make_popup("download_type_popup",
+                 "Download Native App",
+                 "views/download_type_form.erb")
+    share_location_popup =
+      make_popup("share_location_popup",
+                 "Share your Location",
+                 "views/share_location_form.erb")
+    support_popup =
+      make_popup("support_popup",
+                 "Make Us Better",
+                 "views/support_form.erb")
+    share_management_popup =
+      make_popup("share_management_popup",
+                 "Manage your Shared Locations",
+                 "views/share_management_form.erb")
+    ERB.new(File.read('views/index.erb')).result(binding)
+  end
+
   def Protocol.create_if_not_exists_device (params)
+    $LOG.debug params
     device = Device.find_by(device_id: params[:device_id])
-    $LOG.debug device
     if device
+      $LOG.debug device
       device
     else
       # This is a device_id we haven't see yet
@@ -1467,6 +1547,7 @@ class ProtocolEngine < Sinatra::Base
     # If the client sent a JSON object in the body of the request,
     # (typically used to send a >1 layer parms in a request)
     # merge that object with any parms that were passed in the request
+    $params = params
     if (request.content_type == 'application/json')
       request.body.rewind
       params.merge!(JSON.parse(request.body.read))
@@ -1478,10 +1559,12 @@ class ProtocolEngine < Sinatra::Base
       params[key] = nil if (val.to_s.length == 0)
     end
 
-    # parameters to add
-    params['user_agent'] = request.user_agent unless params['user_agent']
-    device = manage_device_id(params)
-    params['device_id'] = device.device_id
+    # Don't create a device if there are no parameters (e.g. robot, other probe)
+    if ! params.empty?
+      params['user_agent'] = request.user_agent unless params['user_agent']
+      device = manage_device_id(params)
+      params['device_id'] = device.device_id
+    end
   end
 
   def manage_device_id (params)
@@ -1492,11 +1575,13 @@ class ProtocolEngine < Sinatra::Base
     #   device
 
     device_id = params['device_id']
-
     if device_id
+      $LOG.debug device_id
       Protocol.create_if_not_exists_device({ device_id: device_id,
                                              user_agent: request.user_agent})
     else
+      $LOG.debug "No device_id"
+      $LOG.debug params
       # there is no device_id
       # since the native apps create their own device_id from the uuid,
       # this must be a webapp
@@ -1570,7 +1655,8 @@ class ProtocolEngine < Sinatra::Base
   ['/', '/geo/?'].each do |path|
     get path do
       if request.secure?
-        erb :index
+        # erb :index
+        index_html = Protocol.create_index params
       else
         redirect request.url.gsub(/^http/, "https")
       end
