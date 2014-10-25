@@ -92,13 +92,12 @@ body {
     -webkit-border-radius:10px;
     border-radius:10px;
     border: 1px solid #4F8A10;
-    height: 25px;
+    height: 28px;
 }
 
 .message_button_text {
     color: #4F8A10;
     font-size: 18px;
-    padding-top: 5px;
 }
 
 .message_warning {
