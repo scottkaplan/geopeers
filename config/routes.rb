@@ -1,4 +1,6 @@
 Show::Application.routes.draw do
+  resources :globals
+
   resources :auths
 
   resources :accounts
