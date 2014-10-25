@@ -1,15 +1,12 @@
 var db = {
     handle: null,
     init: function (callback) {
-	// this is only supported in phonegap, not web app
-	if (! device_id_mgr.phonegap) {
-	    return;
-	}
 	if (! db.handle) {
 	    db.handle = window.sqlitePlugin.openDatabase({name: "geopeers.db"});
 	}
 	db.handle.transaction(function(tx) {
 		sql = 'CREATE TABLE IF NOT EXISTS globals ("key" text unique, value text)';
+		console.log (sql);
 		tx.executeSql(sql, [],
 			      function (tx, response) {
 				  // nothing to return to callback
@@ -19,47 +16,46 @@ var db = {
 	    });
     },
     reset: function (callback) {
-	if (! device_id_mgr.phonegap) {
-	    return;
-	}
-	db.handle.transaction(function(tx) {
-		sql = 'DROP TABLE IF EXISTS globals';
-		tx.executeSql(sql, [], db.init(callback), db.error_callback)
-	    });
+	db.handle.transaction(
+			      function(tx) {
+				  sql = 'DROP TABLE IF EXISTS globals';
+				  console.log (sql);
+				  tx.executeSql(sql, [], function (tx, response) {db.init(callback)});
+			      },
+			      function (err) {db.error_callback(err)}
+			      );
     },
     get_global: function (key, callback) {
-	if (! device_id_mgr.phonegap) {
-	    return;
-	}
-	db.handle.transaction(function (tx) {
-		sql = 'SELECT value FROM globals WHERE "key" = ?';
-		tx.executeSql(sql, [key],
-			      function (tx, response) {
-				  // just call callback with returned value
-				  // not sqlite vars
-				  callback(db.get_val_from_response(response));
+	db.handle.transaction(
+			      function (tx) {
+				  sql = 'SELECT value FROM globals WHERE "key" = ?';
+				  console.log (sql);
+				  tx.executeSql(sql, [key],
+						function (tx, response) {
+						    callback(db.get_val_from_response(response));
+						});
 			      },
-			      db.error_callback);
-	    });
+			      function (err) {db.error_callback(err)}
+			      );
     },
     set_global: function (key, value, callback) {
-	if (! device_id_mgr.phonegap) {
-	    return;
-	}
-	db.handle.transaction(function (tx) {
-		sql = 'REPLACE INTO globals ("key", value) VALUES (?,?)';
-		tx.executeSql(sql, [key, value],
-			      function (tx, response) {
-				  if (callback) {
-				      // nothing to return to callback
-				      callback();
-				  }
+	db.handle.transaction(
+			      function (tx) {
+				  sql = 'REPLACE INTO globals ("key", value) VALUES (?,?)';
+				  console.log (sql);
+				  tx.executeSql(sql, [key, value],
+						function (tx, response) {
+						    if (callback) {
+							// nothing to return to callback
+							callback();
+						    }
+						});
 			      },
-			      db.error_callback);
-	    });
+			      function (err) {db.error_callback(err)}
+			      );
     },
     error_callback: function (err) {
-	console.log (err);
+	console.log (JSON.stringify(err));
 	console.log (err.message);
     },
     get_val_from_response: function (response) {
