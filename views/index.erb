@@ -2,7 +2,7 @@
   <head>
     <meta content="width = device-width" name="viewport" />
     <link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" />
-    <link rel="apple-touch-icon" href="/images/pin_wings_128x128_whitebg.png" />
+    <link rel="apple-touch-icon" href="https://eng.magtogo.com/images/pin_wings_128x128_whitebg.png" />
     <title>
       Geopeers
     </title>
@@ -17,9 +17,15 @@
           href="https://eng.geopeers.com/dataTables.css" />
     <script src="https://prod1.magtogo.com/library/jquery-1.11.1.min.js"></script>
 
+    <%= phonegap_html %>
+
   </head>
 
   <body>
+    <div id="geopeers_config"
+	 build_id="<%= build_id %>"
+	 version="<%= version %>" >
+    </div>
     <div data-role="page" id="index">
       <div data-theme="a" data-role="header">
         <div class="header_content">
@@ -57,134 +63,12 @@
         </div>
       </div>
 
-      <!-- popup registration box -->
-      <div id="registration_popup"
-	   data-role="popup"
-	   data-transition="fade"
-	   style="display:none"
-	   >
-	<div class="popup_frame">
-	  <div class="popup_header">
-	    Setup your Account
-	    <div class="popup_close_x"
-		 onclick="$('#registration_popup').popup('close')">
-	      <img src="https://eng.geopeers.com/images/x.png">
-	    </div>
-	  </div>
-	  <div style="font-size:18px">
-	    <div class="popup_content">
-	      <%= ERB.new(File.read('views/registration_form.erb'), nil, "%").result(binding) %>
-	    </div>
-	  </div>
-	</div>
-      </div>
-
-      <!-- popup download link -->
-      <div id="download_link_popup"
-	   data-role="popup"
-	   data-transition="fade"
-	   style="display:none"
-	   >
-	<div class="popup_frame">
-	  <div class="popup_header">
-	    Send Download Link
-	    <div class="popup_close_x"
-		 onclick="$('#download_link_popup').popup('close')">
-	      <img src="https://eng.geopeers.com/images/x.png">
-	    </div>
-	  </div>
-	  <div style="font-size:18px">
-	    <div class="popup_content">
-	      <%= ERB.new(File.read('views/download_link_form.erb'), nil, "%").result(binding) %>
-	    </div>
-	  </div>
-	</div>
-      </div>
-
-      <!-- popup download type -->
-      <div id="download_type_popup"
-	   data-role="popup"
-	   data-transition="fade"
-	   style="display:none"
-	   >
-	<div class="popup_frame">
-	  <div class="popup_header">
-	    Download Native App
-	    <div class="popup_close_x"
-		 onclick="$('#download_type_popup').popup('close')">
-	      <img src="https://eng.geopeers.com/images/x.png">
-	    </div>
-	  </div>
-	  <div style="font-size:18px">
-	    <div class="popup_content">
-	      <%= ERB.new(File.read('views/download_type_form.erb'), nil, "%").result(binding) %>
-	    </div>
-	  </div>
-	</div>
-      </div>
-
-      <!-- popup share_location box -->
-      <div id="share_location_popup"
-	   data-role="popup"
-	   data-transition="fade"
-	   style="display:none"
-	   >
-        <div class="popup_frame">
-	  <div class="popup_header">
-	    Share your Location
-	    <div class="popup_close_x"
-		 onclick="$('#share_location_popup').popup('close')">
-	      <img src="https://eng.geopeers.com/images/x.png">
-	    </div>
-	  </div>
-	  <div class="popup_content">
-	    <%= ERB.new(File.read('views/share_location_form.erb'), nil, "%").result(binding) %>
-	  </div>
-	</div>
-      </div>
-
-      <!-- popup support box -->
-      <div id="support_form_popup"
-	   data-role="popup"
-	   data-transition="fade"
-	   style="display:none"
-	   >
-        <div class="popup_frame">
-	  <div class="popup_header">
-	    Make Us Better
-	    <div class="popup_close_x"
-		 onclick="$('#support_form_popup').popup('close')">
-	      <img src="https://eng.geopeers.com/images/x.png">
-	    </div>
-	  </div>
-	  <div class="popup_content">
-	    <%= ERB.new(File.read('views/support_form.erb'), nil, "%").result(binding) %>
-	  </div>
-	</div>
-      </div>
-
-      <!-- popup share management box -->
-      <div id="manage_popup"
-	   data-transition="fade"
-	   data-role="popup"
-	   style="display:none"
-	   >
-	<div class="popup_frame">
-	  <div class="popup_header">
-	    Manage your Shared Locations
-	    <div class="popup_close_x"
-		 onclick="$('#manage_popup').popup('close')">
-	      <img src="https://eng.geopeers.com/images/x.png">
-	    </div>
-	  </div>
-	  <div class="popup_content">
-	    <div id="manage_form_spinner" style="text-align:center; display:none">
-	      <img src="https://eng.geopeers.com/images/ajax-loader.gif">
-	    </div>
-	    <div id="manage_info" style="padding:5px"></div>
-	  </div>
-	</div>
-      </div>
+      <%= registration_popup %>
+      <%= download_link_popup %>
+      <%= download_type_popup %>
+      <%= share_location_popup %>
+      <%= support_popup %>
+      <%= share_management_popup %>
 
       <!-- map -->
       <div data-role="content" id="content">
