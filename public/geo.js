@@ -83,6 +83,34 @@ function display_in_div (msg, div_id, style) {
     return;
 }
 
+function form_request (form, extra_params, success_callback, failure_callback) {
+    var params_array = form.serializeArray();
+    // rearrange from:
+    //   [ { name: n1, value: v1 }, { name: n2, value: v2 }, ... ]
+    // to:
+    //   { n1: v1, n2: v2, ...}
+    var params = {};
+    $.each(params_array, function() {
+	    if (params[this.name] !== undefined) {
+		if (!params[this.name].push) {
+		    params[this.name] = [params[this.name]];
+		}
+		params[this.name].push(this.value || '');
+	    } else {
+		params[this.name] = this.value || '';
+	    }
+	});
+
+    // merge the extra parameters (non-form variables)
+    $.extend (params, extra_params);
+
+    // always send device_id
+    params['device_id'] = params['device_id'] ? params['device_id'] : device_id_mgr.get();
+
+    ajax_request (params, success_callback, failure_callback);
+}
+
+
 function ajax_request (request_parms, success_callback, failure_callback) {
     // phonegap runs from https://geopeers.com
     // we now allow xdomain from that URL
@@ -180,6 +208,8 @@ var my_pos = {
     create: function (position) {
 	if (my_pos.marker)
 	    return;
+	if (! position)
+	    return;
 	var image = 'https://eng.geopeers.com/images/green_star_32x32.png';
 
 	var marker_parms = { marker_id: 'my_pos',
@@ -192,14 +222,16 @@ var my_pos = {
 	return;
     },
     move_pos: function (position) {
-	if (position) {
-	    my_pos.current_position = position;
-	    my_pos.marker[0].setPosition(new google.maps.LatLng(position.coords.latitude,
-								position.coords.longitude));
-	}
+	if (! position)
+	    return;
+	my_pos.current_position = position;
+	my_pos.marker[0].setPosition(new google.maps.LatLng(position.coords.latitude,
+							    position.coords.longitude));
     },
     reposition: function (position) {
 	run_position_function (function(position) {
+		if (! position)
+		    return;
 		if (my_pos.marker) {
 		    my_pos.move_pos (position);
 		} else {
@@ -438,7 +470,7 @@ var marker_mgr = {
 		'device_id':    sighting.device_id,
 		'position':     new google.maps.LatLng(sighting.gps_latitude,sighting.gps_longitude),
 		'marker':       MarkerWithLabel,
-		'icon':         '/images/pin_wings.png',
+		'icon':         'https://eng.geopeers.com/images/pin_wings.png',
 		'labelAnchor':  new google.maps.Point(60, 0),
 		'labelContent': label_text}).click(function(e) {marker_mgr.marker_menu(e, sighting)});
 	return ({marker: marker});
@@ -682,7 +714,7 @@ function share_location () {
     var seer_device_id = $('input:input[name=seer_device_id]');
 
     // location can be shared either by:
-    //   1) share_via (email | sms) / share_to (<addr>)
+    //   1) share_via (email | mobile) / share_to (<addr>)
     //   2) seer_device_id - get location from seer_device.account
 
     if (seer_device_id.length == 0) {
@@ -698,18 +730,16 @@ function share_location () {
 	}
 	share_to.replace(/[\s\-\(\)]/, null);
 	console.log (share_to);
-	if (share_via == 'sms' && ! share_to.match(/^\d{10}$/)) {
+	if (share_via == 'mobile' && ! share_to.match(/^\d{10}$/)) {
 	    display_in_div ("The phone number (share to) must be 10 digits",
 			    'share_location_form_info', {color:'red'});
 	    return;
 	}
     }
     $('#share_location_form_spinner').show();
-    var params = $('#share_location_form').serialize();
     var tz = jstz.determine();
-    params += '&tz='+tz.name();
-    params += '&device_id='+device_id_mgr.get();
-    ajax_request (params, share_location_callback, geo_ajax_fail_callback);
+    form_request ($('#share_location_form'), {tz: tz.name()},
+		  share_location_callback, geo_ajax_fail_callback);
 }
 
 
@@ -721,7 +751,7 @@ function send_support_callback  (data, textStatus, jqXHR) {
     $('#support_form_spinner').hide();
     var css_class = data.css_class ? data.css_class : 'message_success'
     display_message(data.message, css_class);
-    $('#support_form_popup').popup('close')
+    $('#support_popup').popup('close')
     return;
 }
 
@@ -741,8 +771,7 @@ function send_support () {
 	return;
     }
     $('#support_form_spinner').show();
-    var params = $('#support_form').serialize();
-    ajax_request (params, send_support_callback, geo_ajax_fail_callback);
+    form_request ($('#support_form'), null, send_support_callback, geo_ajax_fail_callback);
 }
 
 
@@ -761,7 +790,6 @@ function config_callback (data, textStatus, jqXHR) {
 
     // things that need device_id to be configured at the server
     if (device_id_mgr.phonegap) {
-	device_id_bind.web_app_redirect ();
 	db.get_global ('device_id_bind_complete', device_id_bind.check);
 	// if we didn't get redirected, we'll still be here after 1000 msec
 	setTimeout(function() {
@@ -956,17 +984,17 @@ function manage_shares_callback (data, textStatus, jqXHR) {
 	DT.column(1).visible(false);
     }
     $('#manage_form_spinner').hide();
-    $('#manage_popup').popup("open");
+    $('#share_management_popup').popup("open");
 }
 
 function manage_shares () {
     if (1 || device_id_mgr.phonegap) {
 	var device_id = device_id_mgr.get();
 	if (! device_id)
-	    return
-		var request_parms = { method: 'get_shares',
-				      device_id: device_id,
-	    };
+	    return;
+	var request_parms = { method: 'get_shares',
+			      device_id: device_id,
+	};
 	ajax_request (request_parms, manage_shares_callback, geo_ajax_fail_callback);
     } else {
 	$('#registration_popup').popup('open');
@@ -1002,12 +1030,6 @@ function validate_registration_form () {
 
     var email = $('#registration_form #email').val();
     var mobile = $('#registration_form #mobile').val();
-    if ((email.length == 0) &&
-	(mobile.length == 0)) {
-	display_in_div ("Please supply either your email or mobile number",
-			'registration_form_info', {color:'red'});
-	return;
-    }
 
     mobile = mobile.replace(/[\s\-\(\)]/g, '');
     if (mobile.length > 0 && ! mobile.match(/^\d{10}$/)) {
@@ -1022,11 +1044,11 @@ function validate_registration_form () {
 	return;
     }
 
-    if (new_account == 'no' && email && mobile) {
-	display_in_div ("To register an existing account, please only supply email *OR* mobile",
-			'registration_form_info', {color:'red'});
-	return;
-    }
+    // if (new_account == 'no' && email && mobile) {
+    // display_in_div ("To register an existing account, please only supply email *OR* mobile",
+    // 'registration_form_info', {color:'red'});
+    // return;
+    // }
     return true;
 }
 
@@ -1101,9 +1123,8 @@ var registration = {
 	if (! validate_registration_form()) {
 	    return;
 	}
-	var params = $('#registration_form').serialize();
 	$('#registration_form_spinner').show();
-	ajax_request (params, registration.send_callback, geo_ajax_fail_callback);
+	form_request ($('#registration_form'), null, registration.send_callback, geo_ajax_fail_callback);
     },
     send_callback: function (data, textStatus, jqXHR) {
 	$('#registration_form_spinner').hide();
@@ -1118,7 +1139,7 @@ var registration = {
 }
 
 function display_support () {
-    $('#support_form_popup').popup('open');
+    $('#support_popup').popup('open');
     return;
 }
 
@@ -1211,9 +1232,8 @@ var download = {
 				 });
     },
     send_link: function () {
-	var parms = $('#download_link_form').serialize();
 	$('#download_link_form_spinner').show();
-	ajax_request (parms, download.send_link_callback);
+	form_request ($('#download_link_form'), null, download.send_link_callback);
     },
     send_link_callback: function (data, textStatus, jqXHR) {
 	$('#download_link_form_spinner').hide();
@@ -1247,11 +1267,12 @@ var init = {
 
 	// The popups have 'display:none' in the markup, so we aren't depending on any JS loading to hide them.
 	// At this point, it's safe to let the JS control them
-	$('#share_location_popup').show();
-	$('#manage_popup').show();
-	$('#support_form_popup').show();
+	$('#registration_popup').show();
 	$('#download_link_popup').show();
 	$('#download_type_popup').show();
+	$('#share_location_popup').show();
+	$('#support_popup').show();
+	$('#share_management_popup').show();
 
 	// show the spinner in 200mS (.2 sec)
 	// if there are no GPS issues, the map will display quickly and
