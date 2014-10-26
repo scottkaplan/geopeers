@@ -166,6 +166,34 @@ def create_alert_url(url, msg, message_type=nil)
   url
 end
 
+def create_and_send_share(share_params, tz, response)
+  $LOG.debug share_params
+  share_params['share_cred'] = SecureRandom.urlsafe_base64(10)
+  share = Share.new(share_params)
+  share.save
+
+  # Can't have tz in Share.new (share_params)
+  # Need it in send_share, so add it now
+  share_params['tz'] = tz
+  share_response = Protocol.send_share(share, share_params)
+  $LOG.debug share_response
+
+  # deal with accumulating messages
+  # concatenate the message text
+  # error/warning takes precedence for message_class
+  if response[:message] && share_response[:message]
+    response[:message] = response[:message] + '<br>' + share_response[:message]
+    share_response.delete (:message)
+    if  response[:message_class] &&
+        share_response[:message_class] &&
+        response[:message_class] == 'message_ok' &&
+        share_response[:message_class] != 'message_ok'
+    end
+  end
+  response.merge! (share_response)
+  response
+end
+
 def init
   Dir.chdir ("/home/geopeers/sinatra/geopeers")
   $LOG = Logger.new(STDOUT)
@@ -264,7 +292,8 @@ end
 
 def bump_build_id
   build_id = get_build_id()
-  set_global('build_id', ++build_id)
+  build_id = build_id.to_i + 1
+  set_global('build_id', build_id)
   build_id
 end
 
@@ -319,17 +348,17 @@ class Protocol
     now = Time.now.in_time_zone(params['tz'])
 
     if (expire_time.year != now.year)
-      "on " + expire_time.strftime("%d %B, %Y at %I:%M %p")
+      "on " + expire_time.strftime("%d %B, %Y at %l:%M %p %Z")
     elsif (expire_time.month != now.month)
-      "on " + expire_time.strftime("%d %B, at %I:%M %p")
+      "on " + expire_time.strftime("%d %B, at %l:%M %p %Z")
     elsif (expire_time.day != now.day)
       if (expire_time.day == now.day+1)
-        "tomorrow at " + expire_time.strftime("%I:%M %p")
+        "tomorrow at " + expire_time.strftime("%l:%M %p %Z")
       else
-        "on " + expire_time.strftime("%d %B, at %I:%M %p")
+        "on " + expire_time.strftime("%d %B, at %l:%M %p %Z")
       end
     else
-      "today at " + expire_time.strftime("%I:%M %p")
+      "today at " + expire_time.strftime("%l:%M %p %Z")
     end
   end
 
@@ -394,7 +423,7 @@ class Protocol
     if (err)
       error_response err
     else
-      {message: 'Location Shared', style: {color: 'blue'}}
+      {message: "Sent location share to #{share.share_to}"}
     end
   end
 
@@ -415,6 +444,8 @@ class Protocol
   end
 
   def Protocol.send_share_email (share, params)
+    $LOG.debug params
+    $LOG.debug share
     account = Protocol.get_account_from_device_id (params['device_id'])
     if (! account)
       log_error ("No account")
@@ -431,7 +462,7 @@ class Protocol
         log_error (err)
         {message: 'There was a problem sending your email.  Support has been contacted', message_class: 'message_error'}
       else
-        {message: 'Email sent'}
+        {message: "Sent location share to #{share.share_to}"}
       end
     end
   end
@@ -1007,41 +1038,63 @@ class Protocol
     response
   end
 
+  def Protocol.merge_response (cum_response,response)
+  end
+
   def Protocol.process_request_share_location (params)
-    # create a share and send it
-    raise ArgumentError.new("No share via") unless params['share_via']
+
+    # there are three ways to specify a share:
+    #   1) seer_device_id
+    #   2) share_via/share_to
+    #   3) my_contacts_mobile and/or my_contacts_email
+    
     raise ArgumentError.new("No device ID")  unless params['device_id']
 
+    # create a share and send it
     expire_time = compute_expire_time params
     expire_time = Time.now + expire_time if expire_time
     share_parms = {
       expire_time:  expire_time,
-      device_id:    params["device_id"],
       num_uses:     0,
       num_uses_max: params["num_uses"],
       active:       1,
     }
+    share_parms['device_id'] = params["device_id"]
 
+    response = {}
     if params['seer_device_id']
       # share location of requesting device
       # with account associated with a share
       # (i.e. share my location with pin)
+      #
+      # An account does not need an email or mobile
+      # 
       account = Protocol.get_account_from_device_id (params['seer_device_id'])
-      response = {}
       ['mobile','email'].each do | type |
         if account[type]
-          share_parms['share_via'] = type
-          share_parms['share_to']  = account[type]
-          share_parms['share_cred'] = SecureRandom.urlsafe_base64(10)
-          share = Share.new(share_parms)
-          share.save
-          response = Protocol.send_share(share, params)
+          response = create_and_send_share(share_parms.merge({ share_via: type,
+                                                               share_to:  account[type],
+                                                             }),
+                                           params['tz'],
+                                           response)
         end
       end
       # TODO: This only returns the last response
       #       if both mobile and email are set in account, the first response is ignored
-      response
-    else
+    end
+
+    ['mobile','email'].each do | type |
+      if params["my_contacts_#{type}"]
+        $LOG.debug params["my_contacts_#{type}"]
+        response = create_and_send_share(share_parms.merge({ share_via: type,
+                                                             share_to:  params["my_contacts_#{type}"],
+                                                           }),
+                                         params['tz'],
+                                         response)
+      end
+    end
+      
+    if params['share_via'] && params['share_to']
       # supply mobile
       raise ArgumentError.new("Please supply the address to send the share to") unless params['share_to']
 
@@ -1056,13 +1109,13 @@ class Protocol
         raise ArgumentError.new("Email should be in the form 'fred@company.com'") unless /.+@.+/.match(params["share_to"])
       end
 
-      share_parms['share_via'] = params['share_via']
-      share_parms['share_to']  = params['share_to']
-      share_parms['share_cred'] = SecureRandom.urlsafe_base64(10)
-      share = Share.new(share_parms)
-      share.save
-      Protocol.send_share(share, params)
+      response = create_and_send_share(share_parms.merge({ share_via: params['share_via'],
+                                                           share_to:  params['share_to'],
+                                                         }),
+                                       params['tz'],
+                                       response)
     end
+    response
   end
 
   def Protocol.process_request_redeem (params)
@@ -1081,11 +1134,11 @@ class Protocol
 
         # does params['device_id'] (seer) already have access to a share for share.device_id (seen)
         sql = "SELECT shares.expire_time, redeems.id AS redeem_id FROM shares, redeems
-             WHERE shares.device_id  = '#{share.device_id}' AND
-                   redeems.device_id = '#{params['device_id']}' AND
-                   redeems.share_id  = shares.id AND
-                   (shares.expire_time IS NULL OR NOW() < shares.expire_time)
-            "
+               WHERE shares.device_id  = '#{share.device_id}' AND
+                     redeems.device_id = '#{params['device_id']}' AND
+                     redeems.share_id  = shares.id AND
+                     (shares.expire_time IS NULL OR NOW() < shares.expire_time)
+              "
         $LOG.debug sql
         current_share = Share.find_by_sql(sql).first
         $LOG.debug current_share
@@ -1443,8 +1496,12 @@ class Protocol
     {message:"Message sent, thanks!"}
   end
 
-  def Protocol.make_popup(popup_id, popup_title, nested_erb)
-    nested_html = ERB.new(File.read(nested_erb)).result()
+  def Protocol.make_popup(popup_id, popup_title, nested_erb, params)
+    share_location_my_contacts_tag = nil
+    if params && params[:is_phonegap]
+      share_location_my_contacts_tag = '<option value="contacts">Select from My Contacts</option>'
+    end
+    nested_html = ERB.new(File.read(nested_erb)).result(binding)
     ERB.new(File.read('views/popup.erb')).result(binding)
   end
 
@@ -1457,34 +1514,39 @@ class Protocol
     if params && params[:is_phonegap]
       build_id = bump_build_id()
       phonegap_html = '<script type="text/javascript" charset="utf-8" src="cordova.js"></script>'
-      share_location_my_contacts_tag = '<option value="contacts">Select from My Contacts</option>'
     else
       build_id = get_build_id()
     end
     registration_popup =
       make_popup("registration_popup",
                  "Setup your Account",
-                 "views/registration_form.erb")
+                 "views/registration_form.erb",
+                 params)
     download_link_popup =
       make_popup("download_link_popup",
                  "Send Download Link",
-                 "views/download_link_form.erb")
+                 "views/download_link_form.erb",
+                 params)
     download_type_popup =
       make_popup("download_type_popup",
                  "Download Native App",
-                 "views/download_type_form.erb")
+                 "views/download_type_form.erb",
+                 params)
     share_location_popup =
       make_popup("share_location_popup",
                  "Share your Location",
-                 "views/share_location_form.erb")
+                 "views/share_location_form.erb",
+                 params)
     support_popup =
       make_popup("support_popup",
                  "Make Us Better",
-                 "views/support_form.erb")
+                 "views/support_form.erb",
+                 params)
     share_management_popup =
       make_popup("share_management_popup",
                  "Manage your Shared Locations",
-                 "views/share_management_form.erb")
+                 "views/share_management_form.erb",
+                 params)
     ERB.new(File.read('views/index.erb')).result(binding)
   end
 

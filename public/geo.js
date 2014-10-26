@@ -689,13 +689,20 @@ function send_position_request (position) {
 
 function main_page_share_location_popup () {
     if (device_id_mgr.phonegap) {
+        // configure popup in case it was used previously
 	$('#share_via').show();
+	$('#manual_share_via').show();
+	$('#manual_share_to').show();
 	$('#share_with').hide();
+	$('#or_div').show();
+	$('#my_contacts_display').hide();
+	$('input[name=my_contacts_email]').val(null);
+	$('input[name=my_contacts_mobile]').val(null);
+	$('input[name=share_to]').val(null);
+	$('input[name=share_via]').prop('checked',false);
 	$('#share_location_popup').popup('open');
     } else {
 	download.send_native_app();
-	// $('#share_location_popup').popup('open');
-	// $('#registration_popup').popup('open');
     }
     return;
 }
@@ -1252,6 +1259,57 @@ function native_app_redirect () {
     window.location = url;
 }
 
+//
+// My Contacts
+//
+
+function select_contact_callback (contact) {
+    setTimeout(function() {
+	    $('#share_location_popup').popup('open');
+	    var email, mobile;
+	    if (contact &&
+		contact.phoneNumbers &&
+		contact.phoneNumbers[0]) {
+		mobile = contact.phoneNumbers[0].value;
+		$('#my_contacts_mobile').html(mobile);
+		$('input:input[name=my_contacts_mobile]').val(mobile);
+	    }
+	    if (contact &&
+		contact.emails &&
+		contact.emails[0]) {
+		email = contact.emails[0].value;
+		$('#my_contacts_email').html(email);
+		$('input:input[name=my_contacts_email]').val(email);
+	    }
+	    if (mobile || email) {
+		$('#or_div').hide();
+		$('#my_contacts_display').show();
+		$('#manual_share_via').hide();
+		$('#manual_share_to').hide();
+	    } else {
+		$('#or_div').hide();
+		$('#my_contacts_display').hide();
+		$('#manual_share_via').show();
+		$('#manual_share_to').show();
+	    }
+	}, 500);
+}
+
+function select_contact () {
+    $('#my_contacts_display').hide();
+    $('#or_div').show();
+    $('#manual_share_via').show();
+    $('#manual_share_to').show();
+
+    $('#share_location_popup').popup('open');
+
+    navigator.contacts.pickContact(function(contact){
+	    select_contact_callback(contact);
+	},function(err){
+	    console.log('Error: ' + err);
+	});
+}
+
 
 //
 // Init and startup
@@ -1262,7 +1320,7 @@ var init = {
 	// This is called after we are ready
 	// for webapp, this is $.ready, for phonegap, this is deviceready
 
-	alert ("in init");
+	// alert ("in init");
 	console.log ("in init");
 
 	// The popups have 'display:none' in the markup, so we aren't depending on any JS loading to hide them.

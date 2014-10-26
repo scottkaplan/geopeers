@@ -9,23 +9,50 @@
     </div>
     <div class="box_frame">
       <div class="box_content">
-	<select name="share_via" style="padding:5px" id="share_via">
-	  <%= share_location_my_contacts_tag %>
-	  <option value="email">Email</option>
-	  <option value="mobile">Text/SMS Message</option>
-	  <!--
-	  <option value="twitter">Twitter</option>
-	  <option value="facebook">Facebook</option>
-	  -->
-	</select>
 
-	<label for="share_to" class="ui-hidden-accessible">Share To</label>
-	<input type="text"
-	       name="share_to"
-	       id="share_to"
-	       placeholder="Share To"
-	       style="padding:5px"
-	       >
+	<div id="my_contacts_button">
+	  <button onclick="select_contact()">
+	    Select from My Contacts
+	  </button>
+	</div>
+
+	<div id="my_contacts_display" style="display:none; font-size:20px">
+	  <div>
+	    <div style="float:left">Email</div>
+	    <div style="float:left; font-weight:bold; margin-left: 5px" id="my_contacts_email"></div>
+	    <div style="clear:both"></div>
+	    <input type="hidden" name="my_contacts_email">
+	  </div>
+	  <div>
+	    <div style="float:left">Mobile</div>
+	    <div style="float:left; font-weight:bold; margin-left: 5px" id="my_contacts_mobile"></div>
+	    <div style="clear:both"></div>
+	    <input type="hidden" name="my_contacts_mobile">
+	  </div>
+	</div>
+
+	<div id="or_div" style="text-align:center">
+	  - or -
+	</div>
+
+	<div id="manual_share_via">
+	  <label for="share_via_mobile">
+	    <input type="radio" name="share_via" value="mobile">Text/SMS Message
+	  </label>
+	  <label for="share_via_email">
+	    <input type="radio" name="share_via" value="email">Email
+	  </label>
+	</div>
+
+	<div id="manual_share_to">
+	  <label for="share_to" class="ui-hidden-accessible">Share To</label>
+	  <input type="text"
+		 name="share_to"
+		 id="share_to"
+		 placeholder="Share To"
+		 style="padding:5px"
+		 >
+	</div>
       </div>
     </div>
   </div>
