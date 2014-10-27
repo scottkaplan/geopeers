@@ -89,12 +89,12 @@
 	<li>
 	  <ul id="navContainer">
 	    <div id="share_location_menu_item">
-	    <li>
-	      <a onclick="marker_mgr.popup_share_location()">
-		Share your location with 
-		<span class="menu_account_name"></span>
-	      </a>
-	    </li>
+	      <li>
+		<a onclick="marker_mgr.popup_share_location()">
+		  Share your location with 
+		  <span class="menu_account_name"></span>
+		</a>
+	      </li>
 	    </div>
 	    <hr>
 	    <li>
@@ -103,10 +103,19 @@
 		<span class="menu_account_name"></span>
 	      </a>
 	    </li>
+	    <div id="share_location_expire_time_div">
+	      <li>
+		<hr>
+		<hr>
+		<div id="share_location_expire_time"
+		     style="color:black; text-align:center; padding:3px">
+		</div>
+	      </li>
+	    </div>
 	  </ul>
 	</li>
       </ul>
-    </div>
+      </div>
 
     <script src="https://code.jquery.com/ui/1.11.0/jquery-ui.js"></script>
     <script src="https://prod1.magtogo.com/library/jquery.mobile-1.4.2.min.js"></script>

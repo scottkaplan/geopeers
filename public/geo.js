@@ -197,6 +197,8 @@ var my_pos = {
 	}
 	my_pos.current_position = position_from_server;
 	my_pos.create (my_pos.current_position);
+
+	// pan_needed is a first-time thru flag, set in create_map
 	if (my_pos.pan_needed) {
 	    var map = $('#map_canvas').gmap('get','map');
 	    map.panTo(new google.maps.LatLng(my_pos.current_position.coords.latitude,
@@ -374,6 +376,7 @@ var marker_mgr = {
     //           }
     markers: {},
     selected_sighting: null,
+    bound_needed: false,
     create_time_elem_str: function (num, unit) {
 	if (num == 0) {    
 	    return '';
@@ -453,6 +456,14 @@ var marker_mgr = {
 	// the name can appear in multiple menu items
 	$('.menu_account_name').text(marker_mgr.selected_sighting.name);
 
+	if (marker_mgr.selected_sighting.expire_time) {
+	    var expire_time = format_time(marker_mgr.selected_sighting.expire_time);
+	    $('#share_location_expire_time').html('Expires:<br>'+expire_time);
+	    $('#share_location_expire_time_div').show();
+	} else {
+	    $('#share_location_expire_time_div').hide();
+	}
+
 	$('#marker_menu .js ul').slideToggle(200);
 	event.stopPropagation();
     },
@@ -501,23 +512,32 @@ var marker_mgr = {
 	    marker_mgr.update_marker_view (marker_mgr.markers[device_id]);
 	}
 
-	var map = $('#map_canvas').gmap('get','map');
-	if (! jQuery.isEmptyObject(marker_mgr.markers)) {
-	    var bounds = new google.maps.LatLngBounds ();
-	    for (var device_id in marker_mgr.markers) {
-		var sighting = marker_mgr.markers[device_id].sighting;
-		var sighting_location = new google.maps.LatLng(sighting.gps_latitude,
-							       sighting.gps_longitude);
-		bounds.extend (sighting_location);
+	// the first time we update_markers
+	// zoom to a bounding box containing those markers and the curren pos
+	if (marker_mgr.bound_needed) {
+	    var map = $('#map_canvas').gmap('get','map');
+	    if (! jQuery.isEmptyObject(marker_mgr.markers)) {
+		var bounds = new google.maps.LatLngBounds ();
+		for (var device_id in marker_mgr.markers) {
+		    var sighting = marker_mgr.markers[device_id].sighting;
+		    var sighting_location = new google.maps.LatLng(sighting.gps_latitude,
+								   sighting.gps_longitude);
+		    bounds.extend (sighting_location);
+		}
+		var current_location = new google.maps.LatLng(my_pos.current_position.latitude,
+							      my_pos.current_position.longitude);
+		bounds.extend (current_location);
+		map.fitBounds (bounds);
 	    }
-	    map.fitBounds (bounds);
-	}
-	var zoom = map.getZoom();
-	// if we only have one marker, fitBounds zooms to maximum.
-	// Back off to max_zoom
-	var max_zoom = 16;
-	if (zoom > max_zoom) {
-	    $('#map_canvas').gmap('option', 'zoom', max_zoom);
+	    var zoom = map.getZoom();
+	    console.log (zoom);
+	    // if we only have one marker, fitBounds zooms to maximum.
+	    // Back off to max_zoom
+	    var max_zoom = 16;
+	    if (zoom > max_zoom) {
+		$('#map_canvas').gmap('option', 'zoom', max_zoom);
+	    }
+	    marker_mgr.bound_needed = false;
 	}
 	return;
     },
