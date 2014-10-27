@@ -1329,12 +1329,12 @@ class Protocol
       sql += " LEFT JOIN redeems ON shares.id = redeems.share_id"
       sql += " WHERE devices.account_id = #{device.account_id} AND
                      accounts.id = devices.account_id AND
-                     redeems.device_id = devices.device_id"
+                     shares.device_id = devices.device_id"
     else
       device_id_parm = Mysql2::Client.escape(params['device_id'])
       sql += " FROM accounts, devices, shares"
       sql += " LEFT JOIN redeems ON shares.id = redeems.share_id"
-      sql += " WHERE redeems.device_id = #{device_id_parm}"
+      sql += " WHERE shares.device_id = #{device_id_parm}"
     end
     $LOG.debug sql.gsub("\n"," ")
     # Find the names associated with the redeemed device_ids
