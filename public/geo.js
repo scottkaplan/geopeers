@@ -982,6 +982,7 @@ function manage_shares_callback (data, textStatus, jqXHR) {
 		retrieve:     true,
 		searching:    false,
 		lengthChange: false,
+		scrollX:      true,
 		aoColumnDefs: [ { "iDataSort": 0, "aTargets": [ 3 ] },
 	                        { "iDataSort": 1, "aTargets": [ 4 ] },
 				],
