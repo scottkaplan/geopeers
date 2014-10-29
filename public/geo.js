@@ -106,6 +106,7 @@ function form_request (form, extra_params, success_callback, failure_callback) {
 
     // always send device_id
     params['device_id'] = params['device_id'] ? params['device_id'] : device_id_mgr.get();
+    console.log (params['device_id']);
 
     ajax_request (params, success_callback, failure_callback);
 }
@@ -280,6 +281,7 @@ var device_id_mgr = {
     get: function () {
 	if (! device_id_mgr.device_id) {
 	    device_id_mgr.device_id = device_id_mgr.get_cookie ('device_id');
+	    console.log (device_id_mgr.device_id);
 	}
 	return (device_id_mgr.device_id);
     },
@@ -1194,10 +1196,12 @@ function heartbeat () {
 
 
 function get_client_type () {
-    if (/android/i.exec(navigator.userAgent)) {
+    var user_agent = navigator.userAgent;
+    console.log (user_agent);
+    if (/android/i.exec(user_agent)) {
 	return ('android');
-    } else if (/iphone/i.exec(navigator.userAgent) ||
-	       /ipad/i.exec(navigator.userAgent)) {
+    } else if (/iphone/i.exec(user_agent) ||
+	       /ipad/i.exec(user_agent)) {
 	return ('ios');
     } else {
 	return ('web');
@@ -1205,8 +1209,9 @@ function get_client_type () {
 }
 
 var download = {
-    download_urls: { ios:     'https://www.geopeers.com/bin/ios/index.html',
-		     android: 'https://www.geopeers.com/bin/android/index.html',
+    download_urls: { ios:     'https://eng.geopeers.com/bin/ios/index.html',
+		     // android: 'https://eng.geopeers.com/bin/android/index.html',
+		     android: 'market://search?q=pname:com.geopeers.app',
 		     // web:     'https://www.geopeers.com/bin/android/index.html',
     },
     if_else_native: function (is_native_function, is_not_native_function) {
@@ -1339,7 +1344,8 @@ function select_contact () {
 var init = {
     after_ready: function () {
 	// This is called after we are ready
-	// for webapp, this is $.ready, for phonegap, this is deviceready
+	// for webapp, this is $.ready,
+	// for phonegap, this is deviceready
 
 	// alert ("in init");
 	console.log ("in init");
@@ -1352,6 +1358,8 @@ var init = {
 	$('#share_location_popup').show();
 	$('#support_popup').show();
 	$('#share_management_popup').show();
+
+	init.update_main_menu();
 
 	// show the spinner in 200mS (.2 sec)
 	// if there are no GPS issues, the map will display quickly and
@@ -1382,6 +1390,17 @@ var init = {
 	if (getParameterByName('download_app')) {
 	    download.download_app();
 	}
+    },
+    update_main_menu: function () {
+	download.if_else_native (
+				 function (client_type, download_url) {
+				     // main menu item will download the native app
+				     $('#native_app_prompt').html("Download Native App");
+				 },
+				 function (client_type, download_url) {
+				     // main menu item will send a link to download the native app
+				     $('#native_app_prompt').html("Send Link for Native App");
+				 })
     },
 };
 
