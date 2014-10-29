@@ -237,8 +237,8 @@ def init
 end
 
 DOWNLOAD_URLS = {
-  ios:     'https://www.geopeers.com/bin/ios/index.html',
-  android: 'https://www.geopeers.com/bin/android/index.html',
+  ios:     'https://eng.geopeers.com/bin/ios/index.html',
+  android: 'https://eng.geopeers.com/bin/android/index.html',
 #  web:     'https://www.geopeers.com/bin/android/index.html',
 }
 
@@ -295,6 +295,66 @@ def bump_build_id
   build_id = build_id.to_i + 1
   set_global('build_id', build_id)
   build_id
+end
+
+def create_index(params=nil)
+  version = "0.7"
+  phonegap_html = nil
+  share_location_my_contacts_tag = nil
+  if params && params[:is_phonegap]
+    build_id = bump_build_id()
+    phonegap_html = '<script type="text/javascript" charset="utf-8" src="cordova.js"></script>'
+  else
+    build_id = get_build_id()
+  end
+  registration_popup =
+    make_popup("registration_popup",
+               "Setup your Account",
+               "views/registration_form.erb",
+               params)
+  download_link_popup =
+    make_popup("download_link_popup",
+               "Send Download Link",
+               "views/download_link_form.erb",
+               params)
+  download_type_popup =
+    make_popup("download_type_popup",
+               "Download Native App",
+               "views/download_type_form.erb",
+               params)
+  share_location_popup =
+    make_popup("share_location_popup",
+               "Share your Location",
+               "views/share_location_form.erb",
+               params)
+  support_popup =
+    make_popup("support_popup",
+               "Make Us Better",
+               "views/support_form.erb",
+               params)
+  share_management_popup =
+    make_popup("share_management_popup",
+               "Manage your Shared Locations",
+               "views/share_management_form.erb",
+               params)
+  ERB.new(File.read('views/index.erb')).result(binding)
+end
+
+def edit_config_xml
+  config_xml_file = "/home/geopeers/phonegap/geopeers/config.xml"
+  config_xml = File.read(config_xml_file)
+  build_id = get_build_id()
+  config_xml.sub! /versionCode = "\d"/, "versionCode = \"#{build_id}\""
+  File.open(config_xml_file, 'w') { |file| file.write(config_xml) }
+end
+
+def make_popup(popup_id, popup_title, nested_erb, params)
+  share_location_my_contacts_tag = nil
+  if params && params[:is_phonegap]
+    share_location_my_contacts_tag = '<option value="contacts">Select from My Contacts</option>'
+  end
+  nested_html = ERB.new(File.read(nested_erb)).result(binding)
+  ERB.new(File.read('views/popup.erb')).result(binding)
 end
 
 ##
@@ -1353,10 +1413,11 @@ class Protocol
     
     response_msg = ""
     response_err = ""
+    url = Protocol.create_download_url(params)
     if params['email']
       email_err = Protocol.send_html_email('views/download_email_body.erb', 'views/download_email_msg.erb',
                                            "Download your Geopeers app", params['email'],
-                                           { url: Protocol.create_download_url(params)}
+                                           {url: url}
                                            )
       if email_err
         response_err += "There was a problem sending email to #{params['email']}<br>"
@@ -1496,59 +1557,7 @@ class Protocol
     {message:"Message sent, thanks!"}
   end
 
-  def Protocol.make_popup(popup_id, popup_title, nested_erb, params)
-    share_location_my_contacts_tag = nil
-    if params && params[:is_phonegap]
-      share_location_my_contacts_tag = '<option value="contacts">Select from My Contacts</option>'
-    end
-    nested_html = ERB.new(File.read(nested_erb)).result(binding)
-    ERB.new(File.read('views/popup.erb')).result(binding)
-  end
-
   public
-
-  def Protocol.create_index(params=nil)
-    version = "0.7"
-    phonegap_html = nil
-    share_location_my_contacts_tag = nil
-    if params && params[:is_phonegap]
-      build_id = bump_build_id()
-      phonegap_html = '<script type="text/javascript" charset="utf-8" src="cordova.js"></script>'
-    else
-      build_id = get_build_id()
-    end
-    registration_popup =
-      make_popup("registration_popup",
-                 "Setup your Account",
-                 "views/registration_form.erb",
-                 params)
-    download_link_popup =
-      make_popup("download_link_popup",
-                 "Send Download Link",
-                 "views/download_link_form.erb",
-                 params)
-    download_type_popup =
-      make_popup("download_type_popup",
-                 "Download Native App",
-                 "views/download_type_form.erb",
-                 params)
-    share_location_popup =
-      make_popup("share_location_popup",
-                 "Share your Location",
-                 "views/share_location_form.erb",
-                 params)
-    support_popup =
-      make_popup("support_popup",
-                 "Make Us Better",
-                 "views/support_form.erb",
-                 params)
-    share_management_popup =
-      make_popup("share_management_popup",
-                 "Manage your Shared Locations",
-                 "views/share_management_form.erb",
-                 params)
-    ERB.new(File.read('views/index.erb')).result(binding)
-  end
 
   def Protocol.create_if_not_exists_device (params)
     $LOG.debug params
@@ -1657,7 +1666,7 @@ class ProtocolEngine < Sinatra::Base
         # Brand new web app
         device = Protocol.create_device_id (request.user_agent)
         response.set_cookie('device_id',
-                            { :value   => device_id,
+                            { :value   => device.device_id,
                               :domain  => 'geopeers.com',
                               :expires => Time.new(2038,1,17),
                             })
@@ -1718,7 +1727,7 @@ class ProtocolEngine < Sinatra::Base
     get path do
       if request.secure?
         # erb :index
-        index_html = Protocol.create_index params
+        index_html = create_index params
       else
         redirect request.url.gsub(/^http/, "https")
       end
