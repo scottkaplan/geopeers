@@ -733,7 +733,7 @@ class Protocol
            WHERE sightings.device_id = devices.device_id AND
                  devices.account_id = accounts.id
           "
-    $LOG.debug sql.gsub("\n"," ")
+    # $LOG.debug sql.gsub("\n"," ")
     elems = []
     Sighting.find_by_sql(sql).each { |row|
       elems.push ({ 'name'          => row.account_name ? row.account_name : 'Anonymous',
