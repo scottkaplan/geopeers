@@ -23,6 +23,29 @@ function is_phonegap () {
     return (window.location.href.match (/^file:/));
 }
 
+function have_native_app () {
+    // is the native app installed on this device?
+    if (registration.reg_info &&
+	registration.reg_info.device &&
+	registration.reg_info.device.xdevice_id) {
+	return (true);
+    } else {
+	return (false);
+    }
+}
+
+function if_else_native (is_native_function, is_not_native_function) {
+    if (is_phonegap()) {
+	if (is_native_function) {
+	    is_native_function();
+	}
+    } else {
+	if (is_not_native_function) {
+	    is_not_native_function();
+	}
+    }
+}
+
 function update_map_canvas_pos () {
     var height = $('#geo_info').height();
     var header_title_height = height + 60;
@@ -724,7 +747,7 @@ function main_page_share_location_popup () {
 	$('input[name=share_via]').prop('checked',false);
 	$('#share_location_popup').popup('open');
     } else {
-	download.send_native_app();
+	download.download_app();
     }
     return;
 }
@@ -1051,13 +1074,6 @@ function display_register_popup () {
 
 function validate_registration_form () {
     var name = $('#registration_form #name').val();
-    var new_account = $("input[type='radio'][name='new_account']:checked").val();
-    if (name.length == 0 && new_account == 'yes') {
-	display_in_div ("Please supply your name",
-			'registration_form_info', {color:'red'});
-	return;
-    }
-
     var email = $('#registration_form #email').val();
     var mobile = $('#registration_form #mobile').val();
 
@@ -1074,24 +1090,15 @@ function validate_registration_form () {
 	return;
     }
 
-    // if (new_account == 'no' && email && mobile) {
-    // display_in_div ("To register an existing account, please only supply email *OR* mobile",
-    // 'registration_form_info', {color:'red'});
-    // return;
-    // }
     return true;
 }
 
 function update_registration_popup () {
-    // set the 'New Account' radio to 'no' and hide the control
-    var radios = $('input:radio[name=new_account]');
-    radios.filter('[value=yes]').prop('checked', false);
-    radios.filter('[value=no]').prop('checked', true);
-    $('#new_account_div').hide();
-
-    $('#registration_form #name').val(registration.reg_info.name);
-    $('#registration_form #email').val(registration.reg_info.email);
-    $('#registration_form #mobile').val(registration.reg_info.mobile);
+    if (registration.reg_info && registration.reg_info.account) {
+	$('#registration_form #name').val(registration.reg_info.account.name);
+	$('#registration_form #email').val(registration.reg_info.account.email);
+	$('#registration_form #mobile').val(registration.reg_info.account.mobile);
+    }
     return;
 }
 
@@ -1134,16 +1141,12 @@ var registration = {
     },
     get_callback: function (data, textStatus, jqXHR) {
 	if (data) {
-	    if (data.id) {
-		registration.status = 'REGISTERED';
-		registration.reg_info = data;
-		update_registration_popup();
-		var client_type = get_client_type ();
-		// if (client_type == 'web')
-		// $('#flying_pin').hide();
-	    } else {
-		registration.status = 'NOT REGISTERED';
-	    }
+	    registration.status = 'REGISTERED';
+	    registration.reg_info = data;
+	    update_registration_popup();
+
+	    // initializations that require registration
+	    init.update_main_menu();
 	} else {
 	    registration.status = null;
 	}
@@ -1214,55 +1217,29 @@ var download = {
 		     android: 'market://search?q=pname:com.geopeers.app',
 		     // web:     'https://www.geopeers.com/bin/android/index.html',
     },
-    if_else_native: function (is_native_function, is_not_native_function) {
-	var client_type = get_client_type();
+    download_url: function () {
+	var client_type = get_client_type ();
 	var download_url = download.download_urls[client_type];
-	if (download_url) {
-	    if (is_native_function) {
-		is_native_function(client_type, download_url);
-	    }
-	} else {
-	    if (is_not_native_function) {
-		is_not_native_function(client_type, download_url);
-	    }
-	}
+	return (download_url);
     },
-    download_app_direct: function () {
-	var client_type = $("input[type='radio'][name='client_type']:checked").val();
-	var download_url = download.download_urls[client_type];
-	display_message ("Downloaded " + client_type + " native app", "message_ok");
-	window.location = download_url;
+    download_redirect: function () {
+	window.location = download.download_url();
     },
     download_app: function () {
-	// download the correct native app or prompt the user to select a native app type
-	// called when the download link is opened in the webapp
-	download.if_else_native (
-				 function (client_type, download_url) {
-				     window.location = download_url;
-				 },
-				 function (client_type, download_url) {
-				     // we get here because we are opening a geopeers.com URL
-				     // with download_app=1
-				     // and this browser is not on a device we have a native app for
-				     // 
-				     // But the map hasn't been put up yet
-				     // We have to wait for the map to get up before we can put up this popup
-				     setTimeout(function(){
-					     $('#download_type_popup').popup('open');
-					 }, 1000);
-				 });
-    },
-    send_native_app: function () {
-	// download the correct native app or a popup to send the download link
-	// called from the settings menu
-	download.if_else_native (
-				 function (client_type, download_url) {
-				     download.download_app();
-				 },
-				 function (client_type, download_url) {
-				     $('#download_link_popup').popup();
-				     $('#download_link_popup').popup('open');
-				 });
+	// called from the web app or URL parm (download_app=1)
+	if (download.download_url()) {
+	    if (getParameterByName('download_app')) {
+		// URL parm from server, go straight to redirect
+		download.download_redirect();
+	    } else {
+		// user pressed pin or Share Location in web app
+		// can't do it, but we don't want to start a download without warning them
+		$('#download_app_popup').popup('open');
+	    }
+	} else {
+	    // we don't have a native app for this device
+	    $('#download_link_popup').popup('open');
+	}
     },
     send_link: function () {
 	$('#download_link_form_spinner').show();
@@ -1276,8 +1253,12 @@ var download = {
     },
 };
 
-function send_native_app_wrapper () {
-    download.send_native_app();
+function download_app_wrapper () {
+    download.download_app();
+}
+
+function download_redirect_wrapper () {
+    download.download_redirect();
 }
 
 function native_app_redirect () {
@@ -1354,12 +1335,10 @@ var init = {
 	// At this point, it's safe to let the JS control them
 	$('#registration_popup').show();
 	$('#download_link_popup').show();
-	$('#download_type_popup').show();
+	$('#download_app_popup').show();
 	$('#share_location_popup').show();
 	$('#support_popup').show();
 	$('#share_management_popup').show();
-
-	init.update_main_menu();
 
 	// show the spinner in 200mS (.2 sec)
 	// if there are no GPS issues, the map will display quickly and
@@ -1392,15 +1371,39 @@ var init = {
 	}
     },
     update_main_menu: function () {
-	download.if_else_native (
-				 function (client_type, download_url) {
-				     // main menu item will download the native app
-				     $('#native_app_prompt').html("Download Native App");
-				 },
-				 function (client_type, download_url) {
-				     // main menu item will send a link to download the native app
-				     $('#native_app_prompt').html("Send Link for Native App");
-				 })
+	if_else_native(
+			function () {
+			    // if we are in a native app,
+			    // we don't need to download the native app to this device
+			    // send a link to an email/mobile to download the native app
+			    // to another device
+			    $('#native_app_prompt').html("Send Link for Native App");
+			},
+			function () {
+			    // we're in the webapp
+			    if (have_native_app()) {
+				// if we already have the native app,
+				// don't automatically download it again
+				// send a link
+				$('#native_app_prompt').html("Send Link for Native App");
+
+				// Show the deeplink on the main menu to switch to the native app
+				$('#native_app_switch').show();
+			    } else {
+				if (download.download_url()) {
+				    // there is a native app available
+				    // show the menu item to download the native app
+				    $('#native_app_prompt').html("Download Native App");
+				    // The user has explicitly asked to download the app
+				    // Bypass the download_app interstitial and start the download
+				    $('#download_onclick').attr('onclick', "download_redirect_wrapper()");
+				} else {
+				    // if we don't have a native app for this device
+				    // show the menu item to send a link somewhere else
+				    $('#native_app_prompt').html("Send Link for Native App");
+				}
+			    }
+			});
     },
 };
 
