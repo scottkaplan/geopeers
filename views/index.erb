@@ -47,6 +47,12 @@
 			 alt="Icon">
 		    <ul id="navContainer">
 		      <li>
+			<a onclick="main_page_share_location_popup()">
+			  Share Location
+			</a>
+		      </li>
+		      <hr>
+		      <li>
 			<a onclick="manage_shares()">
 			  View Shares
 			</a>
@@ -65,12 +71,20 @@
 		      </li>
 		      <hr>
 		      <li>
-			<a onclick="send_native_app_wrapper()">
+			<a onclick="download_app_wrapper()" id="download_onclick">
 			  <div id="native_app_prompt">
 			    Get Native App
 			  </div>
 			</a>
 		      </li>
+		      <div id="native_app_switch" style="display:none">
+			<hr>
+			<li>
+			  <a onclick="native_app_redirect()">
+			    Switch to Native App
+			  </a>
+			</li>
+		      </div>
 		    </ul>
 		  </li>
 		</ul>
@@ -83,7 +97,7 @@
 
       <%= registration_popup %>
       <%= download_link_popup %>
-      <%= download_type_popup %>
+      <%= download_app_popup %>
       <%= share_location_popup %>
       <%= support_popup %>
       <%= share_management_popup %>
