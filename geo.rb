@@ -279,10 +279,8 @@ end
 
 def global_test ()
   value = get_global('build_id')
-  puts value
   set_global('build_id', 1)
   value = get_global('build_id')
-  puts value
 end
 
 def get_build_id
@@ -317,10 +315,10 @@ def create_index(params=nil)
                "Send Download Link",
                "views/download_link_form.erb",
                params)
-  download_type_popup =
-    make_popup("download_type_popup",
+  download_app_popup =
+    make_popup("download_app_popup",
                "Download Native App",
-               "views/download_type_form.erb",
+               "views/download_app_form.erb",
                params)
   share_location_popup =
     make_popup("share_location_popup",
@@ -344,7 +342,8 @@ def edit_config_xml
   config_xml_file = "/home/geopeers/phonegap/geopeers/config.xml"
   config_xml = File.read(config_xml_file)
   build_id = get_build_id()
-  config_xml.sub! /versionCode = "\d"/, "versionCode = \"#{build_id}\""
+  puts build_id
+  config_xml.sub! /versionCode\s*=\s*"\d+\"/, "versionCode = \"#{build_id}\""
   File.open(config_xml_file, 'w') { |file| file.write(config_xml) }
 end
 
@@ -476,6 +475,14 @@ class Protocol
     end
   end
 
+  def Protocol.send_share_sms (share, params)
+    # Temporary hack
+    # This used to be called 'sms'
+    # All references should be gone, but we're being careful
+    log_error("Warning: saw 'sms', not 'mobile'")
+    Protocol.send_share_mobile(share, params)
+  end
+  
   def Protocol.send_share_mobile (share, params)
     sms_obj = Sms.new
     msg = Protocol.create_share_msg(share, params)
@@ -549,9 +556,12 @@ class Protocol
     end
   end
 
-  def Protocol.create_device(device_id, user_agent)
-    device = Device.new(device_id:  device_id,
-                        user_agent: user_agent)
+  def Protocol.create_device(device_id, user_agent, app_type)
+    device = Device.new(device_id:   device_id,
+                        user_agent:  user_agent,
+                        app_version: get_build_id(),
+                        app_type:    app_type,
+                        )
     account = Account.new()
     account.save
     device[:account_id] = account.id
@@ -564,7 +574,8 @@ class Protocol
   def Protocol.create_device_id (user_agent)
     require 'securerandom'
     device_id = SecureRandom.uuid
-    Protocol.create_device(device_id, user_agent)
+    # if we create the device_id, it's a webapp
+    Protocol.create_device(device_id, user_agent, 'webapp')
   end
 
   def Protocol.process_request_device_id_bind (params)
@@ -625,13 +636,28 @@ class Protocol
     web_app_device = Device.find_by(device_id: params['device_id'])
     $LOG.debug web_app_device
 
+    if web_app_device.xdevice_id &&
+        web_app_device.xdevice_id != native_app_device.device_id
+      log_error ("changing web_app_device.xdevice_id from #{web_app_device.xdevice_id} to #{native_app_device.xdevice_id}")
+    end
+    web_app_device.xdevice_id = native_app_device.device_id
+    web_app_device.save
+
+    if native_app_device.xdevice_id &&
+        native_app_device.xdevice_id != web_app_device.device_id
+      log_error ("changing native_app_device.xdevice_id from #{native_app_device.xdevice_id} to #{web_app_device.xdevice_id}")
+    end
+    native_app_device.xdevice_id = web_app_device.device_id
+    native_app_device.save
+
     # The deeplink includes these parameters for completeness.
     # Since we will merge the accounts here,
     # the native app doesn't need to do anything with these params
 
     if native_app_device.account_id == web_app_device.account_id
       # This was already done
-      msg = "Your shared locations have been transferred to the native app<p><div class='message_button' onclick='native_app_redirect()'><div class='message_button_text'>Switch to Native App</div></div>";
+      msg = "Your shared locations have been transferred to the native app"
+      msg += "<p>You can switch to the native app from the main menu";
       error_url = create_alert_url("https://eng.geopeers.com", msg);
       {redirect_url: error_url}
     else
@@ -769,13 +795,13 @@ class Protocol
       device = Device.find_by(device_id: params['device_id'])
       if device
         if device.account_id
-          Account.find(device.account_id)
+          account = Account.find(device.account_id)
+          {account: account, device: device}
         else
-          {}
+          {device: device}
         end
       else
         # This shouldn't happen.  If there is a device_id, it should be in the DB
-        $LOG.debug params['device_id']
         log_dos ("No record for "+params['device_id'])
         error_response "Unknown device ID"
       end
@@ -789,11 +815,6 @@ class Protocol
     msgs = []
     if ! params['device_id']
       msgs.push "No device ID"
-    end
-    if params['new_account'] == 'yes'
-      if ! params['name']
-        msgs.push "Please supply your name"
-      end
     end
 
     if params['email']
@@ -904,96 +925,6 @@ class Protocol
     return errs, user_msgs
   end
 
-  def Protocol.get_existing_account (params, type)
-    if (params[type])
-      return Account.where(type+"=? AND active = 1", params[type]).first
-    end
-    return
-  end
-
-  def Protocol.process_new_account (params)
-    # The user has indicated that these parameters (email/mobile) are for a new account
-    # So if they are used for another account, we throw an error
-    # If the user wanted to merge this device into another account,
-    # then they should not have checked 'Yes' to new_account
-
-    device = Device.find_by(device_id: params['device_id'])
-    $LOG.debug device
-    if (! device)
-      log_dos ("No device")
-      return ["There was a problem with your request."], nil
-    end
-
-    err_msgs = []
-
-    # The account is now created when the device is created
-    # err_msgs.push ("Your device is already registered") if device.account_id
-
-    # make sure account (email and/or mobile) doesn't already exist
-    account = Protocol.get_existing_account(params, 'mobile')
-    err_msgs.push (params['mobile']+" is already registered") if account && account.id != device.account_id
-    account = Protocol.get_existing_account(params, 'email')
-    err_msgs.push (params['email']+" is already registered") if account && account.id != device.account_id
-    return err_msgs, nil if err_msgs && ! err_msgs.empty?
-
-    account = Account.find(device.account_id)
-    account[:name] = params['name']
-    account.save
-
-    Protocol.send_verifications (params)
-  end
-
-  def Protocol.bind_to_account (params)
-    # associate device_id with an existing account
-    # since we have email and/or mobile, this requires a few twists
-
-    $LOG.debug "bind_to_account"
-    user_msgs = []
-    errs = []
-    accounts = {}
-    ['mobile','email'].each do | type |
-      if params[type]
-        account = Protocol.get_existing_account(params, type)
-        if account
-          err_msg, user_msg = Protocol.send_verification_by_type(params, type)
-          errs.push (err_msg) if (err_msg)
-          user_msgs.push (user_msg) if (user_msg)
-          accounts[type] = account
-        else
-          log_dos ("No account for #{params[type]}")
-          user_msgs.push ("There is no account associated with #{params[type]}")
-        end
-      end
-    end
-
-    if (! params['mobile'] && ! params['email'])
-      # we couldn't find an account
-      # The error message is already in user_msgs
-      errs.push ("Please supply either mobile or email")
-    elsif (accounts['mobile'] && accounts['email'] && (accounts['mobile'].id != accounts['email'].id))
-      # This is a problem, the email points to one account and the mobile to another
-      errs.push ("Please supply either email or mobile but not both to register this device with your account.  To create a new account, check 'New'.")
-    else
-      # at this point we are guaranteed that
-      # if we have an account for both mobile and email
-      # then they are the same
-      account = accounts['mobile'] ? accounts['mobile'] : accounts['email']
-      # it's possible that we don't have any accounts if we got a param with no account
-      if account
-        params['account_id'] = account.id
-        #
-        # Don't do this.  See:
-        #   #4302 - Only add a device to an account after verification
-        #
-        device = Device.find_by(device_id: params['device_id'])
-        device[:account_id] = account.id
-        device.save
-        user_msgs.push ("Your device has been added to the account #{account.name}")
-      end
-    end
-    return errs, user_msgs
-  end
-
   def Protocol.get_download_app_info (params)
     $LOG.debug params
     if (params['download_app'])
@@ -1068,23 +999,13 @@ class Protocol
     errs = Protocol.validate_register_params (params)
     return error_response errs.join('<br>') if (errs)
 
-    # There are three possibilities
-    #   1) create new account
-    #   2) register a new device to an existing account
-    #   3) edit the account parameters (after verification if needed)
-    if (params['new_account'] == 'yes')
-      errs, user_msgs = Protocol.process_new_account (params)
+    account = Protocol.get_account_from_device (device)
+    if account
+      # This device is already associated with an account
+      # params are changes to that account
+      errs, user_msgs = Protocol.manage_account(params, account)
     else
-      account = Protocol.get_account_from_device (device)
-      if account
-        # This device is already associated with an account
-        # params are changes to that account
-        errs, user_msgs = Protocol.manage_account(params, account)
-      else
-        # This device does not have an account yet (i.e. never got new_account == 'yes')
-        # use params (email and/or mobile) to find an account
-        errs, user_msgs = Protocol.bind_to_account(params)
-      end
+      errs.push ("No account for device")
     end
     $LOG.debug user_msgs if ! user_msgs.empty?
     $LOG.debug errs if ! errs.empty?
@@ -1096,9 +1017,6 @@ class Protocol
       response = {message: user_msgs.join('<br>'), style: {color:"red"}} if (user_msgs)
     end
     response
-  end
-
-  def Protocol.merge_response (cum_response,response)
   end
 
   def Protocol.process_request_share_location (params)
@@ -1566,8 +1484,12 @@ class Protocol
       $LOG.debug device
       device
     else
-      # This is a device_id we haven't see yet
-      Protocol.create_device(params[:device_id], params[:user_agent])
+      # This is a device_id we haven't seen yet
+      # Unless the caller told us, assume it is a native app
+      # because if we created the device_id,
+      # we would have created the device record at the same time
+      app_type = params[:app_type] ? params[:app_type] : 'native'
+      Protocol.create_device(params[:device_id], params[:user_agent], app_type)
     end
   end
 
@@ -1659,9 +1581,14 @@ class ProtocolEngine < Sinatra::Base
 
       # The device_id is stored in the client's cookie
       if (request.cookies['device_id'])
-        # a device_id has been set in the cookie
-        Protocol.create_if_not_exists_device({ device_id: request.cookies['device_id'],
-                                               user_agent: request.user_agent})
+        # we shouldn't get here
+        # This means there is a device_id cookie, but it wasn't in params
+        # Since params['device_id'] gets set from the cookie in the Sinatra DSL
+        # this shouldn't happen
+        Protocol.create_if_not_exists_device({ device_id:  request.cookies['device_id'],
+                                               user_agent: request.user_agent,
+                                               app_type:   'webapp',
+                                             })
       else
         # Brand new web app
         device = Protocol.create_device_id (request.user_agent)
