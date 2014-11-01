@@ -868,9 +868,10 @@ function send_config () {
     }
 
     var device_id = device_id_mgr.get();
+    version = $('#geopeers_config').attr('build_id');
     var request_parms = { method: 'config',
 			  device_id: device_id,
-			  version: 1,
+			  version: version,
     };
     ajax_request (request_parms, config_callback, geo_ajax_fail_callback);
 

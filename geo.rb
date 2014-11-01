@@ -698,7 +698,8 @@ class Protocol
 
     response = {}
     # handle upgrade
-    if (params['version'] && params['version'].to_f < 1.0)
+    current_build_id = get_global ('build_id')
+    if (params['version'] && params['version'].to_i < current_build_id)
       response.merge! ({js: "alert('If we had an upgrade, this would be it')"})
     end
 
