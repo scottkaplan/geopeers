@@ -132,8 +132,16 @@ def log_info(msg)
   msg
 end
 
+def host
+  Socket.gethostname
+end
+
+def url_base
+  'https://'+host()
+end
+
 def log_error(err)
-  msg = "On " + Socket.gethostname + "\n\n"
+  msg = "On " + host() + "\n\n"
   if (err.respond_to?(:backtrace))
     msg += "Error: " + err.message + "\n\n" + err.backtrace.join("\n")
   else
@@ -237,9 +245,9 @@ def init
 end
 
 DOWNLOAD_URLS = {
-  ios:     'https://eng.geopeers.com/bin/ios/index.html',
-  android: 'https://eng.geopeers.com/bin/android/index.html',
-#  web:     'https://www.geopeers.com/bin/android/index.html',
+  ios:     url_base() + '/bin/ios/index.html',
+  android: url_base() + '/bin/android/index.html',
+#  web:     url_base() + '/bin/android/index.html',
 }
 
 def get_client_type (device_id)
@@ -297,6 +305,7 @@ end
 
 def create_index(params=nil)
   version = "0.7"
+  host = host()
   phonegap_html = nil
   share_location_my_contacts_tag = nil
   if params && params[:is_phonegap]
@@ -386,19 +395,19 @@ class Protocol
   end
 
   def Protocol.create_share_url (share, params)
-    "https://eng.geopeers.com/api?method=redeem&cred="+share.share_cred
+    url_base() + "/api?method=redeem&cred="+share.share_cred
   end
 
   def Protocol.create_verification_url (params)
-    "https://eng.geopeers.com/api?method=verify&cred=#{params['cred']}&device_id=#{params['device_id']}"
+    url_base() + "/api?method=verify&cred=#{params['cred']}&device_id=#{params['device_id']}"
   end
 
   def Protocol.create_download_url (params)
-    "https://eng.geopeers.com/api?method=download_app&device_id=#{params['device_id']}"
+    url_base() + "/api?method=download_app&device_id=#{params['device_id']}"
   end
 
   def Protocol.create_unsolicited_url (params)
-    "https://eng.geopeers.com/api?method=unsolicited&cred=#{params['cred']}&device_id=#{params['device_id']}"
+    url_base() + "/api?method=unsolicited&cred=#{params['cred']}&device_id=#{params['device_id']}"
   end
 
   def Protocol.format_expire_time (share, params)
@@ -620,7 +629,7 @@ class Protocol
     $LOG.debug native_app_device
     if ! native_app_device
       log_error ("No native app device")
-      url = create_alert_url("https://eng.geopeers.com",
+      url = create_alert_url(url_base(),
                              "There was a problem with your request.  Support has been contacted.")
       return {redirect_url: url}
     end
@@ -629,7 +638,7 @@ class Protocol
     # something has gone very wrong
     if ! params['device_id']
       log_error ("No web app device id")
-      url = create_alert_url("https://eng.geopeers.com",
+      url = create_alert_url(url_base(),
                              "There was a problem with your request.  Support has been contacted.")
     end
 
@@ -658,7 +667,7 @@ class Protocol
       # This was already done
       msg = "Your shared locations have been transferred to the native app"
       msg += "<p>You can switch to the native app from the main menu";
-      error_url = create_alert_url("https://eng.geopeers.com", msg);
+      error_url = create_alert_url(url_base(), msg);
       {redirect_url: error_url}
     else
       errs = Protocol.merge_accounts(Account.find(native_app_device.account_id),
@@ -1102,7 +1111,7 @@ class Protocol
     # get the share for this cred
     share = Share.find_by(share_cred: params[:cred])
     $LOG.debug share
-    redirect_url = 'https://eng.geopeers.com'
+    redirect_url = url_base()
 
     if (share)
       if (! share.num_uses_max ||	# null num_uses_max -> unlimited uses
@@ -1368,7 +1377,7 @@ class Protocol
     #
     # This doesn't really download the app
     # It redirects to the webapp with instructions to download the native app
-    {redirect_url: "https://eng.geopeers.com/?download_app=1"}
+    {redirect_url: url_base() + "/?download_app=1"}
   end
   
   def Protocol.process_request_share_active_toggle (params)

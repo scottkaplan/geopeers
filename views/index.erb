@@ -11,10 +11,10 @@
 	  href="https://prod1.magtogo.com/library/jquery.mobile-1.4.2.min.css" />
     <link type="text/css"
 	  rel ="stylesheet"
-	  href="https://eng.geopeers.com/geo.css" />
+	  href="https://<%= host %>/geo.css" />
     <link type="text/css"
           rel="stylesheet"
-          href="https://eng.geopeers.com/dataTables.css" />
+          href="https://<%= host %>/dataTables.css" />
     <script src="https://prod1.magtogo.com/library/jquery-1.11.1.min.js"></script>
 
     <%= phonegap_html %>
@@ -35,7 +35,7 @@
           </div>
           <div class="overlap_div">
             <div id="flying_pin" class="icon_div">
-              <img src="https://eng.geopeers.com/images/pin_wings.png"
+              <img src="https://<%= host %>/images/pin_wings.png"
                    class="icon_img"
                    onclick="main_page_share_location_popup()">
             </div>
@@ -43,7 +43,7 @@
 	      <div id="main_menu" class="dropdown_menu">
 		<ul class="no-js">
 		  <li>
-		    <img src="https://eng.geopeers.com/images/mobile-menu-icon.png"
+		    <img src="https://<%= host %>/images/mobile-menu-icon.png"
 			 alt="Icon">
 		    <ul id="navContainer">
 		      <li>
@@ -108,7 +108,7 @@
              style="height:100%">       <!-- this has to be here or JQM will override -->
 	  <div id="gps_spinner"
 	       style="text-align:center; display:none">
-	    <img src="https://eng.geopeers.com/gps-satellites.gif">
+	    <img src="https://<%= host %>/gps-satellites.gif">
 	  </div>
         </div>
       </div>
@@ -151,19 +151,19 @@
 
     <script src="https://code.jquery.com/ui/1.11.0/jquery-ui.js"></script>
     <script src="https://prod1.magtogo.com/library/jquery.mobile-1.4.2.min.js"></script>
-    <script src="https://eng.geopeers.com/jqm_map/ui/jquery.ui.map.js"></script>
+    <script src="https://<%= host %>/jqm_map/ui/jquery.ui.map.js"></script>
 
     <script src="https://maps.google.com/maps/api/js?sensor=true"></script>
-    <script src="https://eng.geopeers.com/markerwithlabel.js"></script>
+    <script src="https://<%= host %>/markerwithlabel.js"></script>
 
-    <script src="https://eng.geopeers.com/md5.js"></script>
-    <script src="https://eng.geopeers.com/dataTables.js"></script>
-    <script src="https://eng.geopeers.com/jquery-ui-timepicker-addon.js"></script>
+    <script src="https://<%= host %>/md5.js"></script>
+    <script src="https://<%= host %>/dataTables.js"></script>
+    <script src="https://<%= host %>/jquery-ui-timepicker-addon.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jstimezonedetect/1.0.4/jstz.min.js"></script>
-    <script src="https://eng.geopeers.com/db.js"></script>
-    <script src="https://eng.geopeers.com/menu.js"></script>
-    <script src="https://eng.geopeers.com/geo.js"></script>
-    <script src="https://eng.geopeers.com/gps.js"></script>
+    <script src="https://<%= host %>/db.js"></script>
+    <script src="https://<%= host %>/menu.js"></script>
+    <script src="https://<%= host %>/geo.js"></script>
+    <script src="https://<%= host %>/gps.js"></script>
   </body>
 
 </html>

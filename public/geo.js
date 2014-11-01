@@ -19,6 +19,10 @@ function get_parms (url) {
     return (parms);
 }
 
+function host () {
+    return ('eng.geopeers.com');
+}
+
 function is_phonegap () {
     return (window.location.href.match (/^file:/));
 }
@@ -80,7 +84,7 @@ function display_message (message, css_class) {
 	    .css('right','16px')
 	    .css('top','40px')
 	    .css('text-align','right');
-	x_div.append ('<img src="https://eng.geopeers.com/images/x_black.png">');
+	x_div.append ('<img src="https://prod.geopeers.com/images/x_black.png">');
 	var msg_div = $('<div></div>')
 	    .html(message)
 	    .addClass(css_class);
@@ -138,7 +142,7 @@ function form_request (form, extra_params, success_callback, failure_callback) {
 function ajax_request (request_parms, success_callback, failure_callback) {
     // phonegap runs from https://geopeers.com
     // we now allow xdomain from that URL
-    var url = "https://eng.geopeers.com/api";
+    var url = "https://" + host() + "/api";
     $.ajax({type:  "POST",
 	    async: true,
 	    url:   url,
@@ -236,7 +240,7 @@ var my_pos = {
 	    return;
 	if (! position)
 	    return;
-	var image = 'https://eng.geopeers.com/images/green_star_32x32.png';
+	var image = 'https://prod.geopeers.com/images/green_star_32x32.png';
 
 	var marker_parms = { marker_id: 'my_pos',
 			     icon: image,
@@ -506,7 +510,7 @@ var marker_mgr = {
 		'device_id':    sighting.device_id,
 		'position':     new google.maps.LatLng(sighting.gps_latitude,sighting.gps_longitude),
 		'marker':       MarkerWithLabel,
-		'icon':         'https://eng.geopeers.com/images/pin_wings.png',
+		'icon':         'https://prod.geopeers.com/images/pin_wings.png',
 		'labelAnchor':  new google.maps.Point(60, 0),
 		'labelContent': label_text}).click(function(e) {marker_mgr.marker_menu(e, sighting)});
 	return ({marker: marker});
@@ -623,7 +627,7 @@ var device_id_bind = {
 	}
 
 	// redirect to the web app (webview) telling the webview what our device_id is
-	var url = "http://eng.geopeers.com/api?method=device_id_bind";
+	var url = "http://" + host() + "/api?method=device_id_bind";
 	url += "&native_device_id=" + device_id_mgr.device_id;
 	// MAGIC HERE:
 	// This is how we get state from the native app to the web app.
@@ -1000,12 +1004,12 @@ function manage_shares_callback (data, textStatus, jqXHR) {
 	    if (share.active) {
 		status_text_wrapper.text('On');
 		status_div.append(status_text_wrapper);
-		button.attr('src', 'https://eng.geopeers.com/images/red_button_30x30.png')
+		button.attr('src', 'https://prod.geopeers.com/images/red_button_30x30.png')
 		status_div.append(button_wrapper);
 	    } else {
 		status_text_wrapper.text('Off');
 		status_div.append(status_text_wrapper);
-		button.attr('src', 'https://eng.geopeers.com/images/green_button_30x30.png')
+		button.attr('src', 'https://prod.geopeers.com/images/green_button_30x30.png')
 		status_div.append(button_wrapper);
 		row.css('opacity', '0.6');
 		row.css('filter', 'alpha(opacity=60)');
@@ -1212,8 +1216,8 @@ function get_client_type () {
 }
 
 var download = {
-    download_urls: { ios:     'https://eng.geopeers.com/bin/ios/index.html',
-		     // android: 'https://eng.geopeers.com/bin/android/index.html',
+    download_urls: { ios:     'https://prod.geopeers.com/bin/ios/index.html',
+		     // android: 'https://prod.geopeers.com/bin/android/index.html',
 		     android: 'market://search?q=pname:com.geopeers.app',
 		     // web:     'https://www.geopeers.com/bin/android/index.html',
     },
