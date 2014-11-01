@@ -20,7 +20,7 @@ function get_parms (url) {
 }
 
 function host () {
-    return ('eng.geopeers.com');
+    return ('prod.geopeers.com');
 }
 
 function is_phonegap () {
