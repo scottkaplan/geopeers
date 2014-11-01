@@ -975,7 +975,6 @@ class Protocol
   def Protocol.process_request_register_device (params)
     # params:
     #   method = 'register_device'
-    #   new_account = [ 'yes' | 'no' ]	
     #   name
     #   email
     #   mobile
