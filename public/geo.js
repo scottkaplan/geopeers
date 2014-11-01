@@ -405,7 +405,6 @@ var marker_mgr = {
     //           }
     markers: {},
     selected_sighting: null,
-    bound_needed: false,
     create_time_elem_str: function (num, unit) {
 	if (num == 0) {    
 	    return '';
@@ -541,9 +540,11 @@ var marker_mgr = {
 	    marker_mgr.update_marker_view (marker_mgr.markers[device_id]);
 	}
 
-	// the first time we update_markers
-	// zoom to a bounding box containing those markers and the curren pos
-	if (marker_mgr.bound_needed) {
+	// First choice is to pan to the current location
+	// But if the current location is not available, we're still sitting over the middle of the US
+	// If we don't have any markers, that's the best we can do
+	// But if there are markers, zoom to a bounding box containing those markers
+	if (my_pos.pan_needed) {
 	    var map = $('#map_canvas').gmap('get','map');
 	    if (! jQuery.isEmptyObject(marker_mgr.markers)) {
 		var bounds = new google.maps.LatLngBounds ();
@@ -553,9 +554,6 @@ var marker_mgr = {
 								   sighting.gps_longitude);
 		    bounds.extend (sighting_location);
 		}
-		var current_location = new google.maps.LatLng(my_pos.current_position.latitude,
-							      my_pos.current_position.longitude);
-		bounds.extend (current_location);
 		map.fitBounds (bounds);
 	    }
 	    var zoom = map.getZoom();
@@ -566,7 +564,7 @@ var marker_mgr = {
 	    if (zoom > max_zoom) {
 		$('#map_canvas').gmap('option', 'zoom', max_zoom);
 	    }
-	    marker_mgr.bound_needed = false;
+	    my_pos.pan_needed = false;
 	}
 	return;
     },
