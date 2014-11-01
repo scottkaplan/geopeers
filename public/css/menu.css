@@ -1,0 +1,63 @@
+.click-nav ul li {
+    list-style:none;
+    cursor:pointer;
+}
+.click-nav {
+    margin-left: 150px;
+}
+/* Fallbacks */
+.click-nav .no-js ul {
+	display:none;
+}
+.click-nav .no-js:hover ul {
+    display:block;
+}
+
+#navContainer {
+    -webkit-border-radius: 10px;
+    -moz-border-radius: 10px;
+    border-radius: 10px;
+    background-color: #3eb1dd;
+    margin:0px;
+    list-style:none;
+    padding:0;
+    color:black;
+    text-transform:none;
+    text-shadow:none;
+    width:160px;
+    font-family: Helvetica;
+    font-size: 18px;
+    margin-left: -170px;
+    margin-top: -40px;
+    position:absolute;
+    z-index:10;
+}
+#navContainer li a {
+    color:black;
+    padding:12px 10px;
+    display:block;	/* Fill all available horizontal space */
+    text-decoration:none;	/* Remove underline */
+    transition:background .2s;
+    -moz-transition:background .2s;
+    -webkit-transition:background .2s;
+    -o-transition:background .2s;
+    -webkit-border-radius: 10px;
+    -moz-border-radius: 10px;
+    border-radius: 10px;
+}
+#navContainer ul {
+    padding: 0px;
+    margin: 0px;
+}
+#navContainer hr {
+    padding: 0px;
+    margin-top: 0px;
+    margin-bottom: 0px;
+    margin-left: auto;
+    margin-right: auto;
+    width:80%;
+}
+#navContainer a:hover {
+    color:white;
+    background:#147498;
+}
