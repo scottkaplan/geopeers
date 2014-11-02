@@ -352,15 +352,6 @@ def create_index(params=nil)
   ERB.new(File.read('views/index.erb')).result(binding)
 end
 
-def edit_config_xml
-  config_xml_file = "/home/geopeers/phonegap/geopeers/config.xml"
-  config_xml = File.read(config_xml_file)
-  build_id = get_build_id()
-  puts build_id
-  config_xml.sub! /versionCode\s*=\s*"\d+\"/, "versionCode = \"#{build_id}\""
-  File.open(config_xml_file, 'w') { |file| file.write(config_xml) }
-end
-
 def make_popup(popup_id, popup_title, nested_erb, params)
   share_location_my_contacts_tag = nil
   if params && params[:is_phonegap]
