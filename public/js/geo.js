@@ -745,11 +745,13 @@ function main_page_share_location_popup () {
 	$('#my_contacts_display').hide();
 	$('input[name=my_contacts_email]').val(null);
 	$('input[name=my_contacts_mobile]').val(null);
-	$('input[name=share_to]').val(null);
-	$('input[name=share_via]').prop('checked',false);
 	$('#share_location_popup').popup('open');
     } else {
-	download.download_app();
+	$('#share_via').show();
+	$('#manual_share_via').show();
+	$('#manual_share_to').show();
+	$('#share_location_popup').popup('open');
+	// download.download_app();
     }
     return;
 }
@@ -766,6 +768,17 @@ function share_location () {
     var share_via = $("#share_via").val();
     var share_to = $("#share_to").val();
     var seer_device_id = $('input:input[name=seer_device_id]');
+
+    // If the user supplied an account name:
+    if ($("#account_name").val()) {
+	// don't show the account_name box on the share_location popup anymore
+	$('#account_name_box').hide();
+	// and make sure it shows up in the Account Settings popup
+	if (registration.reg_info &&
+	    registration.reg_info.account) {
+	    registration.reg_info.account.name = $("#account_name").val();
+	}
+    }
 
     // location can be shared either by:
     //   1) share_via (email | mobile) / share_to (<addr>)
@@ -842,6 +855,17 @@ function config_callback (data, textStatus, jqXHR) {
         eval (data.js);
     }
 
+    if (data.update) {
+	$('#update_app_popup').show();
+	$('#update_app_popup').popup('open');
+    }
+
+    // The server is telling us if there is an account name for this device
+    // If not, we want to let the device user supply a name when they send a share
+    if (! data.account_name) {
+	$('#account_name_box').show();
+    }
+
     // things that need device_id to be configured at the server
     if (device_id_mgr.phonegap) {
 	db.get_global ('device_id_bind_complete', device_id_bind.check);
@@ -868,7 +892,7 @@ function send_config () {
     }
 
     var device_id = device_id_mgr.get();
-    version = $('#geopeers_config').attr('build_id');
+    var version = $('#geopeers_config').attr('build_id');
     var request_parms = { method: 'config',
 			  device_id: device_id,
 			  version: version,
@@ -1260,6 +1284,10 @@ function download_app_wrapper () {
     download.download_app();
 }
 
+function download_link_wrapper () {
+    $('#download_link_popup').popup('open');
+}
+
 function download_redirect_wrapper () {
     download.download_redirect();
 }
@@ -1311,6 +1339,11 @@ function select_contact () {
     $('#manual_share_via').show();
     $('#manual_share_to').show();
 
+    // We have to dump any previously typed value
+    // to prevent it getting in the way of the my_contacts selection
+    $('input[name=share_to]').val(null);
+    $('input[name=share_via]').prop('checked',false);
+
     $('#share_location_popup').popup('open');
 
     navigator.contacts.pickContact(function(contact){
@@ -1339,6 +1372,7 @@ var init = {
 	$('#registration_popup').show();
 	$('#download_link_popup').show();
 	$('#download_app_popup').show();
+	$('#update_app_popup').show();
 	$('#share_location_popup').show();
 	$('#support_popup').show();
 	$('#share_management_popup').show();
@@ -1374,39 +1408,19 @@ var init = {
 	}
     },
     update_main_menu: function () {
-	if_else_native(
-			function () {
-			    // if we are in a native app,
-			    // we don't need to download the native app to this device
-			    // send a link to an email/mobile to download the native app
-			    // to another device
-			    $('#native_app_prompt').html("Send Link for Native App");
-			},
-			function () {
-			    // we're in the webapp
-			    if (have_native_app()) {
-				// if we already have the native app,
-				// don't automatically download it again
-				// send a link
-				$('#native_app_prompt').html("Send Link for Native App");
-
-				// Show the deeplink on the main menu to switch to the native app
-				$('#native_app_switch').show();
-			    } else {
-				if (download.download_url()) {
-				    // there is a native app available
-				    // show the menu item to download the native app
-				    $('#native_app_prompt').html("Download Native App");
-				    // The user has explicitly asked to download the app
-				    // Bypass the download_app interstitial and start the download
-				    $('#download_onclick').attr('onclick', "download_redirect_wrapper()");
-				} else {
-				    // if we don't have a native app for this device
-				    // show the menu item to send a link somewhere else
-				    $('#native_app_prompt').html("Send Link for Native App");
-				}
-			    }
-			});
+	if (! is_phonegap() ) {
+	    if (have_native_app()) {
+		// Show the deeplink on the main menu to switch to the native app
+		$('#native_app_switch').show();
+	    } elsif (download.download_url()) {
+		// there is a native app available
+		// show the menu item to download the native app
+		$('#native_app_prompt').html("Download Native App");
+		// The user has explicitly asked to download the app
+		// Bypass the download_app interstitial and start the download
+		$('#download_onclick').attr('onclick', "download_redirect_wrapper()");
+	    }
+	}
     },
 };
 
