@@ -3,6 +3,33 @@
   <div id="share_location_form_spinner" style="text-align:center; display:none">
     <img src="https://<%= host %>/images/ajax-loader.gif">
   </div>
+
+  <div class="box_outer" id="account_name_box" style="display:none">
+    <div class="box_title">
+      Account Name
+    </div>
+    <div class="box_frame">
+      <div class="box_content" style="text-align:center">
+
+	Because you haven't provided a name yet,
+	your share pin will have the label 'Anonymous'.
+	<p />
+	You can supply any label to appear with your pin.
+	<p />
+	You can change this name on the Account Settings popup from the main menu.
+	<div>
+	  <label for="account_name" class="ui-hidden-accessible">Account Name</label>
+	  <input type="text"
+		 name="account_name"
+		 id="account_name"
+		 placeholder="Fred Friendly"
+		 style="padding:5px"
+		 >
+	</div>
+      </div>
+    </div>
+  </div>
+
   <div class="box_outer" id="share_via" style="display:none">
     <div class="box_title">
       Share via:
@@ -37,10 +64,12 @@
 
 	<div id="manual_share_via">
 	  <label for="share_via_mobile">
-	    <input type="radio" name="share_via" value="mobile">Text/SMS Message
+	    <input type="radio" name="share_via" value="mobile" id="share_via_mobile">
+	    Text/SMS Message
 	  </label>
 	  <label for="share_via_email">
-	    <input type="radio" name="share_via" value="email">Email
+	    <input type="radio" name="share_via" value="email" id="share_via_email">
+	    Email
 	  </label>
 	</div>
 
