@@ -1412,7 +1412,7 @@ var init = {
 	    if (have_native_app()) {
 		// Show the deeplink on the main menu to switch to the native app
 		$('#native_app_switch').show();
-	    } elsif (download.download_url()) {
+	    } else if (download.download_url()) {
 		// there is a native app available
 		// show the menu item to download the native app
 		$('#native_app_prompt').html("Download Native App");
