@@ -137,7 +137,7 @@ def host
 end
 
 def url_base
-  'https://'+host()
+  'https://geopeers.com'
 end
 
 def log_error(err)
@@ -328,6 +328,11 @@ def create_index(params=nil)
     make_popup("download_app_popup",
                "Download Native App",
                "views/download_app_form.erb",
+               params)
+  update_app_popup =
+    make_popup("update_app_popup",
+               "Update Native App",
+               "views/update_app_form.erb",
                params)
   share_location_popup =
     make_popup("share_location_popup",
@@ -699,8 +704,20 @@ class Protocol
     response = {}
     # handle upgrade
     current_build_id = get_global ('build_id')
-    if (params['version'] && params['version'].to_i < current_build_id)
-      response.merge! ({js: "alert('If we had an upgrade, this would be it')"})
+    if (params['version'] && params['version'].to_i < current_build_id.to_i)
+      response.merge! ({update: true})
+    end
+
+    device = Device.find_by(device_id: params['device_id'])
+    if device.account_id
+      account = Account.find(device.account_id)
+      if account.name
+        response.merge! ({account_name: true})
+      else
+        response.merge! ({account_name: false})
+      end
+    else
+      response.merge! ({account_name: false})
     end
 
     response
@@ -1030,6 +1047,16 @@ class Protocol
 
   def Protocol.process_request_share_location (params)
 
+    # First, if the device user has supplied a name, use it.
+    if params['account_name']
+      account = Protocol.get_account_from_device_id (params['device_id'])
+      if account
+        account.name = params['account_name']
+        account.save
+      end
+    end
+
+
     # there are three ways to specify a share:
     #   1) seer_device_id
     #   2) share_via/share_to
@@ -1102,6 +1129,7 @@ class Protocol
                                        params['tz'],
                                        response)
     end
+
     response
   end
 
@@ -1487,10 +1515,8 @@ class Protocol
   public
 
   def Protocol.create_if_not_exists_device (params)
-    $LOG.debug params
     device = Device.find_by(device_id: params[:device_id])
     if device
-      $LOG.debug device
       device
     else
       # This is a device_id we haven't seen yet
