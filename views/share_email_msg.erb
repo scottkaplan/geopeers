@@ -9,13 +9,18 @@ Content-Type: text/plain; charset=ISO-8859-1; format=flowed; delsp=yes
 
 with you.
 
-When you click on it, you will see <%= name %>'s current location.
+<% if message %>
+They included a message:
 
+<%= message %>
+
+<% end %>
+When you click on it, you will see <%= possessive %> current location.
+There is no signup or registration necessary to view this link.
 <% if expire_time %>
-<p>
 The link will expire <%= expire_time %>.
-Until then, the link will show you <%= name %>'s current position.
-After that, you will no longer receive updates on <%= name %>'s position.
+Until then, the link will show you <%= possessive %> current position.
+After that, you will no longer receive updates on <%= possessive %> position.
 <% end %>
 
 --<%= boundary_random %>
