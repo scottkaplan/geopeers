@@ -174,7 +174,7 @@ def create_alert_url(url, msg, message_type=nil)
   url
 end
 
-def create_and_send_share(share_params, tz, response)
+def create_and_send_share(share_params, params, response)
   $LOG.debug share_params
   share_params['share_cred'] = SecureRandom.urlsafe_base64(10)
   share = Share.new(share_params)
@@ -182,7 +182,7 @@ def create_and_send_share(share_params, tz, response)
 
   # Can't have tz in Share.new (share_params)
   # Need it in send_share, so add it now
-  share_params['tz'] = tz
+  share_params.merge! (params)
   share_response = Protocol.send_share(share, share_params)
   $LOG.debug share_response
 
@@ -1080,7 +1080,7 @@ class Protocol
           response = create_and_send_share(share_parms.merge({ share_via: type,
                                                                share_to:  account[type],
                                                              }),
-                                           params['tz'],
+                                           params,
                                            response)
         end
       end
@@ -1094,7 +1094,7 @@ class Protocol
         response = create_and_send_share(share_parms.merge({ share_via: type,
                                                              share_to:  params["my_contacts_#{type}"],
                                                            }),
-                                         params['tz'],
+                                         params,
                                          response)
       end
     end
@@ -1117,7 +1117,7 @@ class Protocol
       response = create_and_send_share(share_parms.merge({ share_via: params['share_via'],
                                                            share_to:  params['share_to'],
                                                          }),
-                                       params['tz'],
+                                       params,
                                        response)
     end
 
@@ -1327,26 +1327,26 @@ class Protocol
                     shares.expire_time, shares.active,
                     shares.updated_at, shares.created_at,
                     redeems.id AS redeem_id,
-                    redeems.created_at AS redeem_time
-          "
-    if device.account_id
-      sql += ", accounts.name AS redeem_name"
-      sql += " FROM accounts, devices, shares"
-      sql += " LEFT JOIN redeems ON shares.id = redeems.share_id"
-      sql += " WHERE devices.account_id = #{device.account_id} AND
-                     accounts.id = devices.account_id AND
-                     shares.device_id = devices.device_id"
-    else
-      device_id_parm = Mysql2::Client.escape(params['device_id'])
-      sql += " FROM accounts, devices, shares"
-      sql += " LEFT JOIN redeems ON shares.id = redeems.share_id"
-      sql += " WHERE shares.device_id = #{device_id_parm}"
-    end
-    $LOG.debug sql.gsub("\n"," ")
+                    redeems.created_at AS redeem_time,
+                    redeems.device_id AS redeem_device_id
+          FROM accounts, devices, shares
+          LEFT JOIN redeems ON shares.id = redeems.share_id
+          WHERE devices.account_id = #{device.account_id} AND
+                accounts.id = devices.account_id AND
+                shares.device_id = devices.device_id"
+    $LOG.debug sql
     # Find the names associated with the redeemed device_ids
     elems = []
     Share.find_by_sql(sql).each { |row|
-      elems.push (row)
+      elem = {}
+      row.attributes.each { |key, val|
+        elem[key] = val
+      }
+      account = Protocol.get_account_from_device_id (row.redeem_device_id)
+      if account
+        elem['redeem_name'] = account['name'] ? account['name'] : "Anonymous"
+      end
+      elems.push (elem)
     }
     {'shares' => elems }
   end
