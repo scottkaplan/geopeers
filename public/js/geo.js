@@ -747,11 +747,7 @@ function main_page_share_location_popup () {
 	$('input[name=my_contacts_mobile]').val(null);
 	$('#share_location_popup').popup('open');
     } else {
-	$('#share_via').show();
-	$('#manual_share_via').show();
-	$('#manual_share_to').show();
-	$('#share_location_popup').popup('open');
-	// download.download_app();
+	download.download_app();
     }
     return;
 }
