@@ -42,14 +42,14 @@
 
 	  <div style="font-size: 13px; background-color: #FFF;">
 	    <span style="color: #666;">
-	      <pre style="margin-left:10px; font-size: 13px;font-family: ArialMT, Arial, sans-serif;white-space: pre-wrap;white-space: -moz-pre-wrap !important;word-wrap: break-word;" itemprop="description">
-		When you click on it, you will see <%= possessive %> current location.
-		There is no signup or registration necessary to view this link.
-		<% if expire_time %>
-		The link will expire <%= expire_time %>.
-		Until then, the link will show you <%= possessive %> current position.
-		After that, you will no longer receive updates on <%= possessive %> position.
-		<% end %>
+	      <pre style="font-size: 13px;font-family: ArialMT, Arial, sans-serif;white-space: pre-wrap;white-space: -moz-pre-wrap !important;word-wrap: break-word;" itemprop="description">
+When you click on it, you will see <%= possessive %> current location.
+There is no signup or registration necessary to view this link.
+<% if expire_time %>
+The link will expire <%= expire_time %>.
+Until then, the link will show you <%= possessive %> current position.
+After that, you will no longer receive updates on <%= possessive %> position.
+<% end %>
 	      </pre>
 	    </span>
 	  </div>
