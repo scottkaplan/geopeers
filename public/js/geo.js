@@ -747,6 +747,10 @@ function main_page_share_location_popup () {
 	$('input[name=my_contacts_mobile]').val(null);
 	$('#share_location_popup').popup('open');
     } else {
+	// $('#share_via').show();
+	// $('#manual_share_via').show();
+	// $('#manual_share_to').show();
+	// $('#share_location_popup').popup('open');
 	download.download_app();
     }
     return;
@@ -756,7 +760,13 @@ function share_location_callback (data, textStatus, jqXHR) {
     $('#share_location_form_spinner').hide();
     var css_class = data.css_class ? data.css_class : 'message_success'
     display_message(data.message, css_class);
-    $('#share_location_popup').popup('close')
+    $('#share_location_popup').popup('close');
+
+    // don't show the account_name box on the share_location popup anymore
+    $('#account_name_box').hide();
+
+    // in case the name was updated, update registration.reg_info
+    registration.init();
     return;
 }
 
@@ -767,8 +777,6 @@ function share_location () {
 
     // If the user supplied an account name:
     if ($("#account_name").val()) {
-	// don't show the account_name box on the share_location popup anymore
-	$('#account_name_box').hide();
 	// and make sure it shows up in the Account Settings popup
 	if (registration.reg_info &&
 	    registration.reg_info.account) {
@@ -1190,6 +1198,8 @@ var registration = {
 	} else {
 	    display_in_div ('No data', 'registration_form_info', {color:'red'});
 	}
+	// update reg_info
+	registration.init();
 	return;
     },
 }
