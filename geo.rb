@@ -643,14 +643,14 @@ class Protocol
 
     if web_app_device.xdevice_id &&
         web_app_device.xdevice_id != native_app_device.device_id
-      log_error ("changing web_app_device.xdevice_id from #{web_app_device.xdevice_id} to #{native_app_device.xdevice_id}")
+      log_error ("changing web_app_device.xdevice_id from #{web_app_device.xdevice_id} to #{native_app_device.device_id}\nProbably from deleting and re-installing the native app")
     end
     web_app_device.xdevice_id = native_app_device.device_id
     web_app_device.save
 
     if native_app_device.xdevice_id &&
         native_app_device.xdevice_id != web_app_device.device_id
-      log_error ("changing native_app_device.xdevice_id from #{native_app_device.xdevice_id} to #{web_app_device.xdevice_id}")
+      log_error ("changing native_app_device.xdevice_id from #{native_app_device.xdevice_id} to #{web_app_device.device_id}")
     end
     native_app_device.xdevice_id = web_app_device.device_id
     native_app_device.save
@@ -666,8 +666,8 @@ class Protocol
       error_url = create_alert_url(url_base(), msg);
       {redirect_url: error_url}
     else
-      errs = Protocol.merge_accounts(Account.find(native_app_device.account_id),
-                                     Account.find(web_app_device.account_id))
+      errs = Protocol.merge_accounts(Protocol.get_account_from_device(native_app_device),
+                                     Protocol.get_account_from_device(web_app_device))
       if ! errs.empty?
         msg = errs.join('<br>')
         native_app_deeplink = create_alert_url(native_app_deeplink, msg);
@@ -701,7 +701,7 @@ class Protocol
 
     device = Device.find_by(device_id: params['device_id'])
     if device.account_id
-      account = Account.find(device.account_id)
+      account = Protocol.get_account_from_device(device)
       if account.name
         response.merge! ({account_name: true})
       else
@@ -813,7 +813,7 @@ class Protocol
       device = Device.find_by(device_id: params['device_id'])
       if device
         if device.account_id
-          account = Account.find(device.account_id)
+          account = Protocol.get_account_from_device(device)
           {account: account, device: device}
         else
           {device: device}
@@ -1130,7 +1130,6 @@ class Protocol
 
     # get the share for this cred
     share = Share.find_by(share_cred: params[:cred])
-    $LOG.debug share
     redirect_url = url_base()
 
     if (share)
@@ -1145,13 +1144,10 @@ class Protocol
                      redeems.share_id  = shares.id AND
                      (shares.expire_time IS NULL OR NOW() < shares.expire_time)
               "
-        $LOG.debug sql
         current_share = Share.find_by_sql(sql).first
-        $LOG.debug current_share
         if (current_share)
           if ( ! current_share.expire_time)
             # we already have an unlimited share
-            $LOG.debug "unlimited share"
             return {:redirect_url => redirect_url}
           end
           
@@ -1179,6 +1175,15 @@ class Protocol
         $LOG.debug redeem
         share.num_uses = share.num_uses ? share.num_uses+1 : 1
         share.save
+
+        device = Device.find_by(device_id: params['device_id'])
+        if device &&
+            device.app_type == 'webapp' &&
+            device.xdevice_id
+          # This share was redeemed by a webapp with a native app on the device
+          # deeplink to the native app
+          redirect_url = "geopeers://"
+        end
       else
         # This share has been used up
         msg = "That credential is not valid.  You can't view the location.  You can still use the other features of GeoPeers"
@@ -1188,6 +1193,7 @@ class Protocol
       msg = "That credential is not valid.  You can't view the location.  You can still use the other features of GeoPeers"
       redirect_url = create_alert_url(redirect_url, msg)
     end
+    $LOG.debug redirect_url
     {:redirect_url => redirect_url}
   end
 
@@ -1237,7 +1243,8 @@ class Protocol
       # But it is possible that there are two different accounts
       #   1) This device_id has an account
       #   2) There is an account associated with the value 
-      account_for_device = Account.find(device.account_id)
+      account_for_device = Protocol.get_account_from_device(device)
+
       $LOG.debug account_for_device
       account_from_val = Account.where("#{auth_cred.auth_type}=? AND active = 1",auth_cred.auth_key).first
       $LOG.debug account_from_val
@@ -1423,8 +1430,10 @@ class Protocol
       log_error ("Share for #{params['share_id']}")
       return (error_response)
     end
-    if (share.device_id != params['device_id'])
-      log_error ("Device ID for share #{params['share_id']} is #{share.device_id}, does not match #{params['device_id']}")
+    account_share = Protocol.get_account_from_device_id (share.device_id)
+    account_device_id = Protocol.get_account_from_device_id (params['device_id'])
+    if (account_share.id != account_device_id.id)
+      log_error ("Account for share #{params['share_id']} is #{account_share.id}, device_id #{share.device_id}, does not match ${account_device_id.id}, device_id #{params['device_id']}")
       return (error_response)
     end
     share.active = share.active == 1 ? 0 : 1
