@@ -42,6 +42,11 @@ body {
     float:right;
 }
 
+.menu_div {
+    padding: 10px 3px 3px 3px;
+    float: left;
+}
+
 .icon_img {
     max-height: 42px;
     max-width: 50px;
@@ -98,6 +103,7 @@ body {
 .message_button_text {
     color: #4F8A10;
     font-size: 18px;
+    margin-top: 2px;
 }
 
 .message_warning {
@@ -185,11 +191,12 @@ body {
     cursor:pointer;
 }
 .dropdown_menu {
-    margin-left: 150px;
+    /* margin-left: 150px; */
 }
 .dropdown_menu .js {
     margin-top: 0px;
     margin-bottom: 0px;
+    padding: 0px;
 }
 
 /* Fallbacks */
@@ -216,7 +223,7 @@ body {
     width:160px;
     font-family: Helvetica;
     font-size: 14px;
-    margin-left: -170px;
+    margin-left: 50px;
     margin-top: -40px;
     position:absolute;
     z-index:10;
