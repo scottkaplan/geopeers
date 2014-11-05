@@ -600,15 +600,44 @@ var device_id_bind = {
 	if (device_id_mgr.phonegap) {
 	    if (val == 1) return;
 
-	    // kick off the handshake by redirecting to the device browser
-	    // Bet you didn't know you could get out of the native app's webview :-)
 	    device_id_bind.web_app_redirect ();
 	    return;
 	} else {
 	    return 1;
 	}
     },
+    countdown: function () {
+	var val = $('#countdown').html();
+	if (val <= 0) {
+	    device_id_bind.web_app_redirect();
+	    // we don't get back to here
+	} else {
+	    val -= 1;
+	}
+	$('#countdown').html(val);
+	setTimeout(function() {device_id_bind.countdown()}, 1000);
+    },    
+    countdown2: function () {
+	var val = $('#countdown2').html();
+	if (val <= 0) {
+	    device_id_bind.native_app_redirect();
+	    // we don't get back to here
+	} else {
+	    val -= 1;
+	}
+	$('#countdown2').html(val);
+	setTimeout(function() {device_id_bind.countdown2()}, 1000);
+    },    
+    web_app_redirect_interstitial: function () {
+	var msg = "The native app has been installed on your device.  We need to make sure any shares in the web app appear in this native app.  To do this, we need to switch to the web app."
+	msg += "<p><div class='message_button' onclick='device_id_bind.web_app_redirect()'><div class='message_button_text'>Switch to web app</div></div>"
+	msg += "<p><span>You will be switch automatically in </span><span id='countdown' style='font-size:18px'>6</span><script>device_id_bind.countdown()</script>"
+	display_message (msg, 'message_success')
+    },
     web_app_redirect: function () {
+	// kick off the handshake by redirecting to the device browser
+	// Bet you didn't know you could get out of the native app's webview :-)
+
 	// Defensive coding:
 	// This is an in-memory version of globals.device_id_bind_complete
 	// This prevents the infinite redirectly loop between the native and web apps if the DB call fails
@@ -624,6 +653,7 @@ var device_id_bind = {
 	    device_id_bind.ran_bind = 1;
 	}
 
+
 	// redirect to the web app (webview) telling the webview what our device_id is
 	var url = "http://" + host() + "/api?method=device_id_bind";
 	url += "&native_device_id=" + device_id_mgr.device_id;
@@ -637,6 +667,10 @@ var device_id_bind = {
 	// we do get back to this JS file
 	// The webview will redirect back to a deeplink
 	// which will be handled in handleOpenURL
+    },
+    native_app_redirect: function (url) {
+        native_app_deeplink = "geopeers://api?method=device_id_bind";
+	window.location = native_app_deeplink;
     },
     phase_2: function (url) {
 	// this is the 2nd part of a handshake between the native app (running this routine) and
