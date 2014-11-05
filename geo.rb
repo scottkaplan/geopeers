@@ -619,8 +619,6 @@ class Protocol
     #   HTML
     #     
 
-    native_app_deeplink = "geopeers://api?method=device_id_bind"
-
     native_app_device = Device.find_by(device_id: params['native_device_id'])
     $LOG.debug native_app_device
     if ! native_app_device
@@ -663,19 +661,21 @@ class Protocol
       # This was already done
       msg = "Your shared locations have been transferred to the native app"
       msg += "<p>You can switch to the native app from the main menu";
-      error_url = create_alert_url(url_base(), msg);
-      {redirect_url: error_url}
     else
       errs = Protocol.merge_accounts(Protocol.get_account_from_device(native_app_device),
                                      Protocol.get_account_from_device(web_app_device))
-      if ! errs.empty?
+      if errs.empty?
+        msg = "Your shared locations have been transferred to the native app"
+        msg += "<p><div class='message_button' onclick='device_id_bind.web_app_redirect()'><div class='message_button_text'>Switch to native app</div></div>"
+	msg += "<p><span>You will be switch automatically in </span><span id='countdown2' style='font-size:18px'>6</span><script>device_id_bind.countdown2()</script>"
+
+      else
         msg = errs.join('<br>')
-        native_app_deeplink = create_alert_url(native_app_deeplink, msg);
-        native_app_deeplink += "&message_type=message_info"
+        msg += "<p>You can switch to the native app from the main menu";
       end
-      
-      {redirect_url: native_app_deeplink}
     end
+    url = create_alert_url(url_base(), msg);
+    {redirect_url: url}
   end
 
   def Protocol.process_request_config (params)
