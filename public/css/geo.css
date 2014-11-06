@@ -139,7 +139,7 @@ body {
 .popup_content {
     background-color:#d2e9ff;
     margin: 5px;
-    font-size:16px;
+    font-size:14px;
 }
 
 .popup_close_x {
@@ -158,7 +158,8 @@ body {
 }
 
 .box_title {
-    font-size: 18px;
+    font-size: 16px;
+    font-weight: bold;
 }
 
 .box_frame {
