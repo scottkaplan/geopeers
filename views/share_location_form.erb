@@ -10,7 +10,7 @@
     </div>
     <div class="box_frame">
       <div class="box_content" style="text-align:center">
-	Please supply a label to appear with your pin.
+	The label next to your location pin
 	<div>
 	  <label for="account_name" class="ui-hidden-accessible">Account Name</label>
 	  <input type="text"
@@ -32,7 +32,7 @@
       <div class="box_content">
 
 	<div id="my_contacts_button">
-	  <button onclick="select_contact()">
+	  <button  data-mini="true" onclick="select_contact();" style="margin-left:0px;">
 	    Select from My Contacts
 	  </button>
 	</div>
@@ -56,15 +56,19 @@
 	  - or -
 	</div>
 
-	<div id="manual_share_via">
-	  <label for="share_via_mobile">
-	    <input type="radio" name="share_via" value="mobile" id="share_via_mobile">
-	    Text/SMS Message
-	  </label>
-	  <label for="share_via_email">
-	    <input type="radio" name="share_via" value="email" id="share_via_email">
-	    Email
-	  </label>
+	<div style="text-align:center; width:100%">
+	  <fieldset data-role="controlgroup" data-type="horizontal" data-role="fieldcontain" data-mini="true">
+	    <div id="manual_share_via">
+	      <label for="share_via_mobile">
+		<input type="radio" name="share_via" value="mobile" id="share_via_mobile">
+		Text Msg
+	      </label>
+	      <label for="share_via_email">
+		<input type="radio" name="share_via" value="email" id="share_via_email">
+		Email
+	      </label>
+	    </div>
+	  </fieldset>
 	</div>
 
 	<div id="manual_share_to">
@@ -104,7 +108,7 @@
 		 >
 	</div>
 	<div style="width:68%; float:right; margin-right:3px">
-	  <select name="share_duration_unit">
+	  <select name="share_duration_unit" data-mini="true">
 	    <option value="minute">minute</option>
 	    <option value="hour" selected>hour</option>
 	    <option value="day">day</option>
@@ -116,6 +120,11 @@
       </div>
     </div>
   </div>
+  <button style="background-color:#3eb1dd; color:white; text-shadow:0 0; font-weight:normal"
+	  type="button"
+	  onclick="share_location()">
+    Send
+  </button>
   <div class="box_outer">
     <div class="box_title">
       Add Message (Optional):
@@ -131,7 +140,4 @@
     </div>
   </div>
   <input type="hidden" name="method" value="share_location">
-  <button style="background-color:#3eb1dd; color:white; text-shadow:0 0; font-weight:normal"
-	  type="button"
-	  onclick="share_location()">Send</button>
 </form>
