@@ -666,9 +666,8 @@ class Protocol
                                      Protocol.get_account_from_device(web_app_device))
       if errs.empty?
         msg = "Your shared locations have been transferred to the native app"
-        msg += "<p><div class='message_button' onclick='device_id_bind.web_app_redirect()'><div class='message_button_text'>Switch to native app</div></div>"
-	msg += "<p><span>You will be switch automatically in </span><span id='countdown2' style='font-size:18px'>6</span><script>device_id_bind.countdown2()</script>"
-
+        msg += "<p><div class='message_button' onclick='native_app_redirect_wrapper()'><div class='message_button_text'>Go to native app</div></div>"
+	msg += "<p><span>You will be switched automatically in </span><span id='countdown_native_app_redirect' style='font-size:18px'>6</span><script>device_id_bind.countdown_native_app_redirect()</script>"
       else
         msg = errs.join('<br>')
         msg += "<p>You can switch to the native app from the main menu";

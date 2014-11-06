@@ -94,6 +94,7 @@ function display_message (message, css_class) {
 	$('#geo_info').append(wrapper_div);
     }
     update_map_canvas_pos();
+    return (msg_id);
 }
 
 function display_in_div (msg, div_id, style) {
@@ -576,7 +577,7 @@ var marker_mgr = {
 	    url += "&saddr="+my_pos.current_position.coords.latitude;
 	    url += ","+my_pos.current_position.coords.longitude;
 	}
-	window.location = url;
+	window.open (url, '_system');
     },
 };
 
@@ -586,6 +587,8 @@ var marker_mgr = {
 
 var device_id_bind = {
     ran_bind: null,
+    countdown_web_app_redirect_div_id: null,
+    countdown_native_app_redirect_div_id: null,
     check: function (val) {
 	// called with the DB result for device_id_bind_complete
 	// If we have never run the device_id_bind for this native app,
@@ -600,43 +603,51 @@ var device_id_bind = {
 	if (device_id_mgr.phonegap) {
 	    if (val == 1) return;
 
-	    device_id_bind.web_app_redirect ();
+	    device_id_bind.web_app_redirect_interstitial ();
 	    return;
 	} else {
 	    return 1;
 	}
     },
-    countdown: function () {
-	var val = $('#countdown').html();
+    countdown_web_app_redirect: function () {
+	var val = $('#countdown_web_app_redirect').html();
 	if (val <= 0) {
 	    device_id_bind.web_app_redirect();
 	    // we don't get back to here
 	} else {
 	    val -= 1;
 	}
-	$('#countdown').html(val);
-	setTimeout(function() {device_id_bind.countdown()}, 1000);
+	$('#countdown_web_app_redirect').html(val);
+	setTimeout(function() {device_id_bind.countdown_web_app_redirect()}, 1000);
     },    
-    countdown2: function () {
-	var val = $('#countdown2').html();
+    countdown_native_app_redirect: function () {
+	var val = $('#countdown_native_app_redirect').html();
 	if (val <= 0) {
 	    device_id_bind.native_app_redirect();
 	    // we don't get back to here
 	} else {
 	    val -= 1;
 	}
-	$('#countdown2').html(val);
-	setTimeout(function() {device_id_bind.countdown2()}, 1000);
+	$('#countdown_native_app_redirect').html(val);
+	// if we got called again, val will be negative
+	// don't keep counting down
+	if (val >= 0) {
+	    setTimeout(function() {device_id_bind.countdown_native_app_redirect()}, 1000);
+	}
     },    
     web_app_redirect_interstitial: function () {
-	var msg = "The native app has been installed on your device.  We need to make sure any shares in the web app appear in this native app.  To do this, we need to switch to the web app."
-	msg += "<p><div class='message_button' onclick='device_id_bind.web_app_redirect()'><div class='message_button_text'>Switch to web app</div></div>"
-	msg += "<p><span>You will be switch automatically in </span><span id='countdown' style='font-size:18px'>6</span><script>device_id_bind.countdown()</script>"
-	display_message (msg, 'message_success')
+	var msg = "To finish installation, switch to the web app to copy the shares to the native app..";
+	msg += "<p><div class='message_button' onclick='device_id_bind.web_app_redirect()'><div class='message_button_text'>Go to web app</div></div>";
+	msg += "<p><span>You will be switched automatically in </span><span id='countdown_web_app_redirect' style='font-size:18px'>6</span><script>device_id_bind.countdown_web_app_redirect()</script>";
+	device_id_bind.countdown_web_app_redirect_div_id = display_message (msg, 'message_success');
     },
     web_app_redirect: function () {
 	// kick off the handshake by redirecting to the device browser
 	// Bet you didn't know you could get out of the native app's webview :-)
+
+	// Get this div off the page
+	// We're done with it and we don't want it firing again
+	$('#'+device_id_bind.countdown_web_app_redirect_div_id).remove();
 
 	// Defensive coding:
 	// This is an in-memory version of globals.device_id_bind_complete
@@ -653,7 +664,6 @@ var device_id_bind = {
 	    device_id_bind.ran_bind = 1;
 	}
 
-
 	// redirect to the web app (webview) telling the webview what our device_id is
 	var url = "http://" + host() + "/api?method=device_id_bind";
 	url += "&native_device_id=" + device_id_mgr.device_id;
@@ -668,8 +678,13 @@ var device_id_bind = {
 	// The webview will redirect back to a deeplink
 	// which will be handled in handleOpenURL
     },
-    native_app_redirect: function (url) {
-        native_app_deeplink = "geopeers://api?method=device_id_bind";
+    native_app_redirect: function (message) {
+	// make sure this can't fire again
+	$('#'+device_id_bind.countdown_native_app_redirect_div_id).remove();
+        var native_app_deeplink = "geopeers://";
+	if (message) {
+	    native_app_deeplink += "?message="+message;
+	}
 	window.location = native_app_deeplink;
     },
     phase_2: function (url) {
@@ -781,11 +796,11 @@ function main_page_share_location_popup () {
 	$('input[name=my_contacts_mobile]').val(null);
 	$('#share_location_popup').popup('open');
     } else {
-	// $('#share_via').show();
-	// $('#manual_share_via').show();
-	// $('#manual_share_to').show();
-	// $('#share_location_popup').popup('open');
-	download.download_app();
+	$('#share_via').show();
+	$('#manual_share_via').show();
+	$('#manual_share_to').show();
+	$('#share_location_popup').popup('open');
+	// download.download_app();
     }
     return;
 }
@@ -1332,9 +1347,12 @@ function download_redirect_wrapper () {
     download.download_redirect();
 }
 
-function native_app_redirect () {
-    var url = "geopeers://";
-    window.location = url;
+function web_app_redirect_wrapper () {
+    device_id_bind.web_app_redirect();   
+}
+
+function native_app_redirect_wrapper () {
+    device_id_bind.native_app_redirect();
 }
 
 //
@@ -1435,8 +1453,13 @@ var init = {
 	// There are some things that can be done while we wait for the config API to return
 
 	// server can pass parameters when it redirected to us
-	var message_type = getParameterByName('message_type') ? getParameterByName('message_type') : 'message_error'
-	display_message(getParameterByName('alert'), message_type);
+	var message_type = getParameterByName('message_type') ? getParameterByName('message_type') : 'message_error';
+	var message_div_id = display_message(getParameterByName('alert'), message_type);
+
+	// this is a giant hack
+	if (getParameterByName('alert').match(/countdown_native_app_redirect/)) {
+	    device_id_bind.countdown_native_app_redirect_div_id = message_div_id;
+	}
 
 	// This is a bad hack.
 	// If the map isn't ready when the last display_message fired, the reposition will be wrong
