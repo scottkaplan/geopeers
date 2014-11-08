@@ -1499,6 +1499,8 @@ class Protocol
     msg += "Email:" + account.email + '<br>' if account.email
     msg += "Mobile:" + account.mobile + '<br>' if account.mobile
     msg += '</div>'
+    msg += '<div style="font-size:20px; font-weight:bold">Version</div>'
+    msg += '<div style="font-size:18px; font-weight:normal; margin-left:10px">'+params['support_version']+'</div>'
     ['problem', 'reproduction', 'feature', 'cool_use'].each do | field |
       field_name = 'support_form_'+field
       val = params[field_name]

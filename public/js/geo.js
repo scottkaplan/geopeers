@@ -287,7 +287,7 @@ var device_id_mgr = {
 	    console.log (err);
 	    device_id_mgr.phonegap = false;
 	}
-	console.log ("phonegap="+device_id_mgr.phonegap);
+	console.log ("device_id="+device_id_mgr.get()+", phonegap="+device_id_mgr.phonegap);
 	return;
     },
     get_cookie: function (key) {
@@ -796,11 +796,15 @@ function main_page_share_location_popup () {
 	$('input[name=my_contacts_mobile]').val(null);
 	$('#share_location_popup').popup('open');
     } else {
-	$('#share_via').show();
-	$('#manual_share_via').show();
-	$('#manual_share_to').show();
-	$('#share_location_popup').popup('open');
-	// download.download_app();
+	// set to true to allow sharing from webapp (testing)
+	if (false) {
+	    $('#share_via').show();
+	    $('#manual_share_via').show();
+	    $('#manual_share_to').show();
+	    $('#share_location_popup').popup('open');
+	} else {
+	    download.download_app();
+	}
     }
     return;
 }
@@ -894,6 +898,13 @@ function send_support () {
     form_request ($('#support_form'), null, send_support_callback, geo_ajax_fail_callback);
 }
 
+function display_support () {
+    var build_id = $('#geopeers_config').attr('build_id');
+    $('#support_version').text(build_id);
+    $("input[type='hidden'][name='support_version']").val(build_id);
+    $('#support_popup').popup('open');
+    return;
+}
 
 //
 // CONFIG
@@ -974,6 +985,18 @@ function get_positions () {
 // GET_SHARES
 //
 
+var DT;
+
+function switch_screen_orientation (orientation) {
+    var so = cordova.plugins.screenorientation;
+    if (orientation == 'landscape') {
+	so.setOrientation(so.Orientation.LANDSCAPE);
+    } else {
+	so.setOrientation(so.Orientation.PORTRAIT);
+    }
+    return
+}
+
 function format_time (time) {
     // JS version of same routine in geo.rb on server
 
@@ -1013,7 +1036,25 @@ function format_time (time) {
     return (time_str);
 }
 
-var DT;
+function is_orientation (requested_orientation) {
+    if (device_id_mgr.phonegap) {
+	var orientation = window.orientation;
+	if (typeof(orientation) === 'undefined') {
+	    return (false);
+	} else {
+	    if (orientation == 90 ||
+		orientation == -90) {
+		return (requested_orientation == 'landscape');
+	    } else {
+		return (requested_orientation == 'portrait');
+	    }
+	}
+    } else {
+	return (false);
+    }
+    
+}
+
 function manage_shares_callback (data, textStatus, jqXHR) {
     // create markup for a table, loaded with data
     // table is of the form:
@@ -1097,6 +1138,13 @@ function manage_shares_callback (data, textStatus, jqXHR) {
 	tbody.append(row);
     }
     table.append(tbody);
+
+    if (is_orientation ('portrait')) {
+	// this message will be cleared when the device is oriented in landscape
+	// This is handled in an orientationchange event listener set in init.after_ready
+	var orientation_msg = "Viewed best in landscape mode";
+	$('#manage_msg').text(orientation_msg);
+    }
 
     $('#manage_info').html(table);
     if (!  $.fn.dataTable.isDataTable( '#manage_table' ) ) {
@@ -1248,11 +1296,6 @@ var registration = {
 	registration.init();
 	return;
     },
-}
-
-function display_support () {
-    $('#support_popup').popup('open');
-    return;
 }
 
 function heartbeat () {
@@ -1422,25 +1465,28 @@ var init = {
 	// alert ("in init");
 	console.log ("in init");
 
-	// The popups have 'display:none' in the markup, so we aren't depending on any JS loading to hide them.
+	// The popups have 'display:none' in the markup,
+	// so we aren't depending on any JS loading to hide them.
 	// At this point, it's safe to let the JS control them
-	$('#registration_popup').show();
-	$('#download_link_popup').show();
-	$('#download_app_popup').show();
-	$('#update_app_popup').show();
-	$('#share_location_popup').show();
-	$('#support_popup').show();
-	$('#share_management_popup').show();
+	init.show_popups ();
 
 	// show the spinner in 200mS (.2 sec)
 	// if there are no GPS issues, the map will display quickly and
 	// we don't want the spinner to flash up
 	setTimeout($('#gps_spinner').show, 200);
 
+	// set this globally to clear the orientation warning on the share management popup
+	// if the device switches into landscape
+	window.addEventListener('orientationchange',
+				function () {
+				    if (is_orientation ('landscape')) {
+					$('#manage_msg').text('');
+				    }
+				});
+
 	run_position_function (function(position) {create_map(position)});
 
 	device_id_mgr.init ();
-	console.log ("device_id="+device_id_mgr.get());
 
 	send_config ();
 
@@ -1468,6 +1514,14 @@ var init = {
 	if (getParameterByName('download_app')) {
 	    download.download_app();
 	}
+    },
+    show_popups: function () {
+	['registration_popup', 'download_link_popup', 'download_app_popup', 'update_app_popup',
+	 'share_location_popup', 'support_popup', 'share_management_popup']
+	.forEach(function (element, index, array) {
+		$('#'+element).show();
+	    });
+	return;
     },
     init_switches: function () {
 	$(".cb-enable").click(function(){
