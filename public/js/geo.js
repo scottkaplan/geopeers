@@ -1032,7 +1032,7 @@ function manage_shares_callback (data, textStatus, jqXHR) {
     head.append($('<th></th>').text('Shared To'));
     head.append($('<th></th>').text('Used'));
     head.append($('<th></th>').text('Expires'));
-    head.append($('<th></th>').text('Go/Pause'));
+    head.append($('<th></th>').text('On/Off'));
     table.append($('<thead></thead>').append(head));
     var tbody = $('<tbody></tbody>');
     for (var i=0,len=data.shares.length; i<len; i++){
@@ -1069,27 +1069,24 @@ function manage_shares_callback (data, textStatus, jqXHR) {
 	    row.css('text-decoration', 'line-through');
 	    status_div.text('Expired');
 	} else {
-	    var onclick_cmd = "share_active_toggle("+share.share_id+")";
-	    var button = $('<img></img>')
-		.css('margin-left', '5px')
-		.attr('onclick', onclick_cmd);
-	    var button_wrapper = $('<span></span>');
-	    var status_text_wrapper = $('<span></span>');
-	    status_text_wrapper.css('position', 'relative').css('top', '-5px');
-	    button_wrapper.append (button)
+	    var switch_on_div = $('<label></label>')
+		.attr('class', 'cb-enable')
+		.append($('<span></span>').text('On'));
+	    var switch_off_div = $('<label></label>')
+		.attr('class', 'cb-disable')
+		.append($('<span></span>').text('Off'));
 	    if (share.active) {
-		status_text_wrapper.text('On');
-		status_div.append(status_text_wrapper);
-		button.attr('src', 'https://prod.geopeers.com/images/red_button_30x30.png')
-		status_div.append(button_wrapper);
+		switch_on_div.addClass('selected');
 	    } else {
-		status_text_wrapper.text('Off');
-		status_div.append(status_text_wrapper);
-		button.attr('src', 'https://prod.geopeers.com/images/green_button_30x30.png')
-		status_div.append(button_wrapper);
-		row.css('opacity', '0.6');
-		row.css('filter', 'alpha(opacity=60)');
+		switch_off_div.addClass('selected');
 	    }
+	    var onclick_cmd = "share_active_toggle("+share.share_id+")";
+	    status_div = $('<div></div>')
+		.attr('onclick', onclick_cmd)
+		.attr('class', 'switch')
+		.append(switch_on_div)
+		.append(switch_off_div)
+		.append($('<input></input>').attr('type','hidden').attr('name','checkbox'));
 	}
 	row.append($('<td></td>').text(share.redeem_time));
 	row.append($('<td></td>').text(share.expire_time));
@@ -1447,6 +1444,8 @@ var init = {
 
 	send_config ();
 
+	init.init_switches();
+
 	// There is more initialization, but it happens in the config callback
 	// because it relies on the device_id being set
 
@@ -1469,6 +1468,20 @@ var init = {
 	if (getParameterByName('download_app')) {
 	    download.download_app();
 	}
+    },
+    init_switches: function () {
+	$(".cb-enable").click(function(){
+		var parent = $(this).parents('.switch');
+		$('.cb-disable',parent).removeClass('selected');
+		$(this).addClass('selected');
+		$('.checkbox',parent).attr('checked', true);
+	    });
+	$(".cb-disable").click(function(){
+		var parent = $(this).parents('.switch');
+		$('.cb-enable',parent).removeClass('selected');
+		$(this).addClass('selected');
+		$('.checkbox',parent).attr('checked', false);
+	    });
     },
     update_main_menu: function () {
 	if (! is_phonegap() ) {
