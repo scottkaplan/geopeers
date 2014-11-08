@@ -1,8 +1,12 @@
 <html>
   <head>
-    <meta content="width = device-width" name="viewport" />
-    <link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" />
-    <link rel="apple-touch-icon" href="https://prod.geopeers.com/images/pin_wings_128x128_whitebg.png" />
+    <meta content="width = device-width"
+	  name="viewport" />
+    <link rel="shortcut icon"
+	  type="image/x-icon"
+	  href="/favicon.ico" />
+    <link rel="apple-touch-icon"
+	  href="https://prod.geopeers.com/images/pin_wings_128x128_whitebg.png" />
     <title>
       Geopeers
     </title>
@@ -16,6 +20,7 @@
           rel="stylesheet"
           href="https://<%= host %>/css/jquery.dataTables.css" />
     <script src="https://<%= host %>/js/jquery-1.11.1.min.js"></script>
+    <script src="https://<%= host %>/js/jquery.mobile-1.4.5.min.js"></script>
 
     <%= phonegap_html %>
 
@@ -103,8 +108,8 @@
       <%= support_popup %>
       <%= share_management_popup %>
 
-      <!-- map -->
       <div data-role="content" id="content">
+	<!-- map -->
         <div id="map_canvas"
              style="height:100%">       <!-- this has to be here or JQM will override -->
 	  <div id="gps_spinner"
@@ -113,7 +118,6 @@
 	  </div>
         </div>
       </div>
-
     </div>
 
     <!-- marker popup menu -->
@@ -148,10 +152,9 @@
 	  </ul>
 	</li>
       </ul>
-      </div>
+    </div>
 
     <script src="https://<%= host %>/js/jquery-ui.min.js"></script>
-    <script src="https://<%= host %>/js/jquery.mobile-1.4.5.min.js"></script>
     <script src="https://<%= host %>/js/jquery.ui.map.js"></script>
 
     <script src="https://maps.google.com/maps/api/js?sensor=true"></script>
