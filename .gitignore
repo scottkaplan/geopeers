@@ -1,1 +1,12 @@
 *~
+*archive/
+coverage/
+credentials/
+doc/
+log/
+public/bin/ios/*.ipa
+public/bin/android/*.apk
+public/doc/
+spec/
+test/
+vendor/
