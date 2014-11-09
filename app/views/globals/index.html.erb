@@ -1,0 +1,27 @@
+<h1>Listing globals</h1>
+
+<table>
+  <thead>
+    <tr>
+      <th>Build</th>
+      <th></th>
+      <th></th>
+      <th></th>
+    </tr>
+  </thead>
+
+  <tbody>
+    <% @globals.each do |global| %>
+      <tr>
+        <td><%= global.build_id %></td>
+        <td><%= link_to 'Show', global %></td>
+        <td><%= link_to 'Edit', edit_global_path(global) %></td>
+        <td><%= link_to 'Destroy', global, method: :delete, data: { confirm: 'Are you sure?' } %></td>
+      </tr>
+    <% end %>
+  </tbody>
+</table>
+
+<br>
+
+<%= link_to 'New Global', new_global_path %>

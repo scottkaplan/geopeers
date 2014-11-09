@@ -1,0 +1,14 @@
+<p id="notice"><%= notice %></p>
+
+<p>
+  <strong>Share:</strong>
+  <%= @redeem.share_id %>
+</p>
+
+<p>
+  <strong>Device:</strong>
+  <%= @redeem.device_id %>
+</p>
+
+<%= link_to 'Edit', edit_redeem_path(@redeem) %> |
+<%= link_to 'Back', redeems_path %>

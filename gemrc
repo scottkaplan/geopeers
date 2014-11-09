@@ -1,0 +1,6 @@
+---
+gemhome:
+gempath: /home/geopeers/.gem/ruby/2.0
+- /home/geopeers/.gem/ruby/2.0
+- /usr/share/ruby/gems/2.0
+- /usr/local/share/ruby/gems/2.0

@@ -1,0 +1,29 @@
+<h1>Listing redeems</h1>
+
+<table>
+  <thead>
+    <tr>
+      <th>Share</th>
+      <th>Device</th>
+      <th></th>
+      <th></th>
+      <th></th>
+    </tr>
+  </thead>
+
+  <tbody>
+    <% @redeems.each do |redeem| %>
+      <tr>
+        <td><%= redeem.share_id %></td>
+        <td><%= redeem.device_id %></td>
+        <td><%= link_to 'Show', redeem %></td>
+        <td><%= link_to 'Edit', edit_redeem_path(redeem) %></td>
+        <td><%= link_to 'Destroy', redeem, method: :delete, data: { confirm: 'Are you sure?' } %></td>
+      </tr>
+    <% end %>
+  </tbody>
+</table>
+
+<br>
+
+<%= link_to 'New Redeem', new_redeem_path %>

@@ -1,0 +1,21 @@
+<%= form_for(@global) do |f| %>
+  <% if @global.errors.any? %>
+    <div id="error_explanation">
+      <h2><%= pluralize(@global.errors.count, "error") %> prohibited this global from being saved:</h2>
+
+      <ul>
+      <% @global.errors.full_messages.each do |msg| %>
+        <li><%= msg %></li>
+      <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <div class="field">
+    <%= f.label :build_id %><br>
+    <%= f.number_field :build_id %>
+  </div>
+  <div class="actions">
+    <%= f.submit %>
+  </div>
+<% end %>

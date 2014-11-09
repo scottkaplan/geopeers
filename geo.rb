@@ -1488,6 +1488,12 @@ class Protocol
     {html: html}
   end
 
+  def Protocol.support_section (title, content)
+    msg = "<div style='font-size:20px; font-weight:bold'>#{title}</div>"
+    msg += "<div style='font-size:18px; font-weight:normal; margin-left:10px'>$#{content}</div>"
+    
+  end
+
   def Protocol.process_request_send_support (params)
     msg = ""
     account = Protocol.get_account_from_device_id (params['device_id'])
@@ -1499,15 +1505,13 @@ class Protocol
     msg += "Email:" + account.email + '<br>' if account.email
     msg += "Mobile:" + account.mobile + '<br>' if account.mobile
     msg += '</div>'
-    msg += '<div style="font-size:20px; font-weight:bold">Version</div>'
-    msg += '<div style="font-size:18px; font-weight:normal; margin-left:10px">'+params['support_version']+'</div>'
+    msg += Protocol.support_section ('Version', params['support_version'])
     ['problem', 'reproduction', 'feature', 'cool_use'].each do | field |
       field_name = 'support_form_'+field
       val = params[field_name]
       next unless val
       field_display = field.capitalize.gsub("_", " ")
-      msg += '<div style="font-size:20px; font-weight:bold">'+field_display+'</div>'
-      msg += '<div style="font-size:18px; font-weight:normal; margin-left:10px">'+val+'</div>'
+      msg += Protocol.support_section (field_display, val)
     end
     Protocol.send_email(msg, 'support@geopeers.com',
                         'Geopeers Support', 'support@geopeers.com',
