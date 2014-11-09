@@ -1,0 +1,20 @@
+<div id="<%= popup_id %>"
+     data-role="popup"
+     data-transition="fade"
+     style="display:none"
+     >
+  <div class="popup_frame">
+    <div class="popup_header">
+      <%= popup_title %>
+      <div class="popup_close_x"
+	   onclick="$('#<%= popup_id %>').popup('close')">
+	<img src="https://prod.geopeers.com/images/x.png">
+      </div>
+    </div>
+    <div style="font-size:18px">
+      <div class="popup_content">
+	<%= nested_html %>
+      </div>
+    </div>
+  </div>
+</div>
