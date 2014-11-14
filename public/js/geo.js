@@ -881,6 +881,7 @@ function share_location_callback (data, textStatus, jqXHR) {
 	var css_class = data.css_class ? data.css_class : 'message_success'
 	    display_message(data.message, css_class);
 	$('#share_location_popup').popup('close');
+	$('#share_location_popup').find("input[type=text], textarea").val("");
     } else if (data.popup_message) {
 	$('#share_location_form_info').html(data.popup_message);
     }
@@ -945,7 +946,8 @@ function send_support_callback  (data, textStatus, jqXHR) {
     $('#support_form_spinner').hide();
     var css_class = data.css_class ? data.css_class : 'message_success'
     display_message(data.message, css_class);
-    $('#support_popup').popup('close')
+    $('#support_popup').popup('close');
+    $('#support_popup').find("input[type=text], textarea").val("");
     return;
 }
 
