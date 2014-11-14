@@ -1,6 +1,15 @@
 #!/usr/bin/ruby
 
+require '/home/geopeers/sinatra/geopeers/geo.rb'
+require 'fileutils'
 require 'uglifier'
+
+def write_index_html
+  html = create_index()
+  target_dir = "/home/geopeers/sinatra/geopeers/public"
+  output_file = "#{target_dir}/index.html"
+  File.open(output_file, 'w') { |file| file.write(html) }
+end
 
 def create_concat_file (dir, type, files=nil)
   master_filename = "geopeers.#{type}"
@@ -55,7 +64,8 @@ def css
 end
 
 def main
-  # js()
+  write_index_html
+  js()
   css()
 end
 
