@@ -60,6 +60,55 @@ function update_map_canvas_pos () {
     return;
 }
 
+function display_alert_message () {
+    var alert_method = getParameterByName('alert_method');
+    if (! alert_method) {
+	return;
+    }
+    var message_type = getParameterByName('message_type') ? getParameterByName('message_type') : 'message_error';
+    // this is a giant hack
+    if (getParameterByName('alert').match(/countdown_native_app_redirect/)) {
+	device_id_bind.countdown_native_app_redirect_div_id = message_div_id;
+    }
+
+    switch (alert_method) {
+    case "SUPPORT_CONTACTED":
+	var message = "There was a problem with your request.  Support has been contacted.";
+	var message_type = 'message_error';
+	break;
+    case "CRED_INVALID":
+	var message = "That credential is not valid.  You can't view the location.  You can still use the other features of GeoPeers";
+	var message_type = 'message_warning';
+	break;
+    case "DEVICE_ADDED":
+        var message = getParameterByName('auth_key') + " is used by " + getParameterByName('account_name') + ".  Your device has been added to this account.";
+	var message_type = 'message_info';
+	break;
+    case "DEVICE_REGISTERED":
+        var message = getParameterByName('account_name') + "has been registered.";
+	var message_type = 'message_success';
+	break;
+    case "SHARES_XFERED":
+	var message = "Your shared locations have been transferred to the native app";
+	message += "<p>You can switch to the native app from the main menu";
+	var message_type = 'message_success';
+	break;
+    case "SHARES_XFERED_COUNTDOWN":
+        var message = "Your shared locations have been transferred to the native app";
+	message += "<p><div class='message_button' onclick='native_app_redirect_wrapper()'><div class='message_button_text'>Go to native app</div></div>";
+	message += "<p><span>You will be switched automatically in </span><span id='countdown_native_app_redirect' style='font-size:18px'>6</span><script>device_id_bind.countdown_native_app_redirect()</script>";
+	var message_type = 'message_success';
+	break;
+    case "SHARES_XFERED_MSG":
+	var message = getParameterByName('message');
+	message += "<p>You can switch to the native app from the main menu";
+	var message_type = 'message_warning';
+	break;
+    }
+    var message_div_id = display_message(message, message_type);
+    return (message_div_id);
+}
+
 function display_message (message, css_class) {
     if (! message) {
 	return;
@@ -546,17 +595,28 @@ var marker_mgr = {
 	// If we don't have any markers, that's the best we can do
 	// But if there are markers, zoom to a bounding box containing those markers
 	if (my_pos.pan_needed) {
-	    var map = $('#map_canvas').gmap('get','map');
+
+	    var bounds = new google.maps.LatLngBounds ();
 	    if (! jQuery.isEmptyObject(marker_mgr.markers)) {
-		var bounds = new google.maps.LatLngBounds ();
+		// create a bounding box with the markers
 		for (var device_id in marker_mgr.markers) {
 		    var sighting = marker_mgr.markers[device_id].sighting;
 		    var sighting_location = new google.maps.LatLng(sighting.gps_latitude,
 								   sighting.gps_longitude);
 		    bounds.extend (sighting_location);
 		}
-		map.fitBounds (bounds);
 	    }
+
+	    if (my_pos.current_position) {
+		// include current position in the bounding box
+		var current_location = new google.maps.LatLng(my_pos.current_position.coords.latitude,
+							      my_pos.current_position.coords.longitude);
+		bounds.extend (current_location);
+	    }
+
+	    var map = $('#map_canvas').gmap('get','map');
+	    map.fitBounds (bounds);
+
 	    var zoom = map.getZoom();
 	    console.log (zoom);
 	    // if we only have one marker, fitBounds zooms to maximum.
@@ -736,6 +796,11 @@ function create_map (position) {
     }
 }
 
+function resize_map () {
+    var map = $('#map_canvas').gmap('get','map');
+    google.maps.event.trigger(map, 'resize');
+
+}
 
 //
 // SEND_POSITION
@@ -797,7 +862,7 @@ function main_page_share_location_popup () {
 	$('#share_location_popup').popup('open');
     } else {
 	// set to true to allow sharing from webapp (testing)
-	if (false) {
+	if (true) {
 	    $('#share_via').show();
 	    $('#manual_share_via').show();
 	    $('#manual_share_to').show();
@@ -811,9 +876,14 @@ function main_page_share_location_popup () {
 
 function share_location_callback (data, textStatus, jqXHR) {
     $('#share_location_form_spinner').hide();
-    var css_class = data.css_class ? data.css_class : 'message_success'
-    display_message(data.message, css_class);
-    $('#share_location_popup').popup('close');
+    if (data.message) {
+	// "global" message
+	var css_class = data.css_class ? data.css_class : 'message_success'
+	    display_message(data.message, css_class);
+	$('#share_location_popup').popup('close');
+    } else if (data.popup_message) {
+	$('#share_location_form_info').html(data.popup_message);
+    }
 
     // don't show the account_name box on the share_location popup anymore
     $('#account_name_box').hide();
@@ -1141,7 +1211,7 @@ function manage_shares_callback (data, textStatus, jqXHR) {
 
     if (is_orientation ('portrait')) {
 	// this message will be cleared when the device is oriented in landscape
-	// This is handled in an orientationchange event listener set in init.after_ready
+	// This is handled in an orientationchange event listener set in init_geo.after_ready
 	var orientation_msg = "Viewed best in landscape mode";
 	$('#manage_msg').text(orientation_msg);
     }
@@ -1271,7 +1341,7 @@ var registration = {
 	    update_registration_popup();
 
 	    // initializations that require registration
-	    init.update_main_menu();
+	    init_geo.update_main_menu();
 	} else {
 	    registration.status = null;
 	}
@@ -1313,6 +1383,8 @@ function heartbeat () {
 
     // keep the green star in the right spot
     my_pos.reposition();
+
+    setTimeout(function () {resize_map()}, 2000);
 
     // if we get here, schedule the next iteration
     setTimeout(heartbeat, period_minutes * 60 * 1000);
@@ -1456,7 +1528,7 @@ function select_contact () {
 // Init and startup
 //
 
-var init = {
+var init_geo = {
     after_ready: function () {
 	// This is called after we are ready
 	// for webapp, this is $.ready,
@@ -1468,7 +1540,7 @@ var init = {
 	// The popups have 'display:none' in the markup,
 	// so we aren't depending on any JS loading to hide them.
 	// At this point, it's safe to let the JS control them
-	init.show_popups ();
+	init_geo.show_popups ();
 
 	// show the spinner in 200mS (.2 sec)
 	// if there are no GPS issues, the map will display quickly and
@@ -1490,7 +1562,7 @@ var init = {
 
 	send_config ();
 
-	init.init_switches();
+	init_geo.init_switches();
 
 	// There is more initialization, but it happens in the config callback
 	// because it relies on the device_id being set
@@ -1498,13 +1570,7 @@ var init = {
 	// There are some things that can be done while we wait for the config API to return
 
 	// server can pass parameters when it redirected to us
-	var message_type = getParameterByName('message_type') ? getParameterByName('message_type') : 'message_error';
-	var message_div_id = display_message(getParameterByName('alert'), message_type);
-
-	// this is a giant hack
-	if (getParameterByName('alert').match(/countdown_native_app_redirect/)) {
-	    device_id_bind.countdown_native_app_redirect_div_id = message_div_id;
-	}
+	var message_div_id = display_alert_message();
 
 	// This is a bad hack.
 	// If the map isn't ready when the last display_message fired, the reposition will be wrong
@@ -1558,11 +1624,10 @@ function start () {
     $(document).ready(function(e,data){
 	    if (is_phonegap()) {
 		// Wait for device API libraries to load
-		document.addEventListener("deviceready", init.after_ready);
+		document.addEventListener("deviceready", init_geo.after_ready);
 	    } else {
-		init.after_ready();
+		init_geo.after_ready();
 	    }
 	});
 }
 
-start();
