@@ -166,11 +166,11 @@ def parse_params (params_str)
   params
 end
 
-def create_alert_url(url, msg, message_type=nil)
-  message_type ||= 'message_success'
-  msg = URI.escape (msg)
-  url = "#{url}/?alert=#{msg}"
-  url += "&message_type=#{message_type}" if message_type
+def create_alert_url(alert_method, params)
+  url = "#{url_base()}/?alert_method=#{alert_method}"
+  params.each do | key, val |
+    url += "&#{key}=#{val}"
+  end
   url
 end
 
@@ -493,10 +493,21 @@ class Protocol
     msg = Protocol.create_share_msg(share, params)
     err = sms_obj.send(share.share_to, msg)
     if (err)
-      error_response err
-    else
-      {message: "Sent location share to #{share.share_to}"}
+      return error_response err
     end
+    if params['share_message']
+      account = Protocol.get_account_from_device_id (params['device_id'])
+      msg = ""
+      if account && account.name
+        msg = "From #{account.name} "
+      end
+      msg += params['share_message']
+      err = sms_obj.send(share.share_to, msg)
+    end
+    if (err)
+      return error_response err
+    end
+    {message: "Sent location share to #{share.share_to}"}
   end
 
   def Protocol.send_email (msg, from_email, from_name, to_email, subject, is_html=nil)
@@ -549,7 +560,7 @@ class Protocol
 
   def Protocol.error_response (error_msg)
     # { error: error_msg, backtrace: caller }
-    { message: error_msg, style: {color: 'red'}}
+    { message: error_msg, css_class: 'message_error'}
   end
 
   def Protocol.send_share (share, params)
@@ -623,8 +634,7 @@ class Protocol
     $LOG.debug native_app_device
     if ! native_app_device
       log_error ("No native app device")
-      url = create_alert_url(url_base(),
-                             "There was a problem with your request.  Support has been contacted.")
+      url = create_alert_url("SUPPORT_CONTACTED")
       return {redirect_url: url}
     end
 
@@ -632,8 +642,7 @@ class Protocol
     # something has gone very wrong
     if ! params['device_id']
       log_error ("No web app device id")
-      url = create_alert_url(url_base(),
-                             "There was a problem with your request.  Support has been contacted.")
+      url = create_alert_url("SUPPORT_CONTACTED")
     end
 
     web_app_device = Device.find_by(device_id: params['device_id'])
@@ -659,21 +668,16 @@ class Protocol
 
     if native_app_device.account_id == web_app_device.account_id
       # This was already done
-      msg = "Your shared locations have been transferred to the native app"
-      msg += "<p>You can switch to the native app from the main menu";
+      url = create_alert_url("SHARES_XFERED");
     else
       errs = Protocol.merge_accounts(Protocol.get_account_from_device(native_app_device),
                                      Protocol.get_account_from_device(web_app_device))
       if errs.empty?
-        msg = "Your shared locations have been transferred to the native app"
-        msg += "<p><div class='message_button' onclick='native_app_redirect_wrapper()'><div class='message_button_text'>Go to native app</div></div>"
-	msg += "<p><span>You will be switched automatically in </span><span id='countdown_native_app_redirect' style='font-size:18px'>6</span><script>device_id_bind.countdown_native_app_redirect()</script>"
+        url = create_alert_url("SHARES_XFERED_COUNTDOWN");
       else
-        msg = errs.join('<br>')
-        msg += "<p>You can switch to the native app from the main menu";
+        url = create_alert_url("SHARES_XFERED_MSG", {message: errs.join('<br>')});
       end
     end
-    url = create_alert_url(url_base(), msg);
     {redirect_url: url}
   end
 
@@ -753,7 +757,7 @@ class Protocol
     end
     $LOG.debug device
 
-    sql = "SELECT sightings.device_id,
+    sql = "SELECT DISTINCT sightings.device_id,
                   sightings.gps_longitude, sightings.gps_latitude,
                   sightings.updated_at,
                   current_sightings.share_expire_time,
@@ -1102,17 +1106,17 @@ class Protocol
       
     if params['share_via'] && params['share_to']
       # supply mobile
-      raise ArgumentError.new("Please supply the address to send the share to") unless params['share_to']
+      return {'popup_message' => "Please supply the address to send the share to" } unless params['share_to']
 
       if params["share_via"] == 'mobile'
         sms_num = Sms.clean_num(params["share_to"])
-        raise ArgumentError.new("The phone number (share to) must be 10 digits") unless /^\d{10}$/.match(sms_num)
+        return {'popup_message' => "The phone number (share to) must be 10 digits" } unless /^\d{10}$/.match(sms_num)
       end
 
       if params["share_via"] == 'email'
         # In general, RFC-822 email validation can't be done with regex
         # For now, just make sure it has an '@'
-        raise ArgumentError.new("Email should be in the form 'fred@company.com'") unless /.+@.+/.match(params["share_to"])
+        return {'popup_message' => "Email should be in the form 'fred@company.com'"} unless /.+@.+/.match(params["share_to"])
       end
 
       response = create_and_send_share(share_parms.merge({ share_via: params['share_via'],
@@ -1187,12 +1191,10 @@ class Protocol
         end
       else
         # This share has been used up
-        msg = "That credential is not valid.  You can't view the location.  You can still use the other features of GeoPeers"
-        redirect_url = create_alert_url(redirect_url, msg)
+        redirect_url = create_alert_url("CRED_INVALID")
       end
     else
-      msg = "That credential is not valid.  You can't view the location.  You can still use the other features of GeoPeers"
-      redirect_url = create_alert_url(redirect_url, msg)
+      redirect_url = create_alert_url("CRED_INVALID")
     end
     $LOG.debug redirect_url
     {:redirect_url => redirect_url}
@@ -1223,8 +1225,6 @@ class Protocol
     device = Device.find_by(device_id: params['device_id'])
     $LOG.debug device
 
-    redirect_url = 'https://geopeers.com'
-
     # Things that can go wrong:
     #   1) there is no auth associated with cred
     #   2) there is no device associated with device_id
@@ -1237,8 +1237,7 @@ class Protocol
       (auth_latest &&
        auth_cred.auth_key != auth_latest.auth_key)
       log_dos (params)
-      msg = "That credential is not valid.  You can't view the location.  You can still use the other features of GeoPeers"
-      message_type = 'message_warning'
+      redirect_url = create_alert_url("CRED_INVALID")
     else
       # auth_cred and device are good
       # But it is possible that there are two different accounts
@@ -1251,17 +1250,19 @@ class Protocol
       $LOG.debug account_from_val
       if  account_from_val &&
           account_from_val.id != device.account_id
-        # this value is used in another account, merge 
-        msg = "#{auth_cred.auth_key} is used by #{account_from_val.name}.  Your device has been added to this account."
-        message_type = 'message_info'
+        # this value is used in another account, merge
+        redirect_url = create_alert_url("DEVICE_ADDED",
+                                        { auth_key: auth_cred.auth_key,
+                                          account_name: account_from_val.name,
+                                        })
         errs = Protocol.merge_accounts(account_from_val, account_for_device)
         msg += errs.join('<br>') unless (errs.empty?)
         device.account_id = account_from_val.id
         device.save
         account = account_from_val
       else
-        msg = account_for_device.name+" has been registered"
-        message_type = 'message_success'
+        redirect_url = create_alert_url("DEVICE_REGISTERED",
+                                        { account_name: account_for_device.name })
         account = account_for_device
       end
       auth_cred.auth_time = Time.now
@@ -1270,7 +1271,6 @@ class Protocol
       account.save
       $LOG.debug account
     end
-    redirect_url = create_alert_url(redirect_url, msg, message_type)
     redirect_url += "&device_id=#{device.device_id}"
     return {:redirect_url => redirect_url}
   end
@@ -1490,7 +1490,7 @@ class Protocol
 
   def Protocol.support_section (title, content)
     msg = "<div style='font-size:20px; font-weight:bold'>#{title}</div>"
-    msg += "<div style='font-size:18px; font-weight:normal; margin-left:10px'>$#{content}</div>"
+    msg += "<div style='font-size:18px; font-weight:normal; margin-left:10px'>#{content}</div>"
     
   end
 
@@ -1505,13 +1505,13 @@ class Protocol
     msg += "Email:" + account.email + '<br>' if account.email
     msg += "Mobile:" + account.mobile + '<br>' if account.mobile
     msg += '</div>'
-    msg += Protocol.support_section ('Version', params['support_version'])
+    msg += Protocol.support_section('Version', params['support_version'])
     ['problem', 'reproduction', 'feature', 'cool_use'].each do | field |
       field_name = 'support_form_'+field
       val = params[field_name]
       next unless val
       field_display = field.capitalize.gsub("_", " ")
-      msg += Protocol.support_section (field_display, val)
+      msg += Protocol.support_section(field_display, val)
     end
     Protocol.send_email(msg, 'support@geopeers.com',
                         'Geopeers Support', 'support@geopeers.com',
@@ -1696,7 +1696,8 @@ class ProtocolEngine < Sinatra::Base
     get path do
       if request.secure?
         # erb :index
-        index_html = create_index params
+        # index_html = create_index params
+        index_html = File::read("/home/geopeers/sinatra/geopeers/public/index.html")
       else
         redirect request.url.gsub(/^http/, "https")
       end

@@ -10,6 +10,7 @@
     <title>
       Geopeers
     </title>
+    <!--
     <link type="text/css"
 	  rel="stylesheet"
 	  href="https://<%= host %>/css/jquery.mobile-1.4.5.min.css" />
@@ -19,9 +20,31 @@
     <link type="text/css"
           rel="stylesheet"
           href="https://<%= host %>/css/jquery.dataTables.css" />
-    <script src="https://<%= host %>/js/jquery-1.11.1.min.js"></script>
-    <script src="https://<%= host %>/js/jquery-ui.min.js"></script>
-    <script src="https://<%= host %>/js/jquery.mobile-1.4.5.min.js"></script>
+    -->
+    <link type="text/css"
+	  rel ="stylesheet"
+	  href="https://<%= host %>/css/geopeers.css" />
+
+    <script src="https://maps.google.com/maps/api/js?sensor=true"></script>
+    <script src="https://<%= host %>/js/geopeers.min.js"></script>
+
+    <!--
+    <script src="https://<%= host %>/js/jquery-1.11.1.js"></script>
+    <script src="https://<%= host %>/js/jquery-ui.js"></script>
+    <script src="https://<%= host %>/js/jquery.mobile-1.4.5.js"></script>
+    <script src="https://<%= host %>/js/jquery.ui.map.js"></script>
+    <script src="https://<%= host %>/js/markerwithlabel.js"></script>
+    <script src="https://<%= host %>/js/md5.js"></script>
+    <script src="https://<%= host %>/js/jquery.dataTables.js"></script>
+    <script src="https://<%= host %>/js/jquery-ui-timepicker-addon.js"></script>
+    <script src="https://<%= host %>/js/jstz.js"></script>
+    <script src="https://<%= host %>/js/db.js"></script>
+    <script src="https://<%= host %>/js/menu.js"></script>
+    <script src="https://<%= host %>/js/geo.js"></script>
+    <script src="https://<%= host %>/js/gps.js"></script>
+    -->
+    <script>start();</script>
+
 
     <%= phonegap_html %>
 
@@ -155,19 +178,6 @@
       </ul>
     </div>
 
-    <script src="https://<%= host %>/js/jquery.ui.map.js"></script>
-
-    <script src="https://maps.google.com/maps/api/js?sensor=true"></script>
-    <script src="https://<%= host %>/js/markerwithlabel.js"></script>
-
-    <script src="https://<%= host %>/js/md5.js"></script>
-    <script src="https://<%= host %>/js/jquery.dataTables.min.js"></script>
-    <script src="https://<%= host %>/js/jquery-ui-timepicker-addon.js"></script>
-    <script src="https://<%= host %>/js/jstz.min.js"></script>
-    <script src="https://<%= host %>/js/db.js"></script>
-    <script src="https://<%= host %>/js/menu.js"></script>
-    <script src="https://<%= host %>/js/geo.js"></script>
-    <script src="https://<%= host %>/js/gps.js"></script>
   </body>
 
 </html>
