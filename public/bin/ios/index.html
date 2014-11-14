@@ -2,10 +2,29 @@
 <html>
   <head>
     <title>OTA install</title>
+    <!--
     <meta http-equiv="REFRESH"
           content="0;url=itms-services://?action=download-manifest&url=https://prod.geopeers.com/bin/ios/app.plist">
+    -->
+    <meta content="width = device-width"
+	  name="viewport" />
+    <title>
+      Geopeers
+    </title>
+    <link type="text/css"
+	  rel ="stylesheet"
+	  href="https://prod.geopeers.com/css/geo.css" />
   </head>
-  <body>
 
+  <body 
+     onload='window.location = "itms-services://?action=download-manifest&url=https://prod.geopeers.com/bin/ios/app.plist"'
+     >
+    <div id="geo_info"
+	 class="info message_success"
+	 style="width:90%"
+	 >
+      The app is downloading now.  You can access it on the device's home screen.
+    </div>
   </body>
+
 </html>
