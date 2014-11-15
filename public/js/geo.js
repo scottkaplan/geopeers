@@ -621,9 +621,9 @@ var marker_mgr = {
 	    console.log (zoom);
 	    // if we only have one marker, fitBounds zooms to maximum.
 	    // Back off to max_zoom
-	    var max_zoom = 16;
+	    var max_zoom = 15;
 	    if (zoom > max_zoom) {
-		$('#map_canvas').gmap('option', 'zoom', max_zoom);
+		map.setZoom(max_zoom);
 	    }
 	    my_pos.pan_needed = false;
 	}
@@ -863,12 +863,12 @@ function main_page_share_location_popup () {
     } else {
 	// set to true to allow sharing from webapp (testing)
 	if (true) {
+	    download.download_app();
+	} else {
 	    $('#share_via').show();
 	    $('#manual_share_via').show();
 	    $('#manual_share_to').show();
 	    $('#share_location_popup').popup('open');
-	} else {
-	    download.download_app();
 	}
     }
     return;
@@ -877,17 +877,18 @@ function main_page_share_location_popup () {
 function share_location_callback (data, textStatus, jqXHR) {
     $('#share_location_form_spinner').hide();
     if (data.message) {
-	// "global" message
+	// message box on main page / close popup
 	var css_class = data.css_class ? data.css_class : 'message_success'
 	    display_message(data.message, css_class);
 	$('#share_location_popup').popup('close');
+	// clear error message
+	$('#share_location_form_info').val('');
+	// clear form text
 	$('#share_location_popup').find("input[type=text], textarea").val("");
     } else if (data.popup_message) {
+	// error message on popup which stays open
 	$('#share_location_form_info').html(data.popup_message);
     }
-
-    // don't show the account_name box on the share_location popup anymore
-    $('#account_name_box').hide();
 
     // in case the name was updated, update registration.reg_info
     registration.init();
@@ -906,6 +907,9 @@ function share_location () {
 	    registration.reg_info.account) {
 	    registration.reg_info.account.name = $("#account_name").val();
 	}
+	$('#account_name_box').hide();
+    } else {
+	$('#account_name_box').show();
     }
 
     // location can be shared either by:
@@ -1415,6 +1419,7 @@ var download = {
     },
     download_url: function () {
 	var client_type = get_client_type ();
+	console.log (client_type);
 	var download_url = download.download_urls[client_type];
 	return (download_url);
     },
@@ -1622,7 +1627,12 @@ var init_geo = {
     },
 };
 
+function console.log (msg) {
+    console.log (Date.now()+':'+msg);
+}
+
 function start () {
+    console.log ('start');
     $(document).ready(function(e,data){
 	    if (is_phonegap()) {
 		// Wait for device API libraries to load
