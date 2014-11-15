@@ -4,8 +4,8 @@ require '/home/geopeers/sinatra/geopeers/geo.rb'
 require 'fileutils'
 require 'uglifier'
 
-def write_index_html
-  html = create_index()
+def write_index_html (params)
+  html = create_index(params)
   target_dir = "/home/geopeers/sinatra/geopeers/public"
   output_file = "#{target_dir}/index.html"
   File.open(output_file, 'w') { |file| file.write(html) }
@@ -64,7 +64,7 @@ def css
 end
 
 def main
-  write_index_html
+  write_index_html({is_production: true})
   js()
   css()
 end
