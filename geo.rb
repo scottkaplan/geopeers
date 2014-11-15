@@ -166,10 +166,12 @@ def parse_params (params_str)
   params
 end
 
-def create_alert_url(alert_method, params)
+def create_alert_url(alert_method, params=nil)
   url = "#{url_base()}/?alert_method=#{alert_method}"
-  params.each do | key, val |
-    url += "&#{key}=#{val}"
+  if params
+    params.each do | key, val |
+      url += "&#{key}=#{val}"
+    end
   end
   url
 end
@@ -232,7 +234,7 @@ def init
   # Unfortunately, things like rspec also call us
   # So make sure the thing on the command line is a URL parm with a 'method' key
   # The keys of params must be strings, that's what sinatra sends us
-  puts ARGV[0]
+  $LOG.debug ARGV
   if ARGV[0]
     params = parse_params(ARGV[0])
     if params && params['method']
@@ -306,13 +308,18 @@ end
 def create_index(params=nil)
   version = "0.7"
   host = host()
-  phonegap_html = nil
+  is_phonegap = nil
+  is_production = nil
   share_location_my_contacts_tag = nil
+  if params && params[:is_production]
+    is_production = true
+  end
   if params && params[:is_phonegap]
     build_id = bump_build_id()
-    phonegap_html = '<script type="text/javascript" charset="utf-8" src="cordova.js"></script>'
+    is_phonegap = true
   else
     build_id = get_build_id()
+    is_phonegap = false
   end
   registration_popup =
     make_popup("registration_popup",
@@ -1613,10 +1620,9 @@ class ProtocolEngine < Sinatra::Base
     if device_id
       $LOG.debug device_id
       Protocol.create_if_not_exists_device({ device_id: device_id,
-                                             user_agent: request.user_agent})
+                                             user_agent: request.user_agent })
     else
       $LOG.debug "No device_id"
-      $LOG.debug params
       # there is no device_id
       # since the native apps create their own device_id from the uuid,
       # this must be a webapp
@@ -1692,15 +1698,25 @@ class ProtocolEngine < Sinatra::Base
     end
   end
 
-  ['/', '/geo/?'].each do |path|
-    get path do
-      if request.secure?
-        # erb :index
-        # index_html = create_index params
-        index_html = File::read("/home/geopeers/sinatra/geopeers/public/index.html")
-      else
-        redirect request.url.gsub(/^http/, "https")
-      end
+  get '/' do
+    if request.secure?
+      manage_device_id ({})
+
+      # Three ways to send the index file:
+      #
+      # single ERB (nothing is ever that simple in production :-)
+      # erb :index
+
+      # RT processing
+      # ~ 300ms
+      params['is_production'] = true
+      create_index params
+
+      # pre-processed
+      # ~ 200ms
+      # index_html = File::read("/home/geopeers/sinatra/geopeers/public/index_page.html")
+    else
+      redirect request.url.gsub(/^http/, "https")
     end
   end
 
