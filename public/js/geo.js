@@ -786,7 +786,7 @@ function create_map (position) {
 	initial_position = new google.maps.LatLng(position.coords.latitude,
 						  position.coords.longitude);
     } else {
-	initial_position = us_center;
+	initial_position = display_mgr.us_center;
     }
     console.log (initial_position);
 
@@ -1387,20 +1387,13 @@ function heartbeat () {
     // things that should happen periodically
     var period_minutes = 1;
 
-    // In phonegap, this is done in gps_background
-    // In webapp, we don't send positions anymore
-    // run_position_function (function(position) {
-    // send_position_request (position);
-    // });
-
     // refresh the sightings for our shares
     get_positions();
 
     // keep the green star in the right spot
     my_pos.reposition();
 
-    resize_map();
-    //setTimeout(function () {resize_map()}, 2000);
+    update_map_canvas_pos();
 
     // if we get here, schedule the next iteration
     setTimeout(heartbeat, period_minutes * 60 * 1000);
@@ -1489,12 +1482,14 @@ function native_app_redirect_wrapper () {
 // My Contacts
 //
 
-function create_dropdown (id, optionList) {
-    var dropdown = $("<select></select>").attr("id", id).attr("name", id);
+function populate_dropdown (id, optionList) {
+    var dropdown = $('#'+id);
+    dropdown.html('');
     $.each(optionList, function (i, el) {
-	    dropdown.append("<option>" + el + "</option>");
+	    dropdown.append("<option>" + el.value + "</option>");
 	});
-    return dropdown;
+    dropdown.selectmenu();
+    dropdown.selectmenu('refresh', true);
 }
 
 function select_contact_callback (contact) {
@@ -1507,8 +1502,7 @@ function select_contact_callback (contact) {
 		    $('#my_contacts_mobile').html(mobile);
 		    $('input:input[name=my_contacts_mobile]').val(mobile);
 		} else {
-		    var dropdown = create_dropdown ('my_contacts_mobile_dropdown', contact.phoneNumbers);
-		    $('#my_contacts_mobile').html(dropdown);
+		    populate_dropdown ('my_contacts_mobile_dropdown', contact.phoneNumbers);
 		}
 	    }
 	    if (contact && contact.emails) {
@@ -1517,12 +1511,12 @@ function select_contact_callback (contact) {
 		    $('#my_contacts_email').html(email);
 		    $('input:input[name=my_contacts_email]').val(email);
 		} else {
-		    var dropdown = create_dropdown ('my_contacts_email_dropdown', contact.emails);
-		    $('#my_contacts_email').html(dropdown);
+		    populate_dropdown ('my_contacts_email_dropdown', contact.emails);
 		}
 	    }
-	    if (mobile || email) {
-		$('#or_div').hide();
+	    $('#or_div').hide();
+	    if (contact && (contact.phoneNumbers || contact.emails)) {
+		$('#my_contacts_display').trigger("change");
 		$('#my_contacts_display').show();
 		$('#manual_share_via').hide();
 		$('#manual_share_to').hide();
@@ -1602,10 +1596,6 @@ var init_geo = {
 
 	// server can pass parameters when it redirected to us
 	var message_div_id = display_alert_message();
-
-	// This is a bad hack.
-	// If the map isn't ready when the last display_message fired, the reposition will be wrong
-	// setTimeout(function(){display_alert_message(); update_map_canvas_pos()}, 1000);
 
 	// This may cause a redirect to the download URL, so do this last
 	if (getParameterByName('download_app')) {
