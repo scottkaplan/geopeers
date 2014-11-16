@@ -53,11 +53,9 @@ function if_else_native (is_native_function, is_not_native_function) {
 function update_map_canvas_pos () {
     var height = $('#geo_info').height();
 
-    // var header_title_height = height + 65;
-    // $('#header_title').css('height', header_title_height+'px');
-
     var content_height = height + 85;
     $('#content').css('top', content_height+'px');
+    resize_map();
     console.log ("content_height="+content_height);
     return;
 }
@@ -258,14 +256,11 @@ function run_position_function (post_func) {
 }
 
 var my_pos = {
-    marker: null,
+    // control the initial pan/zoom
+    // 
     pan_needed: null,
     current_position: null,
     update_position: function (position_from_server) {
-	// the server sends us our position
-	// For native (phonegap) apps, the background GPS, kills our GPS
-	// so the server has to send us our position.  Go figure.
-
 	if (! device_id_mgr.phonegap ||
 	    ! position_from_server ||
 	    ! my_pos.pan_needed) {
@@ -285,6 +280,7 @@ var my_pos = {
 	}
     },
 
+    marker: null,
     create: function (position) {
 	if (my_pos.marker)
 	    return;
@@ -568,6 +564,9 @@ var marker_mgr = {
 	if (! data)
 	    return;
 
+	// In addition to the markers, the server sends us our position
+	// For native (phonegap) apps, the background GPS, kills our GPS
+	// so the server has to send us our position.  Go figure.
 	my_pos.update_position (data.current_position);
 
 	var sightings = data.sightings;
@@ -682,16 +681,12 @@ var device_id_bind = {
     },    
     countdown_native_app_redirect: function () {
 	var val = $('#countdown_native_app_redirect').html();
-	if (val <= 0) {
+	if (val == 0) {
 	    device_id_bind.native_app_redirect();
 	    // we don't get back to here
-	} else {
+	} else if (val > 0) {
 	    val -= 1;
-	}
-	$('#countdown_native_app_redirect').html(val);
-	// if we got called again, val will be negative
-	// don't keep counting down
-	if (val >= 0) {
+	    $('#countdown_native_app_redirect').html(val);
 	    setTimeout(function() {device_id_bind.countdown_native_app_redirect()}, 1000);
 	}
     },    
@@ -708,6 +703,7 @@ var device_id_bind = {
 	// Get this div off the page
 	// We're done with it and we don't want it firing again
 	$('#'+device_id_bind.countdown_web_app_redirect_div_id).remove();
+	update_map_canvas_pos ();
 
 	// Defensive coding:
 	// This is an in-memory version of globals.device_id_bind_complete
@@ -741,6 +737,8 @@ var device_id_bind = {
     native_app_redirect: function (message) {
 	// make sure this can't fire again
 	$('#'+device_id_bind.countdown_native_app_redirect_div_id).remove();
+	update_map_canvas_pos ();
+
         var native_app_deeplink = "geopeers://";
 	if (message) {
 	    native_app_deeplink += "?message="+message;
@@ -782,22 +780,30 @@ function handleOpenURL(url) {
 //
 
 function create_map (position) {
-    var initial_location;
+    var initial_position;
     var zoom = 13;
     if (position) {
-	initial_location = new google.maps.LatLng(position.coords.latitude,
+	initial_position = new google.maps.LatLng(position.coords.latitude,
 						  position.coords.longitude);
+    } else {
+	initial_position = us_center;
     }
+    console.log (initial_position);
+
+    // flip the loading image
     $('#gps_spinner').hide();
     $('#index').show();
-    $('#map_canvas').gmap({center: initial_location, zoom: zoom});
+
+    // Display the map
+    $('#map_canvas').gmap({center: initial_position, zoom: zoom});
+
+    // control the initial pan
     my_pos.pan_needed = true;
     if (position) {
-	console.log (position);
 	my_pos.update_position (position);
     }
+
     update_map_canvas_pos();
-    resize_map();
 }
 
 function resize_map () {
@@ -864,7 +870,7 @@ function main_page_share_location_popup () {
 	$('input[name=my_contacts_mobile]').val(null);
 	$('#share_location_popup').popup('open');
     } else {
-	// set to true to allow sharing from webapp (testing)
+	// set to false to allow sharing from webapp (testing)
 	if (true) {
 	    download.download_app();
 	} else {
@@ -1438,7 +1444,8 @@ var download = {
 		download.download_redirect();
 	    } else {
 		// user pressed pin or Share Location in web app
-		// can't do it, but we don't want to start a download without warning them
+		// but sharing location doesn't work in the web app (no GPS in web workers),
+		// they need the native app, but don't start the download without warning them
 		$('#download_app_popup').popup('open');
 	    }
 	} else {
