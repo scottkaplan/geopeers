@@ -1489,23 +1489,37 @@ function native_app_redirect_wrapper () {
 // My Contacts
 //
 
+function create_dropdown (id, optionList) {
+    var dropdown = $("<select></select>").attr("id", id).attr("name", id);
+    $.each(optionList, function (i, el) {
+	    dropdown.append("<option>" + el + "</option>");
+	});
+    return dropdown;
+}
+
 function select_contact_callback (contact) {
     setTimeout(function() {
 	    $('#share_location_popup').popup('open');
 	    var email, mobile;
-	    if (contact &&
-		contact.phoneNumbers &&
-		contact.phoneNumbers[0]) {
-		mobile = contact.phoneNumbers[0].value;
-		$('#my_contacts_mobile').html(mobile);
-		$('input:input[name=my_contacts_mobile]').val(mobile);
+	    if (contact && contact.phoneNumbers ) {
+		if (contact.phoneNumbers.length == 1) {
+		    mobile = contact.phoneNumbers[0].value;
+		    $('#my_contacts_mobile').html(mobile);
+		    $('input:input[name=my_contacts_mobile]').val(mobile);
+		} else {
+		    var dropdown = create_dropdown ('my_contacts_mobile_dropdown', contact.phoneNumbers);
+		    $('#my_contacts_mobile').html(dropdown);
+		}
 	    }
-	    if (contact &&
-		contact.emails &&
-		contact.emails[0]) {
-		email = contact.emails[0].value;
-		$('#my_contacts_email').html(email);
-		$('input:input[name=my_contacts_email]').val(email);
+	    if (contact && contact.emails) {
+		if (contact.emails.length == 1) {
+		    email = contact.emails[0].value;
+		    $('#my_contacts_email').html(email);
+		    $('input:input[name=my_contacts_email]').val(email);
+		} else {
+		    var dropdown = create_dropdown ('my_contacts_email_dropdown', contact.emails);
+		    $('#my_contacts_email').html(dropdown);
+		}
 	    }
 	    if (mobile || email) {
 		$('#or_div').hide();
