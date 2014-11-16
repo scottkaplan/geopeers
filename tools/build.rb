@@ -6,8 +6,7 @@ require 'uglifier'
 
 def write_index_html (params)
   html = create_index(params)
-  target_dir = "/home/geopeers/sinatra/geopeers/public"
-  output_file = "#{target_dir}/index.html"
+  output_file = "/home/geopeers/phonegap/index.html"
   File.open(output_file, 'w') { |file| file.write(html) }
 end
 
