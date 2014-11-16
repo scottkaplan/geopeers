@@ -1490,9 +1490,11 @@ function populate_dropdown (id, optionList) {
 	});
     dropdown.selectmenu();
     dropdown.selectmenu('refresh', true);
+    dropdown.show();
 }
 
 function select_contact_callback (contact) {
+    console.log (contact);
     setTimeout(function() {
 	    $('#share_location_popup').popup('open');
 	    var email, mobile;
@@ -1504,6 +1506,9 @@ function select_contact_callback (contact) {
 		} else {
 		    populate_dropdown ('my_contacts_mobile_dropdown', contact.phoneNumbers);
 		}
+	    } else {
+		$('#my_contacts_mobile').hide();
+		$('#my_contacts_mobile_dropdown_div').hide();
 	    }
 	    if (contact && contact.emails) {
 		if (contact.emails.length == 1) {
@@ -1513,6 +1518,9 @@ function select_contact_callback (contact) {
 		} else {
 		    populate_dropdown ('my_contacts_email_dropdown', contact.emails);
 		}
+	    } else {
+		$('#my_contacts_email').hide();
+		$('#my_contacts_email_dropdown_div').hide();
 	    }
 	    $('#or_div').hide();
 	    if (contact && (contact.phoneNumbers || contact.emails)) {
