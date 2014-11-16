@@ -307,18 +307,20 @@ end
 
 def create_index(params=nil)
   version = "0.7"
-  host = host()
   is_phonegap = nil
   is_production = nil
+  url_prefix = nil
   share_location_my_contacts_tag = nil
   if params && params[:is_production]
     is_production = true
   end
   if params && params[:is_phonegap]
     build_id = bump_build_id()
+    params['url_prefix'] = ""
     is_phonegap = true
   else
     build_id = get_build_id()
+    params['url_prefix'] = "https://"+host()
     is_phonegap = false
   end
   registration_popup =
@@ -364,6 +366,7 @@ def make_popup(popup_id, popup_title, nested_erb, params)
   if params && params[:is_phonegap]
     share_location_my_contacts_tag = '<option value="contacts">Select from My Contacts</option>'
   end
+  url_prefix = params['url_prefix']
   nested_html = ERB.new(File.read(nested_erb)).result(binding)
   ERB.new(File.read('views/popup.erb')).result(binding)
 end
