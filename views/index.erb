@@ -53,7 +53,8 @@
 	 build_id="<%= build_id %>"
 	 version="<%= version %>" >
     </div>
-    <div data-role="page" id="index">
+
+    <div data-role="page" id="index" style="display:none">
       <div data-theme="a" data-role="header">
         <div class="header_content">
           <div id="header_title" class="overlap_div">
@@ -139,8 +140,9 @@
         <div id="map_canvas"
              style="height:100%">       <!-- this has to be here or JQM will override -->
 	  <div id="gps_spinner"
-	       style="text-align:center; display:none">
-	    <img src="https://<%= host %>/images/gps-satellites.gif">
+	       style="text-align:center; display:block">
+	    <div style="font-size:24px; font-weight:bold; padding-bottom:36px">Loading...</div>
+	    <img src="https://<%= host %>/images/gps-satellites.gif" width="300" height="245">
 	  </div>
         </div>
       </div>
