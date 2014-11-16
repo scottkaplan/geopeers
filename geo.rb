@@ -320,7 +320,7 @@ def create_index(params=nil)
     is_phonegap = true
   else
     build_id = get_build_id()
-    params['url_prefix'] = "https://"+host()
+    params['url_prefix'] = "https://"+host()+"/"
     is_phonegap = false
   end
   registration_popup =
