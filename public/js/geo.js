@@ -52,8 +52,8 @@ function if_else_native (is_native_function, is_not_native_function) {
 
 function update_map_canvas_pos () {
     var height = $('#geo_info').height();
-    var header_title_height = height + 60;
-    var content_height = height + 80;
+    var header_title_height = height + 65;
+    var content_height = height + 85;
     $('#header_title').css('height', header_title_height+'px');
     $('#content').css('top', content_height+'px');
     console.log ("header_title_height="+header_title_height+", content_height="+content_height);
@@ -66,10 +66,6 @@ function display_alert_message () {
 	return;
     }
     var message_type = getParameterByName('message_type') ? getParameterByName('message_type') : 'message_error';
-    // this is a giant hack
-    if (getParameterByName('alert').match(/countdown_native_app_redirect/)) {
-	device_id_bind.countdown_native_app_redirect_div_id = message_div_id;
-    }
 
     switch (alert_method) {
     case "SUPPORT_CONTACTED":
@@ -788,18 +784,21 @@ function create_map (position) {
 	initial_location = new google.maps.LatLng(position.coords.latitude,
 						  position.coords.longitude);
     }
+    $('#gps_spinner').hide();
+    $('#index').show();
     $('#map_canvas').gmap({center: initial_location, zoom: zoom});
     my_pos.pan_needed = true;
     if (position) {
 	console.log (position);
 	my_pos.update_position (position);
     }
+    update_map_canvas_pos();
+    resize_map();
 }
 
 function resize_map () {
     var map = $('#map_canvas').gmap('get','map');
     google.maps.event.trigger(map, 'resize');
-
 }
 
 //
@@ -1390,7 +1389,8 @@ function heartbeat () {
     // keep the green star in the right spot
     my_pos.reposition();
 
-    setTimeout(function () {resize_map()}, 2000);
+    resize_map();
+    //setTimeout(function () {resize_map()}, 2000);
 
     // if we get here, schedule the next iteration
     setTimeout(heartbeat, period_minutes * 60 * 1000);
@@ -1541,7 +1541,6 @@ var init_geo = {
 	// for webapp, this is $.ready,
 	// for phonegap, this is deviceready
 
-	// alert ("in init");
 	console.log ("in init");
 
 	// The popups have 'display:none' in the markup,
@@ -1552,7 +1551,7 @@ var init_geo = {
 	// show the spinner in 200mS (.2 sec)
 	// if there are no GPS issues, the map will display quickly and
 	// we don't want the spinner to flash up
-	setTimeout($('#gps_spinner').show, 200);
+	// setTimeout($('#gps_spinner').show, 200);
 
 	// set this globally to clear the orientation warning on the share management popup
 	// if the device switches into landscape
@@ -1581,7 +1580,7 @@ var init_geo = {
 
 	// This is a bad hack.
 	// If the map isn't ready when the last display_message fired, the reposition will be wrong
-	setTimeout(function(){update_map_canvas_pos()}, 500);
+	// setTimeout(function(){display_alert_message(); update_map_canvas_pos()}, 1000);
 
 	// This may cause a redirect to the download URL, so do this last
 	if (getParameterByName('download_app')) {
@@ -1627,7 +1626,7 @@ var init_geo = {
     },
 };
 
-function console.log (msg) {
+function console_log (msg) {
     console.log (Date.now()+':'+msg);
 }
 
