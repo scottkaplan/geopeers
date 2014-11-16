@@ -1623,6 +1623,8 @@ class ProtocolEngine < Sinatra::Base
                                              user_agent: request.user_agent })
     else
       $LOG.debug "No device_id"
+      $LOG.debug params
+      $LOG.debug request.cookies
       # there is no device_id
       # since the native apps create their own device_id from the uuid,
       # this must be a webapp
