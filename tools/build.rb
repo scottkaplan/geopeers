@@ -6,7 +6,7 @@ require 'uglifier'
 
 def write_index_html (params)
   html = create_index(params)
-  output_file = "/home/geopeers/phonegap/index.html"
+  output_file = "/home/geopeers/phonegap/geopeers/index.html"
   File.open(output_file, 'w') { |file| file.write(html) }
 end
 
@@ -63,7 +63,7 @@ def css
 end
 
 def main
-  write_index_html({is_production: true})
+  # write_index_html({is_production: true})
   js()
   css()
 end
