@@ -52,11 +52,13 @@ function if_else_native (is_native_function, is_not_native_function) {
 
 function update_map_canvas_pos () {
     var height = $('#geo_info').height();
-    var header_title_height = height + 65;
+
+    // var header_title_height = height + 65;
+    // $('#header_title').css('height', header_title_height+'px');
+
     var content_height = height + 85;
-    $('#header_title').css('height', header_title_height+'px');
     $('#content').css('top', content_height+'px');
-    console.log ("header_title_height="+header_title_height+", content_height="+content_height);
+    console.log ("content_height="+content_height);
     return;
 }
 
@@ -275,6 +277,8 @@ var my_pos = {
 	// pan_needed is a first-time thru flag, set in create_map
 	if (my_pos.pan_needed) {
 	    var map = $('#map_canvas').gmap('get','map');
+	    console.log ("pan to");
+	    console.log (my_pos.current_position.coords);
 	    map.panTo(new google.maps.LatLng(my_pos.current_position.coords.latitude,
 					     my_pos.current_position.coords.longitude));
 	    my_pos.pan_needed = false;

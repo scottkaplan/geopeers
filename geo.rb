@@ -1711,12 +1711,12 @@ class ProtocolEngine < Sinatra::Base
 
       # RT processing
       # ~ 300ms
-      params['is_production'] = true
+      params['is_production'] = false
       create_index params
 
       # pre-processed
       # ~ 200ms
-      # index_html = File::read("/home/geopeers/sinatra/geopeers/public/index_page.html")
+      # index_html = File::read("/home/geopeers/sinatra/geopeers/public/main_page.html")
     else
       redirect request.url.gsub(/^http/, "https")
     end
