@@ -1505,6 +1505,7 @@ function select_contact_callback (contact) {
 		    $('input:input[name=my_contacts_mobile]').val(mobile);
 		} else {
 		    populate_dropdown ('my_contacts_mobile_dropdown', contact.phoneNumbers);
+		    $('#my_contacts_mobile_dropdown_div').show();
 		}
 	    } else {
 		$('#my_contacts_mobile').hide();
@@ -1517,6 +1518,7 @@ function select_contact_callback (contact) {
 		    $('input:input[name=my_contacts_email]').val(email);
 		} else {
 		    populate_dropdown ('my_contacts_email_dropdown', contact.emails);
+		    $('#my_contacts_email_dropdown_div').show();
 		}
 	    } else {
 		$('#my_contacts_email').hide();
