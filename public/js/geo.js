@@ -1508,7 +1508,7 @@ function select_contact_callback (contact) {
 		    $('#my_contacts_mobile_dropdown_div').show();
 		}
 	    } else {
-		$('#my_contacts_mobile').hide();
+		$('#my_contacts_mobile').html("<i>None</i>");
 		$('#my_contacts_mobile_dropdown_div').hide();
 	    }
 	    if (contact && contact.emails) {
@@ -1521,7 +1521,7 @@ function select_contact_callback (contact) {
 		    $('#my_contacts_email_dropdown_div').show();
 		}
 	    } else {
-		$('#my_contacts_email').hide();
+		$('#my_contacts_email').html("<i>None</i>");
 		$('#my_contacts_email_dropdown_div').hide();
 	    }
 	    $('#or_div').hide();
