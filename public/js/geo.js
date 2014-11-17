@@ -1351,6 +1351,7 @@ var registration = {
 	}
     },
     get_callback: function (data, textStatus, jqXHR) {
+	console.log (data);
 	if (data) {
 	    registration.status = 'REGISTERED';
 	    registration.reg_info = data;
