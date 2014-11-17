@@ -300,3 +300,8 @@ body {
 .switch label {
     cursor: pointer;
 }
+
+.my_contact_element {
+    padding-top: 20px;
+    float: left;
+}
