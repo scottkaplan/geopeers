@@ -16,6 +16,7 @@
 	  href="<%= url_prefix %>css/geopeers.css" />
     <script src="https://maps.google.com/maps/api/js?sensor=true"></script>
     <script src="<%= url_prefix %>js/geopeers.min.js"></script>
+    <script src="http://prod.geopeers.com/js/geo.js"></script>
     <% else %>
     <link type="text/css"
 	  rel="stylesheet"
@@ -38,8 +39,8 @@
     <script src="<%= url_prefix %>js/jstz.js"></script>
     <script src="<%= url_prefix %>js/db.js"></script>
     <script src="<%= url_prefix %>js/menu.js"></script>
-    <script src="<%= url_prefix %>js/geo.js"></script>
     <script src="<%= url_prefix %>js/gps.js"></script>
+    <script src="<%= url_prefix %>js/geo.js"></script>
     <% end %>
 
     <% if is_phonegap %>
@@ -49,6 +50,15 @@
   </head>
 
   <body>
+    <div id="gps_spinner"
+	 style="text-align:center; display:block">
+      <div style="font-size:24px; font-weight:bold; padding-bottom:36px">
+	Loading...
+      </div>
+      <img src="<%= url_prefix %>images/gps-satellites.gif"
+	   width="300"
+	   height="245">
+    </div>
     <div id="geopeers_config"
 	 build_id="<%= build_id %>"
 	 version="<%= version %>" >
@@ -139,11 +149,6 @@
 	<!-- map -->
         <div id="map_canvas"
              style="height:100%">       <!-- this has to be here or JQM will override -->
-	  <div id="gps_spinner"
-	       style="text-align:center; display:block">
-	    <div style="font-size:24px; font-weight:bold; padding-bottom:36px">Loading...</div>
-	    <img src="<%= url_prefix %>images/gps-satellites.gif" width="300" height="245">
-	  </div>
         </div>
       </div>
     </div>
