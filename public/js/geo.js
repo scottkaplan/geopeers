@@ -1496,6 +1496,10 @@ function populate_dropdown (id, optionList) {
 function select_contact_callback (contact) {
     console.log (contact);
     setTimeout(function() {
+	    $('#my_contacts_mobile').html('');
+	    $('#my_contacts_email').html('');
+	    $('#my_contacts_mobile_dropdown').html('');
+	    $('#my_contacts_email_dropdown').html('');
 	    $('#share_location_popup').popup('open');
 	    var email, mobile;
 	    if (contact && contact.phoneNumbers ) {
