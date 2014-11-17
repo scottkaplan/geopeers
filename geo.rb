@@ -156,7 +156,8 @@ def log_error(err)
 end
 
 def parse_params (params_str)
-  params_str = /\??(.*)/.match(params_str).to_s	# strip optional leading '?'
+  # strip optional leading '?'
+  params_str = /\??(.*)/.match(params_str).to_s
 
   params = {}
   params_str.split('&').each { |param_str|
@@ -234,7 +235,7 @@ def init
   # Unfortunately, things like rspec also call us
   # So make sure the thing on the command line is a URL parm with a 'method' key
   # The keys of params must be strings, that's what sinatra sends us
-  $LOG.debug ARGV
+  # $LOG.debug ARGV
   if ARGV[0]
     params = parse_params(ARGV[0])
     if params && params['method']
@@ -1052,8 +1053,11 @@ class Protocol
   end
 
   def Protocol.process_request_share_location (params)
+    # The form is in views/share_location_form.erb
 
-    # First, if the device user has supplied a name, use it.
+    raise ArgumentError.new("No device ID")  unless params['device_id']
+
+    # First, if the device user has supplied a name, apply it.
     if params['account_name']
       account = Protocol.get_account_from_device_id (params['device_id'])
       if account
@@ -1062,15 +1066,17 @@ class Protocol
       end
     end
 
+    # there are multipe ways to specify a share from the share_location form
+    #   1) seer_device_id:
+    #      boomerang share - A shares with B, now B wants to share with A
+    #   2) my_contacts_mobile and/or my_contacts_email
+    #      A single value came back from the device Contacts picker
+    #   3) my_contacts_mobile_dropdown and/or my_contacts_email_dropdown
+    #      Multiple values came back from the device Contacts picker and the user picked one
+    #   4) share_via/share_to
+    #      Explicitly type into text box
 
-    # there are three ways to specify a share:
-    #   1) seer_device_id
-    #   2) share_via/share_to
-    #   3) my_contacts_mobile and/or my_contacts_email
-    
-    raise ArgumentError.new("No device ID")  unless params['device_id']
-
-    # create a share and send it
+    # create the share
     expire_time = compute_expire_time params
     expire_time = Time.now + expire_time if expire_time
     share_parms = {
@@ -1087,8 +1093,6 @@ class Protocol
       # with account associated with a share
       # (i.e. share my location with pin)
       #
-      # An account does not need an email or mobile
-      # 
       account = Protocol.get_account_from_device_id (params['seer_device_id'])
       ['mobile','email'].each do | type |
         if account[type]
@@ -1097,13 +1101,18 @@ class Protocol
                                                              }),
                                            params,
                                            response)
+          $LOG.debug response
         end
       end
       # TODO: This only returns the last response
       #       if both mobile and email are set in account, the first response is ignored
+
+      if response.empty?
+        response[popup_message] = 'No email or phone number found'
+      end
     end
 
-    ['mobile','email'].each do | type |
+    ['mobile','email', 'mobile_dropdown', 'email_dropdown'].each do | type |
       if params["my_contacts_#{type}"]
         $LOG.debug params["my_contacts_#{type}"]
         response = create_and_send_share(share_parms.merge({ share_via: type,
@@ -1111,31 +1120,57 @@ class Protocol
                                                            }),
                                          params,
                                          response)
+        $LOG.debug response
       end
     end
       
-    if params['share_via'] && params['share_to']
-      # supply mobile
-      return {'popup_message' => "Please supply the address to send the share to" } unless params['share_to']
-
+    if params['share_to']
+      if ! params['share_via']
+        # see if we can figure it out
+        if /.+@.+/.match(params["share_to"])
+          params["share_via"] = 'email'
+        else
+          sms_num = Sms.clean_num(params["share_to"])
+          if /^\d{10}$/.match(sms_num)
+            params["share_via"] = 'mobile'
+          else
+            response['popup_message'] = "#{params['share_to']} doesn't look like an email or phone number"
+            # This can fall thru since share_via is not set
+          end
+        end
+      end
+      
       if params["share_via"] == 'mobile'
         sms_num = Sms.clean_num(params["share_to"])
-        return {'popup_message' => "The phone number (share to) must be 10 digits" } unless /^\d{10}$/.match(sms_num)
+        if /^\d{10}$/.match(sms_num)
+          response = create_and_send_share(share_parms.merge({ share_via: params['share_via'],
+                                                               share_to:  params['share_to'],
+                                                             }),
+                                           params,
+                                           response)
+        else 
+          response['popup_message'] = "The phone number (share to) must be 10 digits"
+        end
       end
 
       if params["share_via"] == 'email'
         # In general, RFC-822 email validation can't be done with regex
         # For now, just make sure it has an '@'
-        return {'popup_message' => "Email should be in the form 'fred@company.com'"} unless /.+@.+/.match(params["share_to"])
+        if /.+@.+/.match(params["share_to"])
+          response = create_and_send_share(share_parms.merge({ share_via: params['share_via'],
+                                                               share_to:  params['share_to'],
+                                                             }),
+                                           params,
+                                           response)
+        else
+          response['popup_message'] = "Email should be in the form 'fred@company.com'"
+        end
       end
 
-      response = create_and_send_share(share_parms.merge({ share_via: params['share_via'],
-                                                           share_to:  params['share_to'],
-                                                         }),
-                                       params,
-                                       response)
+      $LOG.debug response
     end
 
+    $LOG.debug response
     response
   end
 
