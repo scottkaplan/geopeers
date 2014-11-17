@@ -866,6 +866,7 @@ function main_page_share_location_popup () {
 	$('#share_with').hide();
 	$('#or_div').show();
 	$('#my_contacts_display').hide();
+	$('#my_contacts_button').show();
 	$('input[name=my_contacts_email]').val(null);
 	$('input[name=my_contacts_mobile]').val(null);
 	$('#share_location_popup').popup('open');
@@ -1496,12 +1497,13 @@ function populate_dropdown (id, optionList) {
 function select_contact_callback (contact) {
     console.log (contact);
     setTimeout(function() {
+	    // for mobile/email
+	    // there are two fields
+	    //   my_contacts_[mobile|email] - a single display box
+	    //   my_contacts_[mobile|email]_dropdown - multi-select dropdown
+	    var mobile;
 	    $('#my_contacts_mobile').html('');
-	    $('#my_contacts_email').html('');
-	    $('#my_contacts_mobile_dropdown').html('');
-	    $('#my_contacts_email_dropdown').html('');
-	    $('#share_location_popup').popup('open');
-	    var email, mobile;
+	    $('#my_contacts_mobile_dropdown').empty();
 	    if (contact && contact.phoneNumbers ) {
 		if (contact.phoneNumbers.length == 1) {
 		    mobile = contact.phoneNumbers[0].value;
@@ -1515,6 +1517,10 @@ function select_contact_callback (contact) {
 		$('#my_contacts_mobile').html("<i>None</i>");
 		$('#my_contacts_mobile_dropdown_div').hide();
 	    }
+
+	    var email;
+	    $('#my_contacts_email').html('');
+	    $('#my_contacts_email_dropdown').empty();
 	    if (contact && contact.emails) {
 		if (contact.emails.length == 1) {
 		    email = contact.emails[0].value;
@@ -1528,18 +1534,32 @@ function select_contact_callback (contact) {
 		$('#my_contacts_email').html("<i>None</i>");
 		$('#my_contacts_email_dropdown_div').hide();
 	    }
+
+	    // manage the UI elements on the popup
 	    $('#or_div').hide();
 	    if (contact && (contact.phoneNumbers || contact.emails)) {
+		// we got something back
+		// activate the dropdowns (if any)
 		$('#my_contacts_display').trigger("change");
 		$('#my_contacts_display').show();
+
+		// turn off the manual inputs
 		$('#manual_share_via').hide();
 		$('#manual_share_to').hide();
 	    } else {
-		$('#or_div').hide();
+		// we didn't get anything back from the contact list
+		// configure for manual input
 		$('#my_contacts_display').hide();
 		$('#manual_share_via').show();
 		$('#manual_share_to').show();
 	    }
+
+	    // back-to-back My Contacts are broken
+	    // (returns to blank screen)
+	    $('#my_contacts_button').hide();
+
+	    // finally ready to display the popup
+	    $('#share_location_popup').popup('open');
 	}, 500);
 }
 
@@ -1548,6 +1568,7 @@ function select_contact () {
     $('#or_div').show();
     $('#manual_share_via').show();
     $('#manual_share_to').show();
+    $('#my_contacts_button').show();
 
     // We have to dump any previously typed value
     // to prevent it getting in the way of the my_contacts selection
