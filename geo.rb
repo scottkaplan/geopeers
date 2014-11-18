@@ -1003,6 +1003,10 @@ class Protocol
         msgs.push (user_msg) if user_msg
       end
     end
+
+    msgs.push ("No changes") if (errs.empty? && msgs.empty?)
+    $LOG.debug errs
+    $LOG.debug msgs
     return errs, msgs
   end
 
@@ -1057,12 +1061,15 @@ class Protocol
 
     raise ArgumentError.new("No device ID")  unless params['device_id']
 
+    response = {}
+
     # First, if the device user has supplied a name, apply it.
     if params['account_name']
       account = Protocol.get_account_from_device_id (params['device_id'])
       if account
         account.name = params['account_name']
         account.save
+        response['message'] = "Name set to #{account.name}"
       end
     end
 
@@ -1087,7 +1094,6 @@ class Protocol
     }
     share_parms['device_id'] = params["device_id"]
 
-    response = {}
     if params['seer_device_id']
       # share location of requesting device
       # with account associated with a share
