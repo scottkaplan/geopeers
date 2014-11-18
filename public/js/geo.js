@@ -546,6 +546,7 @@ var marker_mgr = {
 	$('#share_with').show();
 	$('#share_account_name').text(marker_mgr.selected_sighting.name);
 	$("input[type='hidden'][name='seer_device_id']").val(marker_mgr.selected_sighting.device_id);
+	$('#share_location_form_info').html('');
 	$('#share_location_popup').popup('open');
 	return;
     },
@@ -869,6 +870,7 @@ function main_page_share_location_popup () {
 	$('#my_contacts_button').show();
 	$('input[name=my_contacts_email]').val(null);
 	$('input[name=my_contacts_mobile]').val(null);
+	$('#share_location_form_info').html('');
 	$('#share_location_popup').popup('open');
     } else {
 	// set to false to allow sharing from webapp (testing)
@@ -988,6 +990,7 @@ function display_support () {
     var build_id = $('#geopeers_config').attr('build_id');
     $('#support_version').text(build_id);
     $("input[type='hidden'][name='support_version']").val(build_id);
+    $('#support_form_info').html('');
     $('#support_popup').popup('open');
     return;
 }
@@ -1316,6 +1319,7 @@ function update_registration_popup () {
 function display_registration_popup () {
     update_registration_popup();
     $('#registration_popup').show();
+    $('#registration_popup').html('');
     $('#registration_popup').popup('open');
     return;
 }
