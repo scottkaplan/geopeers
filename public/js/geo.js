@@ -1324,7 +1324,7 @@ function update_registration_popup () {
 function display_registration_popup () {
     update_registration_popup();
     $('#registration_popup').show();
-    $('#registration_popup').html('');
+    $('#registration_form_info').html('');
     $('#registration_popup').popup('open');
     return;
 }
