@@ -921,7 +921,11 @@ function share_location () {
 	}
 	$('#account_name_box').hide();
     } else {
-	$('#account_name_box').show();
+	if (registration.reg_info &&
+	    registration.reg_info.account &&
+	    ! registration.reg_info.account.name) {
+	    $('#account_name_box').show();
+	}
     }
 
     // location can be shared either by:
@@ -1016,6 +1020,7 @@ function config_callback (data, textStatus, jqXHR) {
     // The server is telling us if there is an account name for this device
     // If not, we want to let the device user supply a name when they send a share
     if (! data.account_name) {
+	console.log (data);
 	$('#account_name_box').show();
     }
 
