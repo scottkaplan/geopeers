@@ -1118,11 +1118,12 @@ class Protocol
       end
     end
 
-    ['mobile','email', 'mobile_dropdown', 'email_dropdown'].each do | type |
-      if params["my_contacts_#{type}"]
-        $LOG.debug params["my_contacts_#{type}"]
+    ['mobile','email', 'mobile_dropdown', 'email_dropdown'].each do | field_type |
+      if params["my_contacts_#{field_type}"]
+        $LOG.debug params["my_contacts_#{field_type}"]
+        type = field_type.sub(/_dropdown/, '')
         response = create_and_send_share(share_parms.merge({ share_via: type,
-                                                             share_to:  params["my_contacts_#{type}"],
+                                                             share_to:  params["my_contacts_#{field_type}"],
                                                            }),
                                          params,
                                          response)
