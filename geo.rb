@@ -553,7 +553,6 @@ class Protocol
       $LOG.debug email
       err = Protocol.send_email(msg, email, account.name, share.share_to, subject)
       if (err)
-        log_error (err)
         {message: 'There was a problem sending your email.  Support has been contacted', message_class: 'message_error'}
       else
         {message: "Sent location share to #{share.share_to}"}
