@@ -50,6 +50,18 @@ end
 class Global < ActiveRecord::Base
 end
 
+class Event
+  @@conn = Mysql2::Client.new(:database => 'geopeers',
+                              :host     => 'db.geopeers.com',
+                              :username => 'geopeers',
+                              :password => 'ullamco1')
+  def self.log (msg)
+    params_json = $params.to_json
+    sql = "INSERT INTO events (method, message, params, created_at, updated_at) VALUES ('#{$params['method']}', '#{msg}', '#{params_json}', NOW(), NOW())"
+    @@conn.query sql
+  end
+end
+
 class ERBContext
   def initialize(hash)
     hash.each_pair do |key, value|
@@ -80,6 +92,24 @@ class Sms
     return if msg == "Message sent"
     return msg
   end
+end
+
+def format_account_name (account)
+  account.name ? "#{account.name}(#{account.id})" : account.id
+end
+
+def format_device_name (device)
+  account = Protocol.get_account_from_device(device)
+  if account.name
+    account.name + '(' + device.device_id + ')'
+  else
+    device.device_id
+  end
+end
+
+def format_device_id_name (device_id)
+  device = Device.find_by(device_id: device_id)
+  format_device_name (device)
 end
 
 def clear_shares (device_id)
@@ -510,7 +540,7 @@ class Protocol
       account = Protocol.get_account_from_device_id (params['device_id'])
       msg = ""
       if account && account.name
-        msg = "From #{account.name} "
+        msg = "From #{account.name}: "
       end
       msg += params['share_message']
       err = sms_obj.send(share.share_to, msg)
@@ -592,8 +622,8 @@ class Protocol
     account.save
     device[:account_id] = account.id
     device.save
-    
-    log_info ("created device #{device_id}, user agent=#{user_agent.to_s}, account=#{account.id}, params=#{$params.inspect}")
+
+    Event.log ("created device #{device_id}, account=#{account.id}")
     device
   end
 
@@ -680,13 +710,19 @@ class Protocol
       # This was already done
       url = create_alert_url("SHARES_XFERED");
     else
-      errs = Protocol.merge_accounts(Protocol.get_account_from_device(native_app_device),
-                                     Protocol.get_account_from_device(web_app_device))
+      native_app_account = Protocol.get_account_from_device(native_app_device)
+      web_app_account = Protocol.get_account_from_device(web_app_device)
+      errs = Protocol.merge_accounts(native_app_account, web_app_account);
       if errs.empty?
         url = create_alert_url("SHARES_XFERED_COUNTDOWN");
       else
         url = create_alert_url("SHARES_XFERED_MSG", {message: errs.join('<br>')});
       end
+      event_msg = "bound web app "
+      event_msg += format_device_name web_app_device
+      event_msg += " to native app "
+      event_msg += format_device_name native_app_device
+      Event.log (event_msg)
     end
     {redirect_url: url}
   end
@@ -920,10 +956,10 @@ class Protocol
                         cred:       params['cred'],
                         issue_time: Time.now,
                         )
-        auth.save
         user_msg = "We were waiting for a verification for #{auth.auth_key}"
         user_msg += "That verification will now verify #{new_val}.  And a new verification was sent to #{new_val}"
         auth.auth_key = new_val
+        Event.log (user_msg)
         auth.save
       end
     else
@@ -934,8 +970,9 @@ class Protocol
                       cred:       params['cred'],
                       issue_time: Time.now,
                       )
-      auth.save
       user_msg = "A verification was sent to #{new_val}"
+      Event.log (user_msg)
+      auth.save
     end
     err = Protocol.send_verification_msg(params, type)
     if (err)
@@ -987,8 +1024,10 @@ class Protocol
 
     if (params['name'] && params['name'] != account.name)
       account.name = params['name']
+      user_msg = "Account name changed to #{account.name}"
+      Event.log (user_msg)
+      msgs.push (user_msg)
       account.save
-      msgs.push ("Account name changed to #{account.name}")
     end
 
     ['mobile','email'].each do | type |
@@ -1068,7 +1107,9 @@ class Protocol
       if account
         account.name = params['account_name']
         account.save
-        response['message'] = "Name set to #{account.name}"
+        user_msg = "Name set to #{account.name}"
+        response['message'] = user_msg
+        Event.log (user_msg)
       end
     end
 
@@ -1106,7 +1147,7 @@ class Protocol
                                                              }),
                                            params,
                                            response)
-          $LOG.debug response
+          Event.log ("Share by seer_device_id to #{account[type]} via #{type}")
         end
       end
       # TODO: This only returns the last response
@@ -1118,15 +1159,17 @@ class Protocol
     end
 
     ['mobile','email', 'mobile_dropdown', 'email_dropdown'].each do | field_type |
-      if params["my_contacts_#{field_type}"]
-        $LOG.debug params["my_contacts_#{field_type}"]
+      my_contacts_field = "my_contacts_#{field_type}"
+      if params[my_contacts_field]
+        $LOG.debug params[my_contacts_field]
         type = field_type.sub(/_dropdown/, '')
+        share_to = params[my_contacts_field]
         response = create_and_send_share(share_parms.merge({ share_via: type,
-                                                             share_to:  params["my_contacts_#{field_type}"],
+                                                             share_to:  share_to,
                                                            }),
                                          params,
                                          response)
-        $LOG.debug response
+        Event.log ("Share by #{my_contacts_field} to #{share_to} via #{type}")
       end
     end
       
@@ -1154,6 +1197,7 @@ class Protocol
                                                              }),
                                            params,
                                            response)
+          Event.log ("Share by typing to #{params['share_to']} via #{params['share_via']}")
         else 
           response['popup_message'] = "The phone number (share to) must be 10 digits"
         end
@@ -1168,6 +1212,7 @@ class Protocol
                                                              }),
                                            params,
                                            response)
+          Event.log ("Share by typing to #{params['share_to']} via #{params['share_via']}")
         else
           response['popup_message'] = "Email should be in the form 'fred@company.com'"
         end
@@ -1206,24 +1251,25 @@ class Protocol
             # we already have an unlimited share
             return {:redirect_url => redirect_url}
           end
-          
+
+          event_msg = ''
           if (! share.expire_time)
             # the new share doesn't expire, use it
-            $LOG.debug "using new infinite share"
+            event_msg = "using new infinite share"
             redeem = Redeem.find (current_share.redeem_id)
             redeem.share_id = share.id
           elsif (current_share.expire_time >= share.expire_time)
             # this current_share expires after the new share, ignore the new share
-            $LOG.debug "using existing share"
+            event_msg = "using existing share"
             return {:redirect_url => redirect_url}
           else
             # the new share expires after the current share, update the redeem with the new share
-            $LOG.debug "updating redeem with new share"
+            event_msg = "updating redeem with new share"
             redeem = Redeem.find (current_share.redeem_id)
             redeem.share_id = share.id
           end
         else
-          $LOG.debug "no existing share"
+          event_msg = "no existing share"
           redeem = Redeem.new(share_id:  share.id,
                               device_id: params["device_id"])
         end
@@ -1231,6 +1277,10 @@ class Protocol
         $LOG.debug redeem
         share.num_uses = share.num_uses ? share.num_uses+1 : 1
         share.save
+
+        seer_name = format_device_id_name redeem.device_id
+        seen_name = format_device_id_name share.device_id
+        Event.log "#{seer_name} can now see #{seen_name} - #{event_msg}"
 
         device = Device.find_by(device_id: params['device_id'])
         if device &&
@@ -1294,11 +1344,12 @@ class Protocol
       # But it is possible that there are two different accounts
       #   1) This device_id has an account
       #   2) There is an account associated with the value 
-      account_for_device = Protocol.get_account_from_device(device)
+      account_for_device = Protocol.get_account_from_device device
 
       $LOG.debug account_for_device
       account_from_val = Account.where("#{auth_cred.auth_type}=? AND active = 1",auth_cred.auth_key).first
       $LOG.debug account_from_val
+      event_msg = ''
       if  account_from_val &&
           account_from_val.id != device.account_id
         # this value is used in another account, merge
@@ -1306,11 +1357,14 @@ class Protocol
                                         { auth_key: auth_cred.auth_key,
                                           account_name: account_from_val.name,
                                         })
-        errs = Protocol.merge_accounts(account_from_val, account_for_device)
-        msg += errs.join('<br>') unless (errs.empty?)
+        warns = Protocol.merge_accounts(account_from_val, account_for_device)
+        if ! warns.empty?
+          log_error warns.join("\n")
+        end
         device.account_id = account_from_val.id
         device.save
         account = account_from_val
+        event_msg = ", merged account " + format_account_name(account_for_device)
       else
         redirect_url = create_alert_url("DEVICE_REGISTERED",
                                         { account_name: account_for_device.name })
@@ -1320,7 +1374,7 @@ class Protocol
       auth_cred.save
       account[auth_cred.auth_type] = auth_cred.auth_key
       account.save
-      $LOG.debug account
+      Event.log "Assigned #{auth_cred.auth_key} to account " + format_account_name(account) + event_msg
     end
     redirect_url += "&device_id=#{device.device_id}"
     return {:redirect_url => redirect_url}
@@ -1332,7 +1386,7 @@ class Protocol
     $LOG.debug account_1
     $LOG.debug account_2
 
-    err_msgs = []
+    warn_msgs = []
     ['name', 'mobile', 'email'].each do | type |
       if account_2[type]
         # merge the attributes of the account record
@@ -1340,7 +1394,7 @@ class Protocol
           if account_1[type] != account_2[type]
             # This is bad
             msg = "The #{type} #{account_2[type]} will no longer be used. You can continue to use #{account_1[type]}."
-            err_msgs.push (msg)
+            warn_msgs.push (msg)
           end
         else
           # account_1[type] is nil, copy value from account_2
@@ -1369,7 +1423,7 @@ class Protocol
     # don't delete account_2, just mark it inactive
     account_2.active = nil
     account_2.save
-    err_msgs
+    warn_msgs
   end
   
   def Protocol.process_request_get_shares (params)
@@ -1490,6 +1544,7 @@ class Protocol
     end
     share.active = share.active == 1 ? 0 : 1
     share.save
+    Event.log "Set share to #{share.share_to} active=#{share.active}"
     shares = Protocol.process_request_get_shares (params)
     $LOG.debug shares
     shares
