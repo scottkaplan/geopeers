@@ -81,7 +81,7 @@ function display_alert_message () {
 	var message_type = 'message_info';
 	break;
     case "DEVICE_REGISTERED":
-        var message = getParameterByName('account_name') + "has been registered.";
+        var message = getParameterByName('account_name') + " has been registered.";
 	var message_type = 'message_success';
 	break;
     case "SHARES_XFERED":
