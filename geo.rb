@@ -62,6 +62,34 @@ class Event
   end
 end
 
+def init_log
+  $LOG = Logger.new(STDOUT)
+  # $LOG = Logger.new(log_file, 'daily')
+  $LOG.datetime_format = "%Y-%m-%d %H:%M:%S.%L"
+  $LOG.formatter = proc { |severity, datetime, progname, msg|
+    path, line, method = caller[4].split(/(?::in `|:|')/)
+    whence = $:.detect { |p| path.start_with?(p) }
+    if whence
+      file = path[whence.length + 1..-1]
+    else
+      # We get here if the path is not in $:
+      file = path
+    end
+    "[#{datetime.strftime($LOG.datetime_format)} #{severity} #{file}:#{line}]: #{msg.inspect}\n"
+  }
+end
+
+def log_dos(msg)
+  $LOG.error msg
+  return
+end
+
+def log_info(msg)
+  $LOG.info msg
+  Protocol.send_email(msg, 'support@geopeers.com', 'Geopeers Support', 'support@geopeers.com', 'Geopeers Server Info')
+  msg
+end
+
 class ERBContext
   def initialize(hash)
     hash.each_pair do |key, value|
@@ -141,11 +169,6 @@ def clear_device_id (device_id)
   device.destroy
 end
 
-def log_dos(msg)
-  $LOG.error msg
-  return
-end
-
 def parse_backtrace (backtrace) 
   ar = Array.new
   backtrace.each { |x|
@@ -154,12 +177,6 @@ def parse_backtrace (backtrace)
     ar.push({file_base: file_base, line_num: line_num, routine: routine})
   }
   ar
-end
-
-def log_info(msg)
-  $LOG.info msg
-  Protocol.send_email(msg, 'support@geopeers.com', 'Geopeers Support', 'support@geopeers.com', 'Geopeers Server Info')
-  msg
 end
 
 def host
@@ -237,20 +254,7 @@ end
 
 def init
   Dir.chdir ("/home/geopeers/sinatra/geopeers")
-  $LOG = Logger.new(STDOUT)
-  # $LOG = Logger.new(log_file, 'daily')
-  $LOG.datetime_format = "%Y-%m-%d %H:%M:%S.%L"
-  $LOG.formatter = proc { |severity, datetime, progname, msg|
-    path, line, method = caller[4].split(/(?::in `|:|')/)
-    whence = $:.detect { |p| path.start_with?(p) }
-    if whence
-      file = path[whence.length + 1..-1]
-    else
-      # We get here if the path is not in $:
-      file = path
-    end
-    "[#{datetime.strftime($LOG.datetime_format)} #{severity} #{file}:#{line}]: #{msg.inspect}\n"
-  }
+  init_log
   db_config = YAML::load_file('config/database.yml')
   ActiveRecord::Base.establish_connection(
                                           :adapter  => db_config['adapter'],
@@ -1217,8 +1221,6 @@ class Protocol
           response['popup_message'] = "Email should be in the form 'fred@company.com'"
         end
       end
-
-      $LOG.debug response
     end
 
     $LOG.debug response
