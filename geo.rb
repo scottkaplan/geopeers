@@ -49,16 +49,18 @@ class Auth < ActiveRecord::Base
 end
 class Global < ActiveRecord::Base
 end
+class Milestone < ActiveRecord::Base
+end
 
-class Event
-  @@conn = Mysql2::Client.new(:database => 'geopeers',
-                              :host     => 'db.geopeers.com',
-                              :username => 'geopeers',
-                              :password => 'ullamco1')
-  def self.log (msg)
+class Logging
+  def self.milestone (msg)
     params_json = $params.to_json
-    sql = "INSERT INTO events (method, message, params, created_at, updated_at) VALUES ('#{$params['method']}', '#{msg}', '#{params_json}', NOW(), NOW())"
-    @@conn.query sql
+    $LOG.debug params_json
+    # Global.new(key:'test', value: 'val1')
+    Milestone.new(method: 'method',
+                  message: msg,
+                  params: params_json)
+    Milestone.save
   end
 end
 
@@ -170,7 +172,7 @@ def clear_device_id (device_id)
 end
 
 def parse_backtrace (backtrace) 
-  ar = Array.new
+  ar = []
   backtrace.each { |x|
     /(?<path>.*?):(?<line_num>\d+):in `(?<routine>.*)'/ =~ x
     file_base = File.basename(path)
@@ -627,7 +629,7 @@ class Protocol
     device[:account_id] = account.id
     device.save
 
-    Event.log ("created device #{device_id}, account=#{account.id}")
+    Logging.milestone ("created device #{device_id}, account=#{account.id}")
     device
   end
 
@@ -726,7 +728,7 @@ class Protocol
       event_msg += format_device_name web_app_device
       event_msg += " to native app "
       event_msg += format_device_name native_app_device
-      Event.log (event_msg)
+      Logging.milestone (event_msg)
     end
     {redirect_url: url}
   end
@@ -963,7 +965,7 @@ class Protocol
         user_msg = "We were waiting for a verification for #{auth.auth_key}"
         user_msg += "That verification will now verify #{new_val}.  And a new verification was sent to #{new_val}"
         auth.auth_key = new_val
-        Event.log (user_msg)
+        Logging.milestone (user_msg)
         auth.save
       end
     else
@@ -975,7 +977,7 @@ class Protocol
                       issue_time: Time.now,
                       )
       user_msg = "A verification was sent to #{new_val}"
-      Event.log (user_msg)
+      Logging.milestone (user_msg)
       auth.save
     end
     err = Protocol.send_verification_msg(params, type)
@@ -1029,7 +1031,7 @@ class Protocol
     if (params['name'] && params['name'] != account.name)
       account.name = params['name']
       user_msg = "Account name changed to #{account.name}"
-      Event.log (user_msg)
+      Logging.milestone (user_msg)
       msgs.push (user_msg)
       account.save
     end
@@ -1113,7 +1115,7 @@ class Protocol
         account.save
         user_msg = "Name set to #{account.name}"
         response['message'] = user_msg
-        Event.log (user_msg)
+        Logging.milestone (user_msg)
       end
     end
 
@@ -1151,7 +1153,7 @@ class Protocol
                                                              }),
                                            params,
                                            response)
-          Event.log ("Share by seer_device_id to #{account[type]} via #{type}")
+          Logging.milestone ("Share by seer_device_id to #{account[type]} via #{type}")
         end
       end
       # TODO: This only returns the last response
@@ -1173,7 +1175,7 @@ class Protocol
                                                            }),
                                          params,
                                          response)
-        Event.log ("Share by #{my_contacts_field} to #{share_to} via #{type}")
+        Logging.milestone ("Share by #{my_contacts_field} to #{share_to} via #{type}")
       end
     end
       
@@ -1201,7 +1203,7 @@ class Protocol
                                                              }),
                                            params,
                                            response)
-          Event.log ("Share by typing to #{params['share_to']} via #{params['share_via']}")
+          Logging.milestone ("Share by typing to #{params['share_to']} via #{params['share_via']}")
         else 
           response['popup_message'] = "The phone number (share to) must be 10 digits"
         end
@@ -1216,7 +1218,7 @@ class Protocol
                                                              }),
                                            params,
                                            response)
-          Event.log ("Share by typing to #{params['share_to']} via #{params['share_via']}")
+          Logging.milestone ("Share by typing to #{params['share_to']} via #{params['share_via']}")
         else
           response['popup_message'] = "Email should be in the form 'fred@company.com'"
         end
@@ -1282,7 +1284,7 @@ class Protocol
 
         seer_name = format_device_id_name redeem.device_id
         seen_name = format_device_id_name share.device_id
-        Event.log "#{seer_name} can now see #{seen_name} - #{event_msg}"
+        Logging.milestone "#{seer_name} can now see #{seen_name} - #{event_msg}"
 
         device = Device.find_by(device_id: params['device_id'])
         if device &&
@@ -1376,7 +1378,7 @@ class Protocol
       auth_cred.save
       account[auth_cred.auth_type] = auth_cred.auth_key
       account.save
-      Event.log "Assigned #{auth_cred.auth_key} to account " + format_account_name(account) + event_msg
+      Logging.milestone "Assigned #{auth_cred.auth_key} to account " + format_account_name(account) + event_msg
     end
     redirect_url += "&device_id=#{device.device_id}"
     return {:redirect_url => redirect_url}
@@ -1546,7 +1548,7 @@ class Protocol
     end
     share.active = share.active == 1 ? 0 : 1
     share.save
-    Event.log "Set share to #{share.share_to} active=#{share.active}"
+    Logging.milestone "Set share to #{share.share_to} active=#{share.active}"
     shares = Protocol.process_request_get_shares (params)
     $LOG.debug shares
     shares
