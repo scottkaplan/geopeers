@@ -5,6 +5,7 @@
 # Author:: Scott Kaplan (mailto:scott@kaplans.com)
 # Copyright:: Copyright (c) 2014 Scott Kaplan
 
+require 'bundler'
 require 'sinatra'
 require 'sinatra/activerecord'
 require 'json'
@@ -56,11 +57,9 @@ class Logging
   def self.milestone (msg)
     params_json = $params.to_json
     $LOG.debug params_json
-    # Global.new(key:'test', value: 'val1')
-    Milestone.new(method: 'method',
-                  message: msg,
-                  params: params_json)
-    Milestone.save
+    Milestone.create(method: 'method',
+                     message: msg,
+                     params: params_json)
   end
 end
 
@@ -229,8 +228,7 @@ end
 def create_and_send_share(share_params, params, response)
   $LOG.debug share_params
   share_params['share_cred'] = SecureRandom.urlsafe_base64(10)
-  share = Share.new(share_params)
-  share.save
+  share = Share.create(share_params)
 
   # Can't have tz in Share.new (share_params)
   # Need it in send_share, so add it now
@@ -255,7 +253,7 @@ def create_and_send_share(share_params, params, response)
 end
 
 def init
-  Dir.chdir ("/home/geopeers/sinatra/geopeers")
+  Dir.chdir (File.dirname(__FILE__))
   init_log
   db_config = YAML::load_file('config/database.yml')
   ActiveRecord::Base.establish_connection(
@@ -624,8 +622,7 @@ class Protocol
                         app_version: get_build_id(),
                         app_type:    app_type,
                         )
-    account = Account.new()
-    account.save
+    account = Account.create()
     device[:account_id] = account.id
     device.save
 
@@ -782,11 +779,10 @@ class Protocol
       latitude = params['gps_latitude']
     end
 
-    sighting = Sighting.new(device_id:     params['device_id'],
-                            gps_longitude: longitude,
-                            gps_latitude:  latitude,
-                            )
-    sighting.save
+    sighting = Sighting.create(device_id:     params['device_id'],
+                               gps_longitude: longitude,
+                               gps_latitude:  latitude,
+                              )
     {status:'OK'}
   end
 
@@ -970,15 +966,14 @@ class Protocol
       end
     else
       params['cred'] = SecureRandom.urlsafe_base64(10)
-      auth = Auth.new(account_id: account.id,
-                      auth_type:  type,
-                      auth_key:   new_val,
-                      cred:       params['cred'],
-                      issue_time: Time.now,
-                      )
+      auth = Auth.create(account_id: account.id,
+                         auth_type:  type,
+                         auth_key:   new_val,
+                         cred:       params['cred'],
+                         issue_time: Time.now,
+                        )
       user_msg = "A verification was sent to #{new_val}"
       Logging.milestone (user_msg)
-      auth.save
     end
     err = Protocol.send_verification_msg(params, type)
     if (err)
