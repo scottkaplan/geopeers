@@ -1651,7 +1651,7 @@ var init_geo = {
 	// but that won't happen for 60 sec
 	// schedule one in 10 sec to clean up any messes
 	// caused by initialization stragglers
-	setTimeout(update_map_canvas_pos (), 10000);
+	setTimeout(update_map_canvas_pos, 5000);
     },
     show_popups: function () {
 	['registration_popup', 'download_link_popup', 'download_app_popup', 'update_app_popup',
