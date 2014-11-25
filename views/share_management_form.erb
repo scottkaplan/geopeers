@@ -4,8 +4,19 @@
        height="19"
        >
 </div>
-<div id="manage_msg" style="text-align:center; font-size:16px; font-weight:bold; color: purple; padding:5px"></div>
-<table id="manage_table">
+<div id="manage_msg"
+     style="text-align:center; font-size:16px; font-weight:bold; color: purple; padding:5px">
+</div>
+<div id="show_hide_expire" style="display:none">
+  <label for="show_hide_expire_checkbox">
+    Hide expired shares
+    <input type="checkbox"
+	   name="show_hide_expire_checkbox"
+	   onclick="$('.share_expired').toggle()"
+	   >
+  </label>
+</div>
+<table id="manage_table" style="min-height:250px">
   <thead>
     <tr>
       <th style="display:none">redeem_time</th>
@@ -14,6 +25,7 @@
       <th>Used</th>
       <th>Expires</th>
       <th>On/Off</th>
+    </tr>
   </thead>
   <tbody id="manage_info">
   </tbody>

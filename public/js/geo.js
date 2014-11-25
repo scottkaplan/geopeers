@@ -1173,6 +1173,9 @@ function manage_shares_callback (data, textStatus, jqXHR) {
     head.append($('<th></th>').text('Expires'));
     head.append($('<th></th>').text('On/Off'));
     table.append($('<thead></thead>').append(head));
+
+    // first time thru flag
+    var have_expired_shares = false;
     for (var i=0,len=data.shares.length; i<len; i++){
 	// add a row to the table body for each share
 	var share = data.shares[i];
@@ -1185,6 +1188,7 @@ function manage_shares_callback (data, textStatus, jqXHR) {
 	var expired;
 	if (share.expire_time && (expire_time.getTime() < now)) {
 	    expired = true;
+	    have_expired_shares = true;
 	} else {
 	    expired = false;
 	}
@@ -1257,6 +1261,10 @@ function manage_shares_callback (data, textStatus, jqXHR) {
 	DT.column(1).visible(false);
     }
     $('#manage_form_spinner').hide();
+    if (have_expired_shares) {
+	$('#show_hide_expire').show();
+    }
+    $('#share_management_popup').popup('reposition', {positionTo: 'origin'});
 }
 
 function manage_shares () {

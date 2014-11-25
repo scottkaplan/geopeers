@@ -395,7 +395,7 @@ def create_index(params=nil)
                params)
   share_management_popup =
     make_popup("share_management_popup",
-               "Manage your Shared Locations",
+               "Manage Shared Locations",
                "views/share_management_form.erb",
                params)
   ERB.new(File.read('views/index.erb')).result(binding)
