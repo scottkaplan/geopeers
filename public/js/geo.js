@@ -1173,8 +1173,8 @@ function manage_shares_callback (data, textStatus, jqXHR) {
     head.append($('<th></th>').text('Expires'));
     head.append($('<th></th>').text('On/Off'));
     table.append($('<thead></thead>').append(head));
-    var tbody = $('<tbody></tbody>');
     for (var i=0,len=data.shares.length; i<len; i++){
+	// add a row to the table body for each share
 	var share = data.shares[i];
 
 	var redeem_name = share.redeem_name ? share.redeem_name : '<Unopened>';
@@ -1204,8 +1204,7 @@ function manage_shares_callback (data, textStatus, jqXHR) {
 	var row = $('<tr></tr>');
 	var status_div = $('<div style="font-size:24px"></div>');
 	if (expired) {
-	    row.css('color', 'red');
-	    row.css('text-decoration', 'line-through');
+	    row.addClass ('share_expired');
 	    status_div.text('Expired');
 	} else {
 	    var switch_on_div = $('<label></label>')
@@ -1233,9 +1232,8 @@ function manage_shares_callback (data, textStatus, jqXHR) {
 	row.append($('<td></td>').text(redeemed));
 	row.append($('<td></td>').text(expires));
 	row.append($('<td></td>').html(status_div));
-	tbody.append(row);
+	$('#manage_info').append(row);
     }
-    table.append(tbody);
 
     if (is_orientation ('portrait')) {
 	// this message will be cleared when the device is oriented in landscape
@@ -1244,7 +1242,6 @@ function manage_shares_callback (data, textStatus, jqXHR) {
 	$('#manage_msg').text(orientation_msg);
     }
 
-    $('#manage_info').html(table);
     if (!  $.fn.dataTable.isDataTable( '#manage_table' ) ) {
 	DT = $('#manage_table').DataTable( {
 		retrieve:     true,
@@ -1260,7 +1257,6 @@ function manage_shares_callback (data, textStatus, jqXHR) {
 	DT.column(1).visible(false);
     }
     $('#manage_form_spinner').hide();
-    $('#share_management_popup').popup("open");
 }
 
 function manage_shares () {
@@ -1271,6 +1267,8 @@ function manage_shares () {
 	var request_parms = { method: 'get_shares',
 			      device_id: device_id,
 	};
+	$('#share_management_popup').popup("open");
+	$('#manage_form_spinner').show();
 	ajax_request (request_parms, manage_shares_callback, geo_ajax_fail_callback);
     } else {
 	$('#registration_popup').popup('open');
@@ -1639,7 +1637,10 @@ var init_geo = {
 	window.addEventListener('orientationchange',
 				function () {
 				    if (is_orientation ('landscape')) {
+					console.log ('landscape');
 					$('#manage_msg').text('');
+				    } else {
+					console.log ('portrait');
 				    }
 				});
 
