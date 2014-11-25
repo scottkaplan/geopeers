@@ -858,19 +858,23 @@ function send_position_request (position) {
 // SHARE_LOCATION
 //
 
+function clear_share_location_popup () {
+    $('#share_via').show();
+    $('#manual_share_via').show();
+    $('#manual_share_to').show();
+    $('#share_with').hide();
+    $('#or_div').show();
+    $('#my_contacts_display').hide();
+    $('#my_contacts_button').show();
+    $('input[name=my_contacts_email]').val(null);
+    $('input[name=my_contacts_mobile]').val(null);
+    $('#share_location_form_info').html('');
+}
+
 function main_page_share_location_popup () {
     if (device_id_mgr.phonegap) {
         // configure popup in case it was used previously
-	$('#share_via').show();
-	$('#manual_share_via').show();
-	$('#manual_share_to').show();
-	$('#share_with').hide();
-	$('#or_div').show();
-	$('#my_contacts_display').hide();
-	$('#my_contacts_button').show();
-	$('input[name=my_contacts_email]').val(null);
-	$('input[name=my_contacts_mobile]').val(null);
-	$('#share_location_form_info').html('');
+	clear_share_location_popup()
 	$('#share_location_popup').popup('open');
     } else {
 	// set to false to allow sharing from webapp (testing)
@@ -1442,19 +1446,31 @@ var download = {
     },
     download_app: function () {
 	// called from the web app or URL parm (download_app=1)
-	if (download.download_url()) {
-	    if (getParameterByName('download_app')) {
-		// URL parm from server, go straight to redirect
-		download.download_redirect();
-	    } else {
-		// user pressed pin or Share Location in web app
-		// but sharing location doesn't work in the web app (no GPS in web workers),
-		// they need the native app, but don't start the download without warning them
-		$('#download_app_popup').popup('open');
-	    }
+	if (getParameterByName('download_app')) {
+	    // URL parm from server, go straight to redirect
+	    download.download_redirect();
 	} else {
-	    // we don't have a native app for this device
-	    $('#download_link_popup').popup('open');
+	    // user pressed pin or Share Location in web app
+	    // but sharing location doesn't work in the web app (no GPS in web workers)
+	    // so we have to send them somewhere towards the native app
+	    //
+	    // 3 possibilities:
+	    //   1) native app already installed
+	    //   2) native app not installed, but available
+	    //   3) native app not installed, not available
+	    if (have_native_app()) {
+		// Offer to switch to native app
+		$('#download_app_popup').popup('open');
+	    } else {
+		if (download.download_url()) {
+		    // don't start the download without warning them in a popup
+		    $('#download_app_popup').popup('open');
+		} else {
+		    // we don't have a native app for this device, offer to send a link
+		    $('#native_app_not_available').show();
+		    $('#download_link_popup').popup('open');
+		}
+	    }
 	}
     },
     send_link: function () {
@@ -1474,6 +1490,7 @@ function download_app_wrapper () {
 }
 
 function download_link_wrapper () {
+    $('#native_app_not_available').hide();
     $('#download_link_popup').popup('open');
 }
 
@@ -1676,17 +1693,15 @@ var init_geo = {
 	    });
     },
     update_main_menu: function () {
+	// the default view is for native apps:
+	//   Send Link for Native App
+	//   Download Native App (hidden)
+	//   Switch to Native App (hidden)
 	if (! is_phonegap() ) {
+	    $('#native_app_download').show();
 	    if (have_native_app()) {
 		// Show the deeplink on the main menu to switch to the native app
 		$('#native_app_switch').show();
-	    } else if (download.download_url()) {
-		// there is a native app available
-		// show the menu item to download the native app
-		$('#native_app_prompt').html("Download Native App");
-		// The user has explicitly asked to download the app
-		// Bypass the download_app interstitial and start the download
-		$('#download_onclick').attr('onclick', "download_redirect_wrapper()");
 	    }
 	}
     },
