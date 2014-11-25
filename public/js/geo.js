@@ -1698,10 +1698,11 @@ var init_geo = {
 	//   Download Native App (hidden)
 	//   Switch to Native App (hidden)
 	if (! is_phonegap() ) {
-	    $('#native_app_download').show();
 	    if (have_native_app()) {
 		// Show the deeplink on the main menu to switch to the native app
 		$('#native_app_switch').show();
+	    } else if (download.download_url()) {
+		$('#native_app_download').show();
 	    }
 	}
     },
