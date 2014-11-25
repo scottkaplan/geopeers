@@ -1,8 +1,20 @@
 <div id="manage_form_spinner" style="text-align:center; display:none">
   <img src="<%= url_prefix %>images/ajax-loader.gif"
-	 width="220"
-	 height="19"
+       width="220"
+       height="19"
        >
 </div>
 <div id="manage_msg" style="text-align:center; font-size:16px; font-weight:bold; color: purple; padding:5px"></div>
-<div id="manage_info" style="padding:5px"></div>
+<table id="manage_table">
+  <thead>
+    <tr>
+      <th style="display:none">redeem_time</th>
+      <th style="display:none">expire_time</th>
+      <th>Shared To</th>
+      <th>Used</th>
+      <th>Expires</th>
+      <th>On/Off</th>
+  </thead>
+  <tbody id="manage_info">
+  </tbody>
+</table>
