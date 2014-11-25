@@ -259,6 +259,11 @@ body {
     background:#147498;
 }
 
+.share_expired {
+    color: red;
+    text-decoration: line-through;
+}
+
 
 /* Used for the Switch effect: */
 .cb-enable, .cb-disable, .cb-enable span, .cb-disable span {
