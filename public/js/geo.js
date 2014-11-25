@@ -1464,7 +1464,7 @@ var download = {
 	    } else {
 		if (download.download_url()) {
 		    // don't start the download without warning them in a popup
-		    $('#download_app_popup').popup('open');
+		    $('#native_app_switch_popup').popup('open');
 		} else {
 		    // we don't have a native app for this device, offer to send a link
 		    $('#native_app_not_available').show();
