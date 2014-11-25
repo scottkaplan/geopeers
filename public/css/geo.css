@@ -281,7 +281,7 @@ body {
     padding: 0 10px;
 }
 .cb-disable.selected {
-    background-color:blue;
+    background-color:red;
     background-position: 0 -30px;
 }
 .cb-disable.selected span {
@@ -289,7 +289,7 @@ body {
     color: #fff;
 }
 .cb-enable.selected {
-    background-color:red;
+    background-color:green;
     background-position: 0 -60px;
 }
 .cb-enable.selected span {
