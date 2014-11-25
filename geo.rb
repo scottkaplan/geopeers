@@ -57,7 +57,7 @@ class Logging
   def self.milestone (msg)
     params_json = $params.to_json
     $LOG.debug params_json
-    Milestone.create(method: 'method',
+    Milestone.create(method: $params['method'],
                      message: msg,
                      params: params_json)
   end
@@ -372,6 +372,11 @@ def create_index(params=nil)
     make_popup("download_app_popup",
                "Download Native App",
                "views/download_app_form.erb",
+               params)
+  native_app_switch_popup =
+    make_popup("native_app_switch_popup",
+               "Switch to Native App",
+               "views/native_app_switch_form.erb",
                params)
   update_app_popup =
     make_popup("update_app_popup",
