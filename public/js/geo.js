@@ -1460,11 +1460,11 @@ var download = {
 	    //   3) native app not installed, not available
 	    if (have_native_app()) {
 		// Offer to switch to native app
-		$('#download_app_popup').popup('open');
+		$('#native_app_switch_popup').popup('open');
 	    } else {
 		if (download.download_url()) {
 		    // don't start the download without warning them in a popup
-		    $('#native_app_switch_popup').popup('open');
+		    $('#download_app_popup').popup('open');
 		} else {
 		    // we don't have a native app for this device, offer to send a link
 		    $('#native_app_not_available').show();
@@ -1671,7 +1671,8 @@ var init_geo = {
 	setTimeout(update_map_canvas_pos, 5000);
     },
     show_popups: function () {
-	['registration_popup', 'download_link_popup', 'download_app_popup', 'update_app_popup',
+	['registration_popup', 'download_link_popup', 'download_app_popup',
+	 'update_app_popup', 'native_app_switch_popup',
 	 'share_location_popup', 'support_popup', 'share_management_popup']
 	.forEach(function (element, index, array) {
 		$('#'+element).show();
