@@ -20,7 +20,7 @@ function get_parms (url) {
 }
 
 function host () {
-    return ('prod.geopeers.com');
+    return ('geopeers.com');
 }
 
 function is_phonegap () {
@@ -35,6 +35,29 @@ function have_native_app () {
 	return (true);
     } else {
 	return (false);
+    }
+}
+
+function change_orientation (e) {
+    if (e.orientation === 'landscape') {
+	console.log ('landscape');
+	$('#manage_msg').empty();
+    } else {
+	console.log ('portrait');
+    }
+}
+
+function is_orientation (requested_orientation) {
+    var orientation = window.orientation;
+    if (typeof(orientation) === 'undefined') {
+	return (false);
+    } else {
+	if (orientation == 90 ||
+	    orientation == -90) {
+	    return (requested_orientation == 'landscape');
+	} else {
+	    return (requested_orientation == 'portrait');
+	}
     }
 }
 
@@ -53,7 +76,7 @@ function if_else_native (is_native_function, is_not_native_function) {
 function update_map_canvas_pos () {
     var height = $('#geo_info').height();
 
-    var content_height = height + 85;
+    var content_height = height + 70;
     $('#content').css('top', content_height+'px');
     resize_map();
     console.log ("content_height="+content_height);
@@ -1093,16 +1116,6 @@ function get_positions () {
 
 var DT;
 
-function switch_screen_orientation (orientation) {
-    var so = cordova.plugins.screenorientation;
-    if (orientation == 'landscape') {
-	so.setOrientation(so.Orientation.LANDSCAPE);
-    } else {
-	so.setOrientation(so.Orientation.PORTRAIT);
-    }
-    return
-}
-
 function format_time (time) {
     // JS version of same routine in geo.rb on server
 
@@ -1143,29 +1156,11 @@ function format_time (time) {
     return (time_str);
 }
 
-function is_orientation (requested_orientation) {
-    if (device_id_mgr.phonegap) {
-	var orientation = window.orientation;
-	if (typeof(orientation) === 'undefined') {
-	    return (false);
-	} else {
-	    if (orientation == 90 ||
-		orientation == -90) {
-		return (requested_orientation == 'landscape');
-	    } else {
-		return (requested_orientation == 'portrait');
-	    }
-	}
-    } else {
-	return (false);
-    }
-    
-}
-
 function manage_shares_callback (data, textStatus, jqXHR) {
     // first time thru flag
     var have_expired_shares = false;
 
+    $('.share_row').remove();
     for (var i=0,len=data.shares.length; i<len; i++){
 	// add a row to the table body for each share
 	var share = data.shares[i];
@@ -1223,10 +1218,14 @@ function manage_shares_callback (data, textStatus, jqXHR) {
 		   .append($('<div></div>').css('margin-top','3px').text('Used: '+redeemed).addClass('share_text'))
 		   .append($('<div></div>').css('margin-top','3px').text('Expires: '+expires).addClass('share_text')));
 	row.append($('<td></td>').html(status_div));
+        row.append($('<td style="display:none"></td>').text(share.redeem_time));
+	row.append($('<td style="display:none"></td>').text(share.expire_time));
 	$('#manage_info').append(row);
     }
 
-    if (is_orientation ('portrait')) {
+    // TODO
+    // turned off until GEOP-40 is fixed
+    if (0 && is_orientation ('portrait')) {
 	// this message will be cleared when the device is oriented in landscape
 	// This is handled in an orientationchange event listener set in init_geo.after_ready
 	var orientation_msg = "Viewed best in landscape mode";
@@ -1242,31 +1241,35 @@ function manage_shares_callback (data, textStatus, jqXHR) {
 	    lengthChange: false,
 	    paging:       false,
 	    scrollX:      true,
+	    order:        [ [ 3, 'desc' ], [ 2, 'desc' ] ],
 	} );
     }
     $('#manage_form_spinner').hide();
     if (have_expired_shares) {
 	$('#show_hide_expire').show();
     }
+
+    
+    if ($('#show_hide_expire_checkbox').prop('checked')) {
+	$('.share_expired').hide();
+    } else {
+	$('.share_expired').show();
+    }
+
     $('#share_management_popup').popup('reposition', {positionTo: 'origin'});
 }
 
 function manage_shares () {
-    if (1 || device_id_mgr.phonegap) {
-	var device_id = device_id_mgr.get();
-	if (! device_id)
-	    return;
-	var request_parms = { method: 'get_shares',
-			      device_id: device_id,
-	};
-	$('#show_hide_expire_checkbox').prop('checked', false);
-	$('.share_row').remove();
-	$('#share_management_popup').popup("open");
-	$('#manage_form_spinner').show();
-	ajax_request (request_parms, manage_shares_callback, geo_ajax_fail_callback);
-    } else {
-	$('#registration_popup').popup('open');
-    }
+    var device_id = device_id_mgr.get();
+    if (! device_id)
+	return;
+    var request_parms = { method: 'get_shares',
+			  device_id: device_id,
+			};
+    // $('#show_hide_expire_checkbox').prop('checked', false).checkboxradio('refresh');
+    $('#share_management_popup').popup("open");
+    $('#manage_form_spinner').show();
+    ajax_request (request_parms, manage_shares_callback, geo_ajax_fail_callback);
     return;
 }
 
@@ -1628,15 +1631,10 @@ var init_geo = {
 
 	// set this globally to clear the orientation warning on the share management popup
 	// if the device switches into landscape
-	window.addEventListener('orientationchange',
-				function () {
-				    if (is_orientation ('landscape')) {
-					console.log ('landscape');
-					$('#manage_msg').text('');
-				    } else {
-					console.log ('portrait');
-				    }
-				});
+
+	// TODO
+	// turn on when GEOP-40 is fixed
+	// window.addEventListener('orientationchange', change_orientation);
 
 	run_position_function (function(position) {create_map(position)});
 
