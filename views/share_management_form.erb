@@ -11,22 +11,20 @@
   <label for="show_hide_expire_checkbox">
     Hide expired shares
     <input type="checkbox"
+	   id="show_hide_expire_checkbox"
 	   name="show_hide_expire_checkbox"
 	   onclick="$('.share_expired').toggle()"
 	   >
   </label>
 </div>
 <table id="manage_table" style="min-height:250px">
-  <thead>
+  <thead style="display:none">
     <tr>
-      <th style="display:none">redeem_time</th>
-      <th style="display:none">expire_time</th>
       <th>Shared To</th>
-      <th>Used</th>
-      <th>Expires</th>
       <th>On/Off</th>
     </tr>
   </thead>
+
   <tbody id="manage_info">
   </tbody>
 </table>

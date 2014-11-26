@@ -74,7 +74,7 @@ body {
 
 .message_info, .message_success, .message_warning, .message_error, .message_validation {
     font-family:Arial, Helvetica, sans-serif; 
-    font-size:13px;
+    font-size:16px;
     border: 1px solid;
     margin: 10px 10px;
     padding:15px 30px 15px 50px;
@@ -264,6 +264,13 @@ body {
     text-decoration: line-through;
 }
 
+.share_text {
+    font-size: 14px;
+}
+
+#manage_info {
+    font-size: 14px;
+}
 
 /* Used for the Switch effect: */
 .cb-enable, .cb-disable, .cb-enable span, .cb-disable span {

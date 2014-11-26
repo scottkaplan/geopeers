@@ -1128,9 +1128,10 @@ function format_time (time) {
 					   minute: date.getMinutes()});
     }
     var time_zone_str = /\((.*)\)/.exec(date.toTimeString())[0];
-    var matches = time_zone_str.match(/\b(\w)/g);
-    var time_zone_acronym = matches.join('');
-    time_str += ' ' + time_zone_acronym;
+    // var matches = time_zone_str.match(/\b(\w)/g);
+    // var time_zone_acronym = matches.join('');
+    // time_str += ' ' + time_zone_acronym;
+    time_str += ' ' + time_zone_str;
     return (time_str);
 }
 
@@ -1154,28 +1155,9 @@ function is_orientation (requested_orientation) {
 }
 
 function manage_shares_callback (data, textStatus, jqXHR) {
-    // create markup for a table, loaded with data
-    // table is of the form:
-    // <table>
-    //   <thead>
-    //     <tr><th>...</th><th>...</th>...
-    //   </thead>
-    //   <tbody>
-    //     <tr><td>...</td><td>...</td>...
-    //   </tbody>
-    // </table>
-    var table = $('<table></table>').attr('id','manage_table').addClass('display');
-    var head = $('<tr></tr>');
-    head.append($('<th></th>').text('redeem_time'));
-    head.append($('<th></th>').text('expire_time'));
-    head.append($('<th></th>').text('Shared To'));
-    head.append($('<th></th>').text('Used'));
-    head.append($('<th></th>').text('Expires'));
-    head.append($('<th></th>').text('On/Off'));
-    table.append($('<thead></thead>').append(head));
-
     // first time thru flag
     var have_expired_shares = false;
+
     for (var i=0,len=data.shares.length; i<len; i++){
 	// add a row to the table body for each share
 	var share = data.shares[i];
@@ -1183,10 +1165,9 @@ function manage_shares_callback (data, textStatus, jqXHR) {
 	var redeem_name = share.redeem_name ? share.redeem_name : '<Unopened>';
 	var expires = share.expire_time ? format_time(share.expire_time) : 'Never';
 	var expire_time = new Date(share.expire_time);
-	var now = Date.now();
 
 	var expired;
-	if (share.expire_time && (expire_time.getTime() < now)) {
+	if (share.expire_time && (expire_time.getTime() < Date.now())) {
 	    expired = true;
 	    have_expired_shares = true;
 	} else {
@@ -1204,8 +1185,8 @@ function manage_shares_callback (data, textStatus, jqXHR) {
 	} else {
 	    redeemed = "Not yet";
 	}
-	
-	var row = $('<tr></tr>');
+
+	var row = $('<tr></tr>').addClass('share_row');
 	var status_div = $('<div style="font-size:24px"></div>');
 	if (expired) {
 	    row.addClass ('share_expired');
@@ -1230,11 +1211,9 @@ function manage_shares_callback (data, textStatus, jqXHR) {
 		.append(switch_off_div)
 		.append($('<input></input>').attr('type','hidden').attr('name','checkbox'));
 	}
-	row.append($('<td></td>').text(share.redeem_time));
-	row.append($('<td></td>').text(share.expire_time));
-	row.append($('<td></td>').text(share_to));
-	row.append($('<td></td>').text(redeemed));
-	row.append($('<td></td>').text(expires));
+	row.append($('<td></td>').html($('<div></div>').text(share_to).addClass('share_text'))
+		   .append($('<div></div>').css('margin-top','3px').text('Used: '+redeemed).addClass('share_text'))
+		   .append($('<div></div>').css('margin-top','3px').text('Expires: '+expires).addClass('share_text')));
 	row.append($('<td></td>').html(status_div));
 	$('#manage_info').append(row);
     }
@@ -1244,21 +1223,18 @@ function manage_shares_callback (data, textStatus, jqXHR) {
 	// This is handled in an orientationchange event listener set in init_geo.after_ready
 	var orientation_msg = "Viewed best in landscape mode";
 	$('#manage_msg').text(orientation_msg);
+    } else {
+	$('#manage_msg').hide();
     }
 
-    if (!  $.fn.dataTable.isDataTable( '#manage_table' ) ) {
-	DT = $('#manage_table').DataTable( {
-		retrieve:     true,
-		searching:    false,
-		lengthChange: false,
-		scrollX:      true,
-		aoColumnDefs: [ { "iDataSort": 0, "aTargets": [ 3 ] },
-	                        { "iDataSort": 1, "aTargets": [ 4 ] },
-				],
-		order:        [ 4, 'desc' ]
-	    } );
-	DT.column(0).visible(false);
-	DT.column(1).visible(false);
+    if (1 || !  $.fn.dataTable.isDataTable( '#manage_table' ) ) {
+	DT = $('#manage_table').dataTable( {
+	    retrieve:     true,
+	    searching:    false,
+	    lengthChange: false,
+	    paging:       false,
+	    scrollX:      true,
+	} );
     }
     $('#manage_form_spinner').hide();
     if (have_expired_shares) {
@@ -1275,6 +1251,8 @@ function manage_shares () {
 	var request_parms = { method: 'get_shares',
 			      device_id: device_id,
 	};
+	$('#show_hide_expire_checkbox').prop('checked', false);
+	$('.share_row').remove();
 	$('#share_management_popup').popup("open");
 	$('#manage_form_spinner').show();
 	ajax_request (request_parms, manage_shares_callback, geo_ajax_fail_callback);
