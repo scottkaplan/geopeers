@@ -1708,9 +1708,17 @@ function console_log (msg) {
     console.log (Date.now()+':'+msg);
 }
 
+function device_id_bind_webapp (alert_method, message) {
+    // this is only sent to the webapp, so we only need to check for .ready
+    $(document).ready(function() {
+	init_geo.after_ready();
+	display_alert_message(alert_method, message);
+    });
+}
+
 function start () {
     console.log ('start');
-    $(document).ready(function(e,data){
+    $(document).ready(function() {
 	    if (is_phonegap()) {
 		// Wait for device API libraries to load
 		document.addEventListener("deviceready", init_geo.after_ready);
