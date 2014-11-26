@@ -74,11 +74,8 @@ function if_else_native (is_native_function, is_not_native_function) {
 }
 
 function update_map_canvas_pos () {
-    var height = $('#geo_info').height();
-
-    var content_height = height + 70;
+    var content_height = $('#geo_info').height() + 70;
     $('#content').css('top', content_height+'px');
-    resize_map();
     console.log ("content_height="+content_height);
     return;
 }
@@ -169,7 +166,7 @@ function display_message (message, css_class) {
 	wrapper_div.append(msg_div);
 	$('#geo_info').append(wrapper_div);
     }
-    update_map_canvas_pos();
+    // update_map_canvas_pos();
     return (msg_id);
 }
 
@@ -735,7 +732,7 @@ var device_id_bind = {
 	// Get this div off the page
 	// We're done with it and we don't want it firing again
 	$('#'+device_id_bind.countdown_web_app_redirect_div_id).remove();
-	update_map_canvas_pos ();
+	// update_map_canvas_pos ();
 
 	// Defensive coding:
 	// This is an in-memory version of globals.device_id_bind_complete
@@ -769,7 +766,7 @@ var device_id_bind = {
     native_app_redirect: function (message) {
 	// make sure this can't fire again
 	$('#'+device_id_bind.countdown_native_app_redirect_div_id).remove();
-	update_map_canvas_pos ();
+	// update_map_canvas_pos ();
 
         var native_app_deeplink = "geopeers://";
 	if (message) {
@@ -835,10 +832,11 @@ function create_map (position) {
 	my_pos.update_position (position);
     }
 
-    update_map_canvas_pos();
+    var map = $('#map_canvas').gmap('get','map');
+    google.maps.event.addListener(map, 'bounds_changed', update_map_canvas_pos);
 }
 
-function resize_map () {
+function resize_map_KILLME () {
     var map = $('#map_canvas').gmap('get','map');
     google.maps.event.trigger(map, 'resize');
 }
@@ -1403,7 +1401,7 @@ function heartbeat () {
     // keep the green star in the right spot
     my_pos.reposition();
 
-    update_map_canvas_pos();
+    // update_map_canvas_pos();
 
     // if we get here, schedule the next iteration
     setTimeout(heartbeat, period_minutes * 60 * 1000);
@@ -1661,7 +1659,7 @@ var init_geo = {
 	// but that won't happen for 60 sec
 	// schedule one in 10 sec to clean up any messes
 	// caused by initialization stragglers
-	setTimeout(update_map_canvas_pos, 5000);
+	// setTimeout(update_map_canvas_pos, 5000);
     },
     show_popups: function () {
 	['registration_popup', 'download_link_popup', 'download_app_popup',
