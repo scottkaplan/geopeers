@@ -64,15 +64,13 @@ function display_alert_message (alert_method, message) {
     // this is called either
     // 1) 'alert_method=<alert_method>' as a URL parm
     // 2) called as JS, typically injected at the bottom of index.html
-    
-    if (! alert_method) {
-	alert_method = getParameterByName('alert_method');
-    }
+
+    alert_method = alert_method || getParameterByName('alert_method');
     if (! alert_method) {
 	return;
     }
     var message_type = getParameterByName('message_type') ? getParameterByName('message_type') : 'message_error';
-    var (message);
+    var message;
     switch (alert_method) {
     case "SUPPORT_CONTACTED":
 	message = "There was a problem with your request.  Support has been contacted.";
