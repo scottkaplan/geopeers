@@ -50,6 +50,7 @@
   </head>
 
   <body>
+    <% if ! block_gps_spinner %>
     <div id="gps_spinner"
 	 style="text-align:center; display:block">
       <div style="font-size:24px; font-weight:bold; padding-bottom:36px; padding-top:30px">
@@ -63,6 +64,7 @@
 	 build_id="<%= build_id %>"
 	 version="<%= version %>" >
     </div>
+    <% end %>
 
     <div data-role="page" id="index" style="display:none">
       <div data-theme="a" data-role="header">
@@ -195,7 +197,13 @@
 	</li>
       </ul>
     </div>
-    <script>start();</script>
+    <script>
+      <% if initial_js %>
+      <%= initial_js %>
+      <% else %>
+      start();
+      <% end %>
+    </script>
   </body>
 
 </html>

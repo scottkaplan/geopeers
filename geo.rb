@@ -345,9 +345,13 @@ def create_index(params=nil)
   is_phonegap = nil
   is_production = nil
   url_prefix = nil
+  block_gps_spinner = nil
   share_location_my_contacts_tag = nil
   if params && params[:is_production]
     is_production = true
+  end
+  if params && params[:block_gps_spinner]
+    block_gps_spinner = true
   end
   if params && params[:is_phonegap]
     build_id = bump_build_id()
@@ -716,15 +720,19 @@ class Protocol
 
     if native_app_device.account_id == web_app_device.account_id
       # This was already done
-      url = create_alert_url("SHARES_XFERED");
+      html = create_index({block_gps_spinner: true,
+                           initial_js: "display_alert_message('SHARES_XFERED')"})
     else
       native_app_account = Protocol.get_account_from_device(native_app_device)
       web_app_account = Protocol.get_account_from_device(web_app_device)
       errs = Protocol.merge_accounts(native_app_account, web_app_account);
       if errs.empty?
-        url = create_alert_url("SHARES_XFERED_COUNTDOWN");
+        html = create_index({block_gps_spinner: true,
+                             initial_js: "display_alert_message('SHARES_XFERED_COUNTDOWN')"})
       else
-        url = create_alert_url("SHARES_XFERED_MSG", {message: errs.join('<br>')});
+        message = errs.join('<br>')
+        html = create_index({block_gps_spinner: true,
+                             initial_js: "display_alert_message('SHARES_XFERED_MSG', '#{message}')"})
       end
       event_msg = "bound web app "
       event_msg += format_device_name web_app_device
@@ -732,7 +740,7 @@ class Protocol
       event_msg += format_device_name native_app_device
       Logging.milestone (event_msg)
     end
-    {redirect_url: url}
+    {html: html}
   end
 
   def Protocol.process_request_config (params)
@@ -743,10 +751,10 @@ class Protocol
     #
     # params
     #   device_id
-    #   version          - current client version
+    #   version - current client version
     #
     # returns
-    #   js      - client will execute this js
+    #   js - client will execute this js
     #     
 
     response = {}

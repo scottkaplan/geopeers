@@ -60,45 +60,55 @@ function update_map_canvas_pos () {
     return;
 }
 
-function display_alert_message () {
-    var alert_method = getParameterByName('alert_method');
+function display_alert_message (alert_method, message) {
+    // this is called either
+    // 1) 'alert_method=<alert_method>' as a URL parm
+    // 2) called as JS, typically injected at the bottom of index.html
+    
+    if (! alert_method) {
+	alert_method = getParameterByName('alert_method');
+    }
     if (! alert_method) {
 	return;
     }
     var message_type = getParameterByName('message_type') ? getParameterByName('message_type') : 'message_error';
-
+    var (message);
     switch (alert_method) {
     case "SUPPORT_CONTACTED":
-	var message = "There was a problem with your request.  Support has been contacted.";
-	var message_type = 'message_error';
+	message = "There was a problem with your request.  Support has been contacted.";
+	message_type = 'message_error';
 	break;
     case "CRED_INVALID":
-	var message = "That credential is not valid.  You can't view the location.  You can still use the other features of GeoPeers";
-	var message_type = 'message_warning';
+	message = "That credential is not valid.  You can't view the location.  You can still use the other features of GeoPeers";
+	message_type = 'message_warning';
 	break;
     case "DEVICE_ADDED":
-        var message = getParameterByName('auth_key') + " is used by " + getParameterByName('account_name') + ".  Your device has been added to this account.";
-	var message_type = 'message_info';
+        message = getParameterByName('auth_key') + " is used by " + getParameterByName('account_name') + ".  Your device has been added to this account.";
+	message_type = 'message_info';
 	break;
     case "DEVICE_REGISTERED":
-        var message = getParameterByName('account_name') + " has been registered.";
-	var message_type = 'message_success';
+        message = getParameterByName('account_name') + " has been registered.";
+	message_type = 'message_success';
 	break;
     case "SHARES_XFERED":
-	var message = "Your shared locations have been transferred to the native app";
-	message += "<p>You can switch to the native app from the main menu";
-	var message_type = 'message_success';
+	message = "Your shared locations have been transferred to the native app";
+	message += "<p>Switch to the native app from the main menu";
+	message_type = 'message_success';
 	break;
     case "SHARES_XFERED_COUNTDOWN":
-        var message = "Your shared locations have been transferred to the native app";
+        message = "Your shared locations have been transferred to the native app";
 	message += "<p><div class='message_button' onclick='native_app_redirect_wrapper()'><div class='message_button_text'>Go to native app</div></div>";
-	message += "<p><span>You will be switched automatically in </span><span id='countdown_native_app_redirect' style='font-size:18px'>6</span><script>device_id_bind.countdown_native_app_redirect()</script>";
-	var message_type = 'message_success';
+	message += "<p><span>You will be switched automatically in </span>";
+	message += "<span id='countdown_native_app_redirect' style='font-size:18px'>6</span>";
+	message += "<script>device_id_bind.countdown_native_app_redirect()</script>";
+	message_type = 'message_success';
 	break;
     case "SHARES_XFERED_MSG":
-	var message = getParameterByName('message');
+	if (! message) {
+	    message = getParameterByName('message');
+	}
 	message += "<p>You can switch to the native app from the main menu";
-	var message_type = 'message_warning';
+	message_type = 'message_warning';
 	break;
     }
     var message_div_id = display_message(message, message_type);
