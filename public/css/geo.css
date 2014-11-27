@@ -38,12 +38,12 @@ body {
 }
 
 .icon_div {
-    padding:10px 15px 3px 3px;
+    padding: 0px 15px 3px 3px;
     float:right;
 }
 
 .menu_div {
-    padding: 10px 3px 3px 15px;
+    padding: 5px 3px 3px 15px;
     float: left;
 }
 
@@ -53,7 +53,7 @@ body {
 }
 
 #header_title {
-    padding-top: 15px;
+    padding-top: 5px;
     height: 50px;
     font-size: 30px;
     text-align: center;
