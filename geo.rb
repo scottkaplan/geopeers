@@ -1824,7 +1824,7 @@ class ProtocolEngine < Sinatra::Base
 
       # RT processing
       # ~ 300ms
-      params['is_production'] = false
+      params['is_production'] = true
       create_index params
 
       # pre-processed
