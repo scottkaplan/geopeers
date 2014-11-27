@@ -114,10 +114,11 @@ function display_alert_message (alert_method, message) {
 	message_type = 'message_success';
 	break;
     case "SHARES_XFERED_COUNTDOWN":
-        message = "Your shared locations have been transferred to the native app";
+	message = "<div style='font-size:18px; font-style:italics'>Don't Panic</div>"
+        message += "Your shared locations have been transferred to the native app";
 	message += "<p><div class='message_button' onclick='native_app_redirect_wrapper()'><div class='message_button_text'>Go to native app</div></div>";
-	message += "<p><span>You will be switched automatically in </span>";
-	message += "<span id='countdown_native_app_redirect' style='font-size:18px'>6</span>";
+	message += "<p><span>You will be switched back automatically in </span>";
+	message += "<span id='countdown_native_app_redirect' style='font-size:18px'>11</span>";
 	message += "<script>device_id_bind.countdown_native_app_redirect()</script>";
 	message_type = 'message_success';
 	break;
@@ -689,7 +690,7 @@ var device_id_bind = {
     web_app_redirect_interstitial: function () {
 	var msg = "To finish installation, switch to the web app to copy the shares to the native app..";
 	msg += "<p><div class='message_button' onclick='device_id_bind.web_app_redirect()'><div class='message_button_text'>Go to web app</div></div>";
-	msg += "<p><span>You will be switched automatically in </span><span id='countdown_web_app_redirect' style='font-size:18px'>6</span><script>device_id_bind.countdown_web_app_redirect()</script>";
+	msg += "<p><span>You will be switched automatically in </span><span id='countdown_web_app_redirect' style='font-size:18px'>11</span><script>device_id_bind.countdown_web_app_redirect()</script>";
 	device_id_bind.countdown_web_app_redirect_div_id = display_message (msg, 'message_success');
     },
     web_app_redirect: function () {
