@@ -74,7 +74,7 @@ function if_else_native (is_native_function, is_not_native_function) {
 }
 
 function update_map_canvas_pos () {
-    var content_height = $('#geo_info').height() + 60;
+    var content_height = $('#geo_info').height() + 65;
     $('#content').css('top', content_height+'px');
     console.log ("content_height="+content_height);
     return;
@@ -310,7 +310,7 @@ var my_pos = {
 	my_pos.current_position = position;
 	return;
     },
-    pan_zoom: function (position) {
+    pan_zoom: function () {
 	var bounds = new google.maps.LatLngBounds ();
 	if (jQuery.isEmptyObject(marker_mgr.markers)) {
 	    if (my_pos.current_position) {
@@ -776,24 +776,20 @@ function handleOpenURL(url) {
 //
 
 function create_map (position) {
-    var initial_position;
-    var zoom = 13;
-    if (position) {
-	initial_position = new google.maps.LatLng(position.coords.latitude,
-						  position.coords.longitude);
-    } else {
-	initial_position = display_mgr.us_center;
-    }
-    console.log (initial_position);
-
     // flip the loading image
     $('#gps_spinner').hide();
     $('#index').show();
 
-    // Display the map
-    $('#map_canvas').gmap({center: initial_position});
-
-    my_pos.pan_zoom();
+    if (position) {
+	var initial_position = new google.maps.LatLng(position.coords.latitude,
+						      position.coords.longitude);
+	$('#map_canvas').gmap({center: initial_position});
+	console.log (initial_position);
+    } else {
+	// We don't know our current position
+	// show the whole US
+	$('#map_canvas').gmap({center: display_mgr.us_center, zoom:8});
+    }
 
     // reset the header height everytime the map's bounds change
     var map = $('#map_canvas').gmap('get','map');
@@ -1626,13 +1622,20 @@ var init_geo = {
 	    download.download_app();
 	}
 
-	// clean up any messes caused by initialization stragglers
-	// killing a rabbit with a machine gun
+	// keep updating bounding box pan/zoom for first 5 sec
+	// after that, the user has to pan/zoom manually
 	setTimeout(my_pos.pan_zoom, 1000);
 	setTimeout(my_pos.pan_zoom, 2000);
 	setTimeout(my_pos.pan_zoom, 3000);
 	setTimeout(my_pos.pan_zoom, 4000);
 	setTimeout(my_pos.pan_zoom, 5000);
+
+	// keep the UI clean while changes come in (e.g. markers, current pos)
+	setTimeout(resize_map, 1000);
+	setTimeout(resize_map, 2000);
+	setTimeout(resize_map, 3000);
+	setTimeout(resize_map, 4000);
+	setTimeout(resize_map, 5000);
     },
     show_popups: function () {
 	['registration_popup', 'download_link_popup', 'download_app_popup',
