@@ -109,7 +109,9 @@ class Sms
   end
 
   def Sms.clean_num(num)
-    num.gsub(/[\s\-\(\)]/,'')
+    num.gsub!(/[\+\s\-\(\)]/,'')
+    num.gsub!(/^1/,'')
+    num
   end
 
   def send (num, msg)
@@ -913,7 +915,7 @@ class Protocol
     if (params['mobile'])
       # We are not just validating, but actually normalizing (changing) the user input
       # We have to do this so that (415) 555-1212 matches 415-5551212
-      params['mobile'] = Sms.clean_num(params['mobile'])
+      Sms.clean_num(params['mobile'])
       if (! /^\d{10}$/.match(params['mobile']))
         msgs.push ("The mobile number must be 10 digits")
       end
