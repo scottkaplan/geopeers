@@ -74,7 +74,7 @@ function if_else_native (is_native_function, is_not_native_function) {
 }
 
 function update_map_canvas_pos () {
-    var content_height = $('#geo_info').height() + 70;
+    var content_height = $('#geo_info').height() + 60;
     $('#content').css('top', content_height+'px');
     console.log ("content_height="+content_height);
     return;
@@ -150,7 +150,7 @@ function display_message (message, css_class) {
     } else {
 	// create new divs - message and close button
 	// append to geo_info
-	var onclick_cmd = "$('#"+msg_id+"').hide(); update_map_canvas_pos()";
+	var onclick_cmd = "$('#"+msg_id+"').hide(); resize_map()";
 	var x_div = $('<div></div>')
 	    .attr('onclick', onclick_cmd)
 	    .css('position','relative')
@@ -166,7 +166,7 @@ function display_message (message, css_class) {
 	wrapper_div.append(msg_div);
 	$('#geo_info').append(wrapper_div);
     }
-    // update_map_canvas_pos();
+    resize_map();
     return (msg_id);
 }
 
@@ -249,6 +249,7 @@ function getParameterByName(name) {
 }
 
 function gps_position_succeeded (post_func, position) {
+    my_pos.update_position (position);
     post_func(position);
     display_mgr.display_ok(position);
     return;
@@ -285,30 +286,14 @@ function run_position_function (post_func) {
 
 var my_pos = {
     // control the initial pan/zoom
-    // 
-    pan_needed: null,
     current_position: null,
+    marker: null,
     update_position: function (position_from_server) {
-	if (! device_id_mgr.phonegap ||
-	    ! position_from_server ||
-	    ! my_pos.pan_needed) {
+	if (! device_id_mgr.phonegap || ! position_from_server)
 	    return;
-	}
 	my_pos.current_position = position_from_server;
 	my_pos.create (my_pos.current_position);
-
-	// pan_needed is a first-time thru flag, set in create_map
-	if (my_pos.pan_needed) {
-	    var map = $('#map_canvas').gmap('get','map');
-	    console.log ("pan to");
-	    console.log (my_pos.current_position.coords);
-	    map.panTo(new google.maps.LatLng(my_pos.current_position.coords.latitude,
-					     my_pos.current_position.coords.longitude));
-	    my_pos.pan_needed = false;
-	}
     },
-
-    marker: null,
     create: function (position) {
 	if (my_pos.marker)
 	    return;
@@ -325,19 +310,50 @@ var my_pos = {
 	my_pos.current_position = position;
 	return;
     },
-    move_pos: function (position) {
-	if (! position)
-	    return;
-	my_pos.current_position = position;
-	my_pos.marker[0].setPosition(new google.maps.LatLng(position.coords.latitude,
-							    position.coords.longitude));
+    pan_zoom: function (position) {
+	var bounds = new google.maps.LatLngBounds ();
+	if (jQuery.isEmptyObject(marker_mgr.markers)) {
+	    if (my_pos.current_position) {
+		// include current position in the bounding box
+		var current_location = new google.maps.LatLng(my_pos.current_position.coords.latitude,
+							      my_pos.current_position.coords.longitude);
+		bounds.extend (current_location);
+	    } else {
+		bounds.extend (display_mgr.us_center);
+	    }
+	} else {
+	    // create a bounding box with the markers
+	    for (var device_id in marker_mgr.markers) {
+		var sighting = marker_mgr.markers[device_id].sighting;
+		var sighting_location = new google.maps.LatLng(sighting.gps_latitude,
+							       sighting.gps_longitude);
+		bounds.extend (sighting_location);
+	    }
+	    if (my_pos.current_position) {
+		// include current position in the bounding box
+		var current_location = new google.maps.LatLng(my_pos.current_position.coords.latitude,
+							      my_pos.current_position.coords.longitude);
+		bounds.extend (current_location);
+	    }
+	}
+
+	var map = $('#map_canvas').gmap('get','map');
+	map.fitBounds (bounds);
+
+	// if we only have one marker, fitBounds zooms to maximum.
+	// Back off to max_zoom
+	var zoom = Math.min(map.getZoom(), 18)
+	console.log (zoom);
+	map.setZoom(zoom);
     },
     reposition: function (position) {
 	run_position_function (function(position) {
 		if (! position)
 		    return;
 		if (my_pos.marker) {
-		    my_pos.move_pos (position);
+		    my_pos.current_position = position;
+		    my_pos.marker[0].setPosition(new google.maps.LatLng(position.coords.latitude,
+									position.coords.longitude));
 		} else {
 		    my_pos.create (position);
 		}
@@ -411,23 +427,12 @@ var display_mgr = {
     initial_pan:            null,
 
     display_err: function(err) {
-	// always run the panning check
-	// if gmap has been created, but at (0,0), pan to a predefined location
-	var map = $('#map_canvas').gmap('get','map');
-	if (map) {
-	    var map_pos = map.getCenter();
-	    if (map_pos.lat() == 0 && map_pos.lng() == 0) {
-		map.panTo(display_mgr.us_center);
-		$('#map_canvas').gmap('option', 'zoom', 4)
-	    }
-	}
-
+	console.log (err);
 	// some messages should only be displayed once
 	if (display_mgr.message_displayed) {
 	    return;
 	}
 
-	console.log (err);
 	var msg;
 	if        (err.code === 1) {
 	    msg = "Your current location is blocked.";
@@ -617,44 +622,6 @@ var marker_mgr = {
 	for (var device_id in marker_mgr.markers) {
 	    marker_mgr.update_marker_view (marker_mgr.markers[device_id]);
 	}
-
-	// First choice is to pan to the current location
-	// But if the current location is not available, we're still sitting over the middle of the US
-	// If we don't have any markers, that's the best we can do
-	// But if there are markers, zoom to a bounding box containing those markers
-	if (my_pos.pan_needed) {
-
-	    var bounds = new google.maps.LatLngBounds ();
-	    if (! jQuery.isEmptyObject(marker_mgr.markers)) {
-		// create a bounding box with the markers
-		for (var device_id in marker_mgr.markers) {
-		    var sighting = marker_mgr.markers[device_id].sighting;
-		    var sighting_location = new google.maps.LatLng(sighting.gps_latitude,
-								   sighting.gps_longitude);
-		    bounds.extend (sighting_location);
-		}
-	    }
-
-	    if (my_pos.current_position) {
-		// include current position in the bounding box
-		var current_location = new google.maps.LatLng(my_pos.current_position.coords.latitude,
-							      my_pos.current_position.coords.longitude);
-		bounds.extend (current_location);
-	    }
-
-	    var map = $('#map_canvas').gmap('get','map');
-	    map.fitBounds (bounds);
-
-	    var zoom = map.getZoom();
-	    console.log (zoom);
-	    // if we only have one marker, fitBounds zooms to maximum.
-	    // Back off to max_zoom
-	    var max_zoom = 15;
-	    if (zoom > max_zoom) {
-		map.setZoom(max_zoom);
-	    }
-	    my_pos.pan_needed = false;
-	}
 	return;
     },
     show_directions: function () {
@@ -732,7 +699,7 @@ var device_id_bind = {
 	// Get this div off the page
 	// We're done with it and we don't want it firing again
 	$('#'+device_id_bind.countdown_web_app_redirect_div_id).remove();
-	// update_map_canvas_pos ();
+	resize_map();
 
 	// Defensive coding:
 	// This is an in-memory version of globals.device_id_bind_complete
@@ -766,7 +733,7 @@ var device_id_bind = {
     native_app_redirect: function (message) {
 	// make sure this can't fire again
 	$('#'+device_id_bind.countdown_native_app_redirect_div_id).remove();
-	// update_map_canvas_pos ();
+	update_map_canvas_pos ();
 
         var native_app_deeplink = "geopeers://";
 	if (message) {
@@ -824,20 +791,19 @@ function create_map (position) {
     $('#index').show();
 
     // Display the map
-    $('#map_canvas').gmap({center: initial_position, zoom: zoom});
+    $('#map_canvas').gmap({center: initial_position});
 
-    // control the initial pan
-    my_pos.pan_needed = true;
-    if (position) {
-	my_pos.update_position (position);
-    }
+    my_pos.pan_zoom();
 
+    // reset the header height everytime the map's bounds change
     var map = $('#map_canvas').gmap('get','map');
     google.maps.event.addListener(map, 'bounds_changed', update_map_canvas_pos);
 }
 
-function resize_map_KILLME () {
+function resize_map () {
+    console.log ("resizing");
     var map = $('#map_canvas').gmap('get','map');
+    // this will cause update_map_canvas_pos to fire
     google.maps.event.trigger(map, 'resize');
 }
 
@@ -1401,7 +1367,8 @@ function heartbeat () {
     // keep the green star in the right spot
     my_pos.reposition();
 
-    // update_map_canvas_pos();
+    // last ditch to keep the UI clean
+    resize_map();
 
     // if we get here, schedule the next iteration
     setTimeout(heartbeat, period_minutes * 60 * 1000);
@@ -1655,11 +1622,13 @@ var init_geo = {
 	    download.download_app();
 	}
 
-	// we have one of these in the heartbeat
-	// but that won't happen for 60 sec
-	// schedule one in 10 sec to clean up any messes
-	// caused by initialization stragglers
-	// setTimeout(update_map_canvas_pos, 5000);
+	// clean up any messes caused by initialization stragglers
+	// killing a rabbit with a machine gun
+	setTimeout(my_pos.pan_zoom, 1000);
+	setTimeout(my_pos.pan_zoom, 2000);
+	setTimeout(my_pos.pan_zoom, 3000);
+	setTimeout(my_pos.pan_zoom, 4000);
+	setTimeout(my_pos.pan_zoom, 5000);
     },
     show_popups: function () {
 	['registration_popup', 'download_link_popup', 'download_app_popup',
