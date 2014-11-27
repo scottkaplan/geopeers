@@ -802,8 +802,12 @@ function create_map (position) {
 
 function resize_map () {
     console.log ("resizing");
+    // Do this twice
+    // Once before resizing the map
+    update_map_canvas_pos();
+    
     var map = $('#map_canvas').gmap('get','map');
-    // this will cause update_map_canvas_pos to fire
+    // And again in the bounds_changed callback if the bounds have changed
     google.maps.event.trigger(map, 'resize');
 }
 
