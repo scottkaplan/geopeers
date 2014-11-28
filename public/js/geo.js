@@ -1624,18 +1624,14 @@ var init_geo = {
 
 	// keep updating bounding box pan/zoom for first 5 sec
 	// after that, the user has to pan/zoom manually
-	setTimeout(my_pos.pan_zoom, 1000);
-	setTimeout(my_pos.pan_zoom, 2000);
-	setTimeout(my_pos.pan_zoom, 3000);
-	setTimeout(my_pos.pan_zoom, 4000);
-	setTimeout(my_pos.pan_zoom, 5000);
+	for (var i=1; i<10; i++) {
+	    setTimeout(my_pos.pan_zoom, 1000*i);
+	}
 
 	// keep the UI clean while changes come in (e.g. markers, current pos)
-	setTimeout(resize_map, 1000);
-	setTimeout(resize_map, 2000);
-	setTimeout(resize_map, 3000);
-	setTimeout(resize_map, 4000);
-	setTimeout(resize_map, 5000);
+	for (var i=1; i<10; i++) {
+	    setTimeout(resize_map, 1000*i);
+	}
     },
     show_popups: function () {
 	['registration_popup', 'download_link_popup', 'download_app_popup',
