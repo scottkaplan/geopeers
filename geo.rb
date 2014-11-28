@@ -441,7 +441,14 @@ class Protocol
     return if params['share_duration_unit'] == 'manual'
     raise ArgumentError.new("No share number") unless params.has_key?('share_duration_number')
     raise ArgumentError.new("No multiplier")   unless multiplier.has_key?(params['share_duration_unit'])
-    multiplier[params['share_duration_unit']] * params['share_duration_number'].to_i
+    if params['share_duration_number']
+      num_secs = multiplier[params['share_duration_unit']] * params['share_duration_number'].to_i
+    else
+      # if it is blank, use '1' as multiplier
+      num_secs = multiplier[params['share_duration_unit']]
+    end
+    $LOG.debug num_secs
+    Time.now + num_secs
   end
 
   def Protocol.create_share_url (share, params)
@@ -1143,7 +1150,6 @@ class Protocol
 
     # create the share
     expire_time = compute_expire_time params
-    expire_time = Time.now + expire_time if expire_time
     share_parms = {
       expire_time:  expire_time,
       num_uses:     0,
