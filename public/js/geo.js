@@ -3,6 +3,7 @@
 //
 // Utils
 //
+
 function get_parms (url) {
     var parm_str = url.match (/^geopeers:\/\/api\?(.*)/);
     if (! parm_str) {
@@ -282,6 +283,24 @@ function run_position_function (post_func) {
 						  options);
     }
     return;
+}
+
+var page_mgr = {
+    init: function () {
+	$( document ).on( "pagecontainerchange", function( event, ui ) {
+	    if (ui.toPage.attr('id') === 'index') {
+		// clean up the map when we return to the index page
+		resize_map();
+	    }
+	} );
+    },    
+    switch_page: function (page_id) {
+	$(":mobile-pagecontainer").pagecontainer("change", '#'+page_id, {reverse: true});
+	return;
+    },
+    get_active_page: function () {
+	return ($(":mobile-pagecontainer").pagecontainer("getActivePage").attr('id'));
+    },
 }
 
 var my_pos = {
@@ -597,7 +616,7 @@ var marker_mgr = {
 	$('#share_account_name').text(marker_mgr.selected_sighting.name);
 	$("input[type='hidden'][name='seer_device_id']").val(marker_mgr.selected_sighting.device_id);
 	$('#share_location_form_info').html('');
-	$('#share_location_popup').popup('open');
+	page_mgr.switch_page ('share_location_popup');
 	return;
     },
     create_marker: function (sighting) {
@@ -878,13 +897,16 @@ function create_map (position) {
 }
 
 function resize_map () {
-    // Do this twice
-    // Once before resizing the map
-    update_map_canvas_pos();
-    
-    var map = $('#map_canvas').gmap('get','map');
-    // And again in the bounds_changed callback if the bounds have changed
-    google.maps.event.trigger(map, 'resize');
+    if (page_mgr.get_active_page === 'index') {
+	// Do this twice
+	// Once before resizing the map
+	update_map_canvas_pos();
+	
+	var map = $('#map_canvas').gmap('get','map');
+	console.log(map.getZoom());
+	// And again in the bounds_changed callback if the bounds have changed
+	google.maps.event.trigger(map, 'resize');
+    }
 }
 
 //
@@ -950,7 +972,7 @@ function main_page_share_location_popup () {
     if (device_id_mgr.phonegap) {
         // configure popup in case it was used previously
 	clear_share_location_popup()
-	$('#share_location_popup').popup('open');
+	page_mgr.switch_page ('share_location_popup');
     } else {
 	// set to false to allow sharing from webapp (testing)
 	if (true) {
@@ -959,7 +981,7 @@ function main_page_share_location_popup () {
 	    $('#share_via').show();
 	    $('#manual_share_via').show();
 	    $('#manual_share_to').show();
-	    $('#share_location_popup').popup('open');
+	    page_mgr.switch_page ('share_location_popup');
 	}
     }
     return;
@@ -1074,7 +1096,7 @@ function display_support () {
     $('#support_version').text(build_id);
     $("input[type='hidden'][name='support_version']").val(build_id);
     $('#support_form_info').html('');
-    $('#support_popup').popup('open');
+    page_mgr.switch_page ('support_popup');
     return;
 }
 
@@ -1092,8 +1114,7 @@ function config_callback (data, textStatus, jqXHR) {
     }
 
     if (data.update) {
-	$('#update_app_popup').show();
-	$('#update_app_popup').popup('open');
+	page_mgr.switch_page ('update_app_popup');
     }
 
     // The server is telling us if there is an account name for this device
@@ -1310,9 +1331,8 @@ function manage_shares () {
     var request_parms = { method: 'get_shares',
 			  device_id: device_id,
 			};
-    // $('#show_hide_expire_checkbox').prop('checked', false).checkboxradio('refresh');
-    $('#share_management_popup').popup("open");
     $('#manage_form_spinner').show();
+    page_mgr.switch_page ('share_management_popup');
     ajax_request (request_parms, manage_shares_callback, geo_ajax_fail_callback);
     return;
 }
@@ -1366,9 +1386,8 @@ function update_registration_popup () {
 
 function display_registration_popup () {
     update_registration_popup();
-    $('#registration_popup').show();
     $('#registration_form_info').html('');
-    $('#registration_popup').popup('open');
+    page_mgr.switch_page ('registration_popup');
     return;
 }
 
@@ -1510,15 +1529,15 @@ var download = {
 	    //   3) native app not installed, not available
 	    if (have_native_app()) {
 		// Offer to switch to native app
-		$('#native_app_switch_popup').popup('open');
+		page_mgr.switch_page ('native_app_switch_popup');
 	    } else {
 		if (download.download_url()) {
 		    // don't start the download without warning them in a popup
-		    $('#download_app_popup').popup('open');
+		    page_mgr.switch_page ('download_app_popup');
 		} else {
 		    // we don't have a native app for this device, offer to send a link
 		    $('#native_app_not_available').show();
-		    $('#download_link_popup').popup('open');
+		    page_mgr.switch_page ('download_link_popup');
 		}
 	    }
 	}
@@ -1541,7 +1560,7 @@ function download_app_wrapper () {
 
 function download_link_wrapper () {
     $('#native_app_not_available').hide();
-    $('#download_link_popup').popup('open');
+    page_mgr.switch_page ('download_link_popup');
 }
 
 function download_redirect_wrapper () {
@@ -1574,69 +1593,69 @@ function populate_dropdown (id, optionList) {
 function select_contact_callback (contact) {
     console.log (contact);
     setTimeout(function() {
-	    // for mobile/email
-	    // there are two fields
-	    //   my_contacts_[mobile|email] - a single display box
-	    //   my_contacts_[mobile|email]_dropdown - multi-select dropdown
-	    var mobile;
-	    $('#my_contacts_mobile').html('');
-	    $('#my_contacts_mobile_dropdown').empty();
-	    if (contact && contact.phoneNumbers ) {
-		if (contact.phoneNumbers.length == 1) {
-		    mobile = contact.phoneNumbers[0].value;
-		    $('#my_contacts_mobile').html(mobile);
-		    $('input:input[name=my_contacts_mobile]').val(mobile);
-		} else {
-		    populate_dropdown ('my_contacts_mobile_dropdown', contact.phoneNumbers);
-		    $('#my_contacts_mobile_dropdown_div').show();
-		}
+	// for mobile/email
+	// there are two fields
+	//   my_contacts_[mobile|email] - a single display box
+	//   my_contacts_[mobile|email]_dropdown - multi-select dropdown
+	var mobile;
+	$('#my_contacts_mobile').html('');
+	$('#my_contacts_mobile_dropdown').empty();
+	if (contact && contact.phoneNumbers ) {
+	    if (contact.phoneNumbers.length == 1) {
+		mobile = contact.phoneNumbers[0].value;
+		$('#my_contacts_mobile').html(mobile);
+		$('input:input[name=my_contacts_mobile]').val(mobile);
 	    } else {
-		$('#my_contacts_mobile').html("<i>None</i>");
-		$('#my_contacts_mobile_dropdown_div').hide();
+		populate_dropdown ('my_contacts_mobile_dropdown', contact.phoneNumbers);
+		$('#my_contacts_mobile_dropdown_div').show();
 	    }
+	} else {
+	    $('#my_contacts_mobile').html("<i>None</i>");
+	    $('#my_contacts_mobile_dropdown_div').hide();
+	}
 
-	    var email;
-	    $('#my_contacts_email').html('');
-	    $('#my_contacts_email_dropdown').empty();
-	    if (contact && contact.emails) {
-		if (contact.emails.length == 1) {
-		    email = contact.emails[0].value;
-		    $('#my_contacts_email').html(email);
-		    $('input:input[name=my_contacts_email]').val(email);
-		} else {
-		    populate_dropdown ('my_contacts_email_dropdown', contact.emails);
-		    $('#my_contacts_email_dropdown_div').show();
-		}
+	var email;
+	$('#my_contacts_email').html('');
+	$('#my_contacts_email_dropdown').empty();
+	if (contact && contact.emails) {
+	    if (contact.emails.length == 1) {
+		email = contact.emails[0].value;
+		$('#my_contacts_email').html(email);
+		$('input:input[name=my_contacts_email]').val(email);
 	    } else {
-		$('#my_contacts_email').html("<i>None</i>");
-		$('#my_contacts_email_dropdown_div').hide();
+		populate_dropdown ('my_contacts_email_dropdown', contact.emails);
+		$('#my_contacts_email_dropdown_div').show();
 	    }
+	} else {
+	    $('#my_contacts_email').html("<i>None</i>");
+	    $('#my_contacts_email_dropdown_div').hide();
+	}
 
-	    // manage the UI elements on the popup
-	    $('#or_div').hide();
-	    if (contact && (contact.phoneNumbers || contact.emails)) {
-		// we got something back
-		// activate the dropdowns (if any)
-		$('#my_contacts_display').trigger("change");
-		$('#my_contacts_display').show();
+	// manage the UI elements on the popup
+	$('#or_div').hide();
+	if (contact && (contact.phoneNumbers || contact.emails)) {
+	    // we got something back
+	    // activate the dropdowns (if any)
+	    $('#my_contacts_display').trigger("change");
+	    $('#my_contacts_display').show();
 
-		// turn off the manual inputs
-		$('#manual_share_via').hide();
-		$('#manual_share_to').hide();
-	    } else {
-		// we didn't get anything back from the contact list
-		// configure for manual input
-		$('#my_contacts_display').hide();
-		$('#manual_share_via').show();
-		$('#manual_share_to').show();
-	    }
+	    // turn off the manual inputs
+	    $('#manual_share_via').hide();
+	    $('#manual_share_to').hide();
+	} else {
+	    // we didn't get anything back from the contact list
+	    // configure for manual input
+	    $('#my_contacts_display').hide();
+	    $('#manual_share_via').show();
+	    $('#manual_share_to').show();
+	}
 
-	    // back-to-back My Contacts are broken
-	    // (returns to blank screen)
-	    $('#my_contacts_button').hide();
+	// back-to-back My Contacts are broken
+	// (returns to blank screen)
+	$('#my_contacts_button').hide();
 
-	    // finally ready to display the popup
-	    $('#share_location_popup').popup('open');
+	// finally ready to display the popup
+	page_mgr.switch_page ('share_location_popup');
 	}, 500);
 }
 
@@ -1652,7 +1671,7 @@ function select_contact () {
     $('input[name=share_to]').val(null);
     $('input[name=share_via]').prop('checked',false);
 
-    $('#share_location_popup').popup('open');
+    page_mgr.switch_page ('share_location_popup');
 
     navigator.contacts.pickContact(function(contact){
 	    select_contact_callback(contact);
@@ -1677,7 +1696,7 @@ var init_geo = {
 	// The popups have 'display:none' in the markup,
 	// so we aren't depending on any JS loading to hide them.
 	// At this point, it's safe to let the JS control them
-	init_geo.show_popups ();
+	// init_geo.show_popups ();
 
 	// show the spinner in 200mS (.2 sec)
 	// if there are no GPS issues, the map will display quickly and
@@ -1722,6 +1741,8 @@ var init_geo = {
 	for (var i=1; i<10; i++) {
 	    setTimeout(resize_map, 1000*i);
 	}
+
+	page_mgr.init();
     },
     show_popups: function () {
 	['registration_popup', 'download_link_popup', 'download_app_popup',

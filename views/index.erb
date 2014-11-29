@@ -146,15 +146,6 @@
         </div>
       </div>
 
-      <%= registration_popup %>
-      <%= download_link_popup %>
-      <%= download_app_popup %>
-      <%= native_app_switch_popup %>
-      <%= update_app_popup %>
-      <%= share_location_popup %>
-      <%= support_popup %>
-      <%= share_management_popup %>
-
       <div data-role="content" id="content">
 	<!-- map -->
         <div id="map_canvas"
@@ -195,7 +186,17 @@
 	  </ul>
 	</li>
       </ul>
-    </div>
+    </div>  <!-- page -->
+
+    <%= registration_popup %>
+    <%= download_link_popup %>
+    <%= download_app_popup %>
+    <%= native_app_switch_popup %>
+    <%= update_app_popup %>
+    <%= share_location_popup %>
+    <%= support_popup %>
+    <%= share_management_popup %>
+
     <script>
       <% if initial_js %>
       <%= initial_js %>

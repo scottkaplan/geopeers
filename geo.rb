@@ -406,13 +406,9 @@ def create_index(params=nil)
 end
 
 def make_popup(popup_id, popup_title, nested_erb, params)
-  share_location_my_contacts_tag = nil
-  if params && params[:is_phonegap]
-    share_location_my_contacts_tag = '<option value="contacts">Select from My Contacts</option>'
-  end
   url_prefix = params['url_prefix']
   nested_html = ERB.new(File.read(nested_erb)).result(binding)
-  ERB.new(File.read('views/popup.erb')).result(binding)
+  ERB.new(File.read('views/frame.erb')).result(binding)
 end
 
 ##
@@ -1832,7 +1828,7 @@ class ProtocolEngine < Sinatra::Base
 
       # RT processing
       # ~ 300ms
-      params['is_production'] = true
+      params['is_production'] = false
       create_index params
 
       # pre-processed
