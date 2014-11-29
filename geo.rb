@@ -285,15 +285,11 @@ end
 
 DOWNLOAD_URLS = {
   ios:     url_base() + '/bin/ios/index.html',
-  android: url_base() + '/bin/android/index.html',
+  android: 'market://search?q=pname:com.geopeers.app',
 #  web:     url_base() + '/bin/android/index.html',
 }
 
-def get_client_type (device_id)
-  device = Device.find_by(device_id: device_id)
-  user_agent = device.user_agent
-  $LOG.debug user_agent
-  return (:web) unless user_agent
+def parse_user_agent (user_agent)
   if (user_agent.match(/android/i))
     $LOG.debug 'Android'
     :android
@@ -306,6 +302,14 @@ def get_client_type (device_id)
     $LOG.debug 'web'
     :web
   end
+end
+
+def get_client_type (device_id)
+  device = Device.find_by(device_id: device_id)
+  user_agent = device.user_agent
+  $LOG.debug user_agent
+  return :web unless user_agent
+  return parse_user_agent user_agent
 end
 
 def get_global (key)
@@ -362,50 +366,50 @@ def create_index(params=nil)
     params['url_prefix'] = "https://prod.geopeers.com/"
     is_phonegap = false
   end
-  registration_popup =
-    make_popup("registration_popup",
+  registration_page =
+    make_page("registration_page",
                "Setup your Account",
                "views/registration_form.erb",
                params)
-  download_link_popup =
-    make_popup("download_link_popup",
+  download_link_page =
+    make_page("download_link_page",
                "Send Download Link",
                "views/download_link_form.erb",
                params)
-  download_app_popup =
-    make_popup("download_app_popup",
+  download_app_page =
+    make_page("download_app_page",
                "Download Native App",
                "views/download_app_form.erb",
                params)
-  native_app_switch_popup =
-    make_popup("native_app_switch_popup",
+  native_app_switch_page =
+    make_page("native_app_switch_page",
                "Switch to Native App",
                "views/native_app_switch_form.erb",
                params)
-  update_app_popup =
-    make_popup("update_app_popup",
+  update_app_page =
+    make_page("update_app_page",
                "Update Native App",
                "views/update_app_form.erb",
                params)
-  share_location_popup =
-    make_popup("share_location_popup",
+  share_location_page =
+    make_page("share_location_page",
                "Share your Location",
                "views/share_location_form.erb",
                params)
-  support_popup =
-    make_popup("support_popup",
+  support_page =
+    make_page("support_page",
                "Make Us Better",
                "views/support_form.erb",
                params)
-  share_management_popup =
-    make_popup("share_management_popup",
+  share_management_page =
+    make_page("share_management_page",
                "Manage Shared Locations",
                "views/share_management_form.erb",
                params)
   ERB.new(File.read('views/index.erb')).result(binding)
 end
 
-def make_popup(popup_id, popup_title, nested_erb, params)
+def make_page(page_id, page_title, nested_erb, params)
   url_prefix = params['url_prefix']
   nested_html = ERB.new(File.read(nested_erb)).result(binding)
   ERB.new(File.read('views/frame.erb')).result(binding)
@@ -1016,19 +1020,6 @@ class Protocol
     return errs, user_msgs
   end
 
-  def Protocol.get_download_app_info (params)
-    $LOG.debug params
-    if (params['download_app'])
-      client_type = get_client_type (params['device_id'])
-      redirect_url = DOWNLOAD_URLS[client_type]
-      if (redirect_url)
-        return nil, redirect_url
-      else
-        return "There is no native app available for your device", nil
-      end
-    end
-  end
-
   def Protocol.manage_account(params, account)
     if ! account
       log_error "No account"
@@ -1174,7 +1165,7 @@ class Protocol
       #       if both mobile and email are set in account, the first response is ignored
 
       if response.empty?
-        response[popup_message] = 'No email or phone number found'
+        response[page_message] = 'No email or phone number found'
       end
     end
 
@@ -1203,7 +1194,7 @@ class Protocol
           if /^\d{10}$/.match(sms_num)
             params["share_via"] = 'mobile'
           else
-            response['popup_message'] = "#{params['share_to']} doesn't look like an email or phone number"
+            response['page_message'] = "#{params['share_to']} doesn't look like an email or phone number"
             # This can fall thru since share_via is not set
           end
         end
@@ -1219,7 +1210,7 @@ class Protocol
                                            response)
           Logging.milestone ("Share by typing to #{params['share_to']} via #{params['share_via']}")
         else 
-          response['popup_message'] = "The phone number (share to) must be 10 digits"
+          response['page_message'] = "The phone number (share to) must be 10 digits"
         end
       end
 
@@ -1234,7 +1225,7 @@ class Protocol
                                            response)
           Logging.milestone ("Share by typing to #{params['share_to']} via #{params['share_via']}")
         else
-          response['popup_message'] = "Email should be in the form 'fred@company.com'"
+          response['page_message'] = "Email should be in the form 'fred@company.com'"
         end
       end
     end
@@ -1490,6 +1481,11 @@ class Protocol
     
     response_msg = ""
     response_err = ""
+    if ! params['email'] && ! params['mobile']
+      return {page_message: "Please supply the email or mobile number to send the link to",
+              message_class: 'message_error'}
+    end
+    
     url = Protocol.create_download_url(params)
     if params['email']
       email_err = Protocol.send_html_email('views/download_email_body.erb', 'views/download_email_msg.erb',
@@ -1528,7 +1524,13 @@ class Protocol
     #
     # This doesn't really download the app
     # It redirects to the webapp with instructions to download the native app
-    {redirect_url: url_base() + "/?download_app=1"}
+    client_type = parse_user_agent params['user_agent']
+    $LOG.debug client_type
+    redirect_url = DOWNLOAD_URLS[client_type]
+    if (! redirect_url)
+      redirect_url = create_alert_url("NO_NATIVE")
+    end
+    {redirect_url: redirect_url};
   end
   
   def Protocol.process_request_share_active_toggle (params)

@@ -122,7 +122,7 @@ body {
     background-image: url('/images/error.png');
 }
 
-.popup_frame {
+.page_frame {
     -moz-border-radius:10px;
     -webkit-border-radius:10px;
     border-radius:10px;
@@ -132,7 +132,7 @@ body {
     overflow:hidden;
 }
 
-.popup_header {
+.page_header {
     background-color:#3eb1dd;
     color:#404040;
     padding: 10px 10px 15px 10px;
@@ -141,19 +141,13 @@ body {
     font-size:18px;
 }
 
-.popup_content {
+.page_content {
     background-color:#d2e9ff;
     margin: 5px;
     font-size:14px;
 }
 
-.popup_close_x {
-    position:absolute;
-    right:24px;
-    top:16px;
-}
-
-.popup_title {
+.page_title {
     font-size:14px;
     padding:5px;
 }
@@ -275,6 +269,13 @@ body {
 
 #manage_info {
     font-size: 14px;
+}
+
+#empty_msg {
+    display:none;
+    color:red;
+    font-size:18px;
+    text-align:center;
 }
 
 /* Used for the Switch effect: */

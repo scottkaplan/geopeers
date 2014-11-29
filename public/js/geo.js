@@ -93,6 +93,10 @@ function display_alert_message (alert_method, message) {
     var message_type = getParameterByName('message_type') ? getParameterByName('message_type') : 'message_error';
     var message;
     switch (alert_method) {
+    case "NO_NATIVE":
+	message = "There is no native app available for this device";
+	message_type = 'message_warning';
+	break;
     case "SUPPORT_CONTACTED":
 	message = "There was a problem with your request.  Support has been contacted.";
 	message_type = 'message_error';
@@ -295,7 +299,7 @@ var page_mgr = {
 	} );
     },    
     switch_page: function (page_id) {
-	$(":mobile-pagecontainer").pagecontainer("change", '#'+page_id, {reverse: true});
+	$(":mobile-pagecontainer").pagecontainer("change", '#'+page_id, {transition: 'slide'});
 	return;
     },
     get_active_page: function () {
@@ -616,7 +620,7 @@ var marker_mgr = {
 	$('#share_account_name').text(marker_mgr.selected_sighting.name);
 	$("input[type='hidden'][name='seer_device_id']").val(marker_mgr.selected_sighting.device_id);
 	$('#share_location_form_info').html('');
-	page_mgr.switch_page ('share_location_popup');
+	page_mgr.switch_page ('share_location_page');
 	return;
     },
     create_marker: function (sighting) {
@@ -897,7 +901,7 @@ function create_map (position) {
 }
 
 function resize_map () {
-    if (page_mgr.get_active_page === 'index') {
+    if (page_mgr.get_active_page() === 'index') {
 	// Do this twice
 	// Once before resizing the map
 	update_map_canvas_pos();
@@ -955,7 +959,7 @@ function send_position_request (position) {
 // SHARE_LOCATION
 //
 
-function clear_share_location_popup () {
+function clear_share_location_page () {
     $('#share_via').show();
     $('#manual_share_via').show();
     $('#manual_share_to').show();
@@ -968,11 +972,11 @@ function clear_share_location_popup () {
     $('#share_location_form_info').html('');
 }
 
-function main_page_share_location_popup () {
+function main_page_share_location_page () {
     if (device_id_mgr.phonegap) {
-        // configure popup in case it was used previously
-	clear_share_location_popup()
-	page_mgr.switch_page ('share_location_popup');
+        // configure page in case it was used previously
+	clear_share_location_page()
+	page_mgr.switch_page ('share_location_page');
     } else {
 	// set to false to allow sharing from webapp (testing)
 	if (true) {
@@ -981,7 +985,7 @@ function main_page_share_location_popup () {
 	    $('#share_via').show();
 	    $('#manual_share_via').show();
 	    $('#manual_share_to').show();
-	    page_mgr.switch_page ('share_location_popup');
+	    page_mgr.switch_page ('share_location_page');
 	}
     }
     return;
@@ -990,17 +994,20 @@ function main_page_share_location_popup () {
 function share_location_callback (data, textStatus, jqXHR) {
     $('#share_location_form_spinner').hide();
     if (data.message) {
-	// message box on main page / close popup
+	// message box on main page
 	var css_class = data.css_class ? data.css_class : 'message_success'
-	    display_message(data.message, css_class);
-	$('#share_location_popup').popup('close');
+	display_message(data.message, css_class);
+
+	page_mgr.switch_page ('index');
+
 	// clear error message
 	$('#share_location_form_info').val('');
+
 	// clear form text
-	$('#share_location_popup').find("input[type=text], textarea").val("");
-    } else if (data.popup_message) {
-	// error message on popup which stays open
-	$('#share_location_form_info').html(data.popup_message);
+	$('#share_location_page').find("input[type=text], textarea").val("");
+    } else if (data.page_message) {
+	// error message on page which stays open
+	$('#share_location_form_info').html(data.page_message);
     }
 
     // in case the name was updated, update registration.reg_info
@@ -1015,7 +1022,7 @@ function share_location () {
 
     // If the user supplied an account name:
     if ($("#account_name").val()) {
-	// and make sure it shows up in the Account Settings popup
+	// and make sure it shows up in the Account Settings page
 	if (registration.reg_info &&
 	    registration.reg_info.account) {
 	    registration.reg_info.account.name = $("#account_name").val();
@@ -1065,10 +1072,14 @@ function share_location () {
 
 function send_support_callback  (data, textStatus, jqXHR) {
     $('#support_form_spinner').hide();
+    $('#support_form_problem').empty();
+    $('#support_form_reproduction').empty();
+    $('#support_form_feature').empty();
+    $('#support_form_cool_use').empty();
     var css_class = data.css_class ? data.css_class : 'message_success'
     display_message(data.message, css_class);
-    $('#support_popup').popup('close');
-    $('#support_popup').find("input[type=text], textarea").val("");
+    page_mgr.switch_page ('index');
+    $('#support_page').find("input[type=text], textarea").val("");
     return;
 }
 
@@ -1096,7 +1107,7 @@ function display_support () {
     $('#support_version').text(build_id);
     $("input[type='hidden'][name='support_version']").val(build_id);
     $('#support_form_info').html('');
-    page_mgr.switch_page ('support_popup');
+    page_mgr.switch_page ('support_page');
     return;
 }
 
@@ -1114,7 +1125,7 @@ function config_callback (data, textStatus, jqXHR) {
     }
 
     if (data.update) {
-	page_mgr.switch_page ('update_app_popup');
+	page_mgr.switch_page ('update_app_page');
     }
 
     // The server is telling us if there is an account name for this device
@@ -1225,7 +1236,24 @@ function manage_shares_callback (data, textStatus, jqXHR) {
     // first time thru flag
     var have_expired_shares = false;
 
+    // clear the old contents and reset the display
     $('.share_row').remove();
+    $('#manage_msg').hide();
+    $('#empty_msg').empty();
+    $('#data_table').empty();
+    $('#manage_form_spinner').hide();
+
+    if (! data || ! data.shares || data.shares.length == 0) {
+	var client_type = get_client_type();
+	if (is_phonegap()) {
+	    $('#empty_msg').html("You haven't shared your location yet");
+	} else {
+	    $('#empty_msg').html("You need the native app to share your location");
+	}
+	$('#empty_msg').show();
+	return;
+    }
+
     for (var i=0,len=data.shares.length; i<len; i++){
 	// add a row to the table body for each share
 	var share = data.shares[i];
@@ -1295,33 +1323,31 @@ function manage_shares_callback (data, textStatus, jqXHR) {
 	// This is handled in an orientationchange event listener set in init_geo.after_ready
 	var orientation_msg = "Viewed best in landscape mode";
 	$('#manage_msg').text(orientation_msg);
-    } else {
-	$('#manage_msg').hide();
+	$('#manage_msg').show();
     }
 
-    if (1 || !  $.fn.dataTable.isDataTable( '#manage_table' ) ) {
-	DT = $('#manage_table').dataTable( {
-	    retrieve:     true,
-	    searching:    false,
-	    lengthChange: false,
-	    paging:       false,
-	    scrollX:      true,
-	    order:        [ [ 3, 'desc' ], [ 2, 'desc' ] ],
-	} );
-    }
-    $('#manage_form_spinner').hide();
+    DT = $('#manage_table').dataTable( {
+	retrieve:     true,
+	searching:    false,
+	lengthChange: false,
+	paging:       false,
+	scrollX:      true,
+	order:        [ [ 3, 'desc' ], [ 2, 'desc' ] ],
+    } );
+
+    // only show the checkbox UI control if there are expired shares
     if (have_expired_shares) {
 	$('#show_hide_expire').show();
+    } else {
+	$('#show_hide_expire').hide();
     }
 
-    
     if ($('#show_hide_expire_checkbox').prop('checked')) {
 	$('.share_expired').hide();
     } else {
 	$('.share_expired').show();
     }
-
-    $('#share_management_popup').popup('reposition', {positionTo: 'origin'});
+    $('#data_table').show();
 }
 
 function manage_shares () {
@@ -1332,7 +1358,7 @@ function manage_shares () {
 			  device_id: device_id,
 			};
     $('#manage_form_spinner').show();
-    page_mgr.switch_page ('share_management_popup');
+    page_mgr.switch_page ('share_management_page');
     ajax_request (request_parms, manage_shares_callback, geo_ajax_fail_callback);
     return;
 }
@@ -1348,10 +1374,6 @@ function share_active_toggle(share_id) {
     $('#manage_form_spinner').show();
     ajax_request (request_parms, manage_shares_callback, geo_ajax_fail_callback);
     return;
-}
-
-function display_register_popup () {
-    alert ("display_register_popup");
 }
 
 function validate_registration_form () {
@@ -1375,7 +1397,7 @@ function validate_registration_form () {
     return true;
 }
 
-function update_registration_popup () {
+function update_registration_page () {
     if (registration.reg_info && registration.reg_info.account) {
 	$('#registration_form #name').val(registration.reg_info.account.name);
 	$('#registration_form #email').val(registration.reg_info.account.email);
@@ -1384,17 +1406,10 @@ function update_registration_popup () {
     return;
 }
 
-function display_registration_popup () {
-    update_registration_popup();
-    $('#registration_form_info').html('');
-    page_mgr.switch_page ('registration_popup');
-    return;
-}
-
 function display_registration () {
-    // This is an ugly hack
-    // so that we popup the registration screen after the menu is closed
-    setTimeout(display_registration_popup, 1 * 1000);
+    update_registration_page();
+    $('#registration_form_info').html('');
+    page_mgr.switch_page ('registration_page');
     return;
 }
 
@@ -1426,7 +1441,7 @@ var registration = {
 	if (data) {
 	    registration.status = 'REGISTERED';
 	    registration.reg_info = data;
-	    update_registration_popup();
+	    update_registration_page();
 
 	    // initializations that require registration
 	    init_geo.update_main_menu();
@@ -1529,15 +1544,15 @@ var download = {
 	    //   3) native app not installed, not available
 	    if (have_native_app()) {
 		// Offer to switch to native app
-		page_mgr.switch_page ('native_app_switch_popup');
+		page_mgr.switch_page ('native_app_switch_page');
 	    } else {
 		if (download.download_url()) {
 		    // don't start the download without warning them in a popup
-		    page_mgr.switch_page ('download_app_popup');
+		    page_mgr.switch_page ('download_app_page');
 		} else {
 		    // we don't have a native app for this device, offer to send a link
 		    $('#native_app_not_available').show();
-		    page_mgr.switch_page ('download_link_popup');
+		    page_mgr.switch_page ('download_link_page');
 		}
 	    }
 	}
@@ -1548,9 +1563,16 @@ var download = {
     },
     send_link_callback: function (data, textStatus, jqXHR) {
 	$('#download_link_form_spinner').hide();
-	$('#download_link_popup').popup('close');
-	var css_class = data.css_class ? data.css_class : 'message_success'
-	display_message(data.message, css_class);
+	if (data.page_message) {
+	    // show message on this page
+	    $('#download_link_form_info').html(data.page_message);
+	} else {
+	    // show message on index page
+	    page_mgr.switch_page ('index');
+	    var css_class = data.css_class ? data.css_class : 'message_success'
+	    display_message(data.message, css_class);
+	    $('#download_link_form_info').empty();
+	}
     },
 };
 
@@ -1560,7 +1582,7 @@ function download_app_wrapper () {
 
 function download_link_wrapper () {
     $('#native_app_not_available').hide();
-    page_mgr.switch_page ('download_link_popup');
+    page_mgr.switch_page ('download_link_page');
 }
 
 function download_redirect_wrapper () {
@@ -1655,7 +1677,7 @@ function select_contact_callback (contact) {
 	$('#my_contacts_button').hide();
 
 	// finally ready to display the popup
-	page_mgr.switch_page ('share_location_popup');
+	page_mgr.switch_page ('share_location_page');
 	}, 500);
 }
 
@@ -1671,7 +1693,7 @@ function select_contact () {
     $('input[name=share_to]').val(null);
     $('input[name=share_via]').prop('checked',false);
 
-    page_mgr.switch_page ('share_location_popup');
+    page_mgr.switch_page ('share_location_page');
 
     navigator.contacts.pickContact(function(contact){
 	    select_contact_callback(contact);
@@ -1692,11 +1714,6 @@ var init_geo = {
 	// for phonegap, this is deviceready
 
 	console.log ("in init");
-
-	// The popups have 'display:none' in the markup,
-	// so we aren't depending on any JS loading to hide them.
-	// At this point, it's safe to let the JS control them
-	// init_geo.show_popups ();
 
 	// show the spinner in 200mS (.2 sec)
 	// if there are no GPS issues, the map will display quickly and
@@ -1743,15 +1760,6 @@ var init_geo = {
 	}
 
 	page_mgr.init();
-    },
-    show_popups: function () {
-	['registration_popup', 'download_link_popup', 'download_app_popup',
-	 'update_app_popup', 'native_app_switch_popup',
-	 'share_location_popup', 'support_popup', 'share_management_popup']
-	.forEach(function (element, index, array) {
-		$('#'+element).show();
-	    });
-	return;
     },
     init_switches: function () {
 	$(".cb-enable").click(function(){
