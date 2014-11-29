@@ -511,7 +511,13 @@ class Protocol
 
   def Protocol.send_sms (msg, num)
     sms_obj = Sms.new
-    sms_obj.send(num, msg)
+    err = sms_obj.send(num, msg)
+    if /Globally opted out phone number/.match(err)
+      return "#{num} has opted out of text messages.  Text 'EZ' to 313131 from #{num} to opt that number back in"
+    else
+      log_error (err)
+      return "There was a problem sending a text to #{num}"
+    end
   end
 
   def Protocol.send_html_email(body_template, msg_template, subject, email_addr, erb_params)
@@ -550,12 +556,12 @@ class Protocol
   end
   
   def Protocol.send_share_mobile (share, params)
-    sms_obj = Sms.new
+    # send the standard message with the link
     msg = Protocol.create_share_msg(share, params)
-    err = sms_obj.send(share.share_to, msg)
-    if (err)
-      return error_response err
-    end
+    err = Protocol.send_sms(msg, share.share_to)
+    return error_response err if (err)
+
+    # If the user supplied a message, send that as a separate message
     if params['share_message']
       account = Protocol.get_account_from_device_id (params['device_id'])
       msg = ""
@@ -563,10 +569,8 @@ class Protocol
         msg = "From #{account.name}: "
       end
       msg += params['share_message']
-      err = sms_obj.send(share.share_to, msg)
-    end
-    if (err)
-      return error_response err
+      err = Protocol.send_sms(msg, share.share_to)
+      return error_response err if err
     end
     {message: "Sent location share to #{share.share_to}"}
   end
@@ -1502,11 +1506,9 @@ class Protocol
 
     if params['mobile']
       msg = "Press this #{url} to download the Geopeers native app"
-      sms_obj = Sms.new
-      sms_err = sms_obj.send(params['mobile'], msg)
+      sms_err = Protocol.send_sms(msg, params['mobile'])
       if sms_err
-        response_err += "There was a problem sending a text to #{params['mobile']}<br>"
-        log_error (sms_err)
+        response_err += "#{sms_err}<br>"
       else
         response_msg += "A download link was sent to #{params['mobile']}<br>"
       end
