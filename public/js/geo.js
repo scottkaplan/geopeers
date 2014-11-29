@@ -161,7 +161,7 @@ function display_message (message, css_class) {
     } else {
 	// create new divs - message and close button
 	// append to geo_info
-	var onclick_cmd = "$('#"+msg_id+"').hide(); map.resize()";
+	var onclick_cmd = "$('#"+msg_id+"').hide(); map_mgr.resize()";
 	var x_div = $('<div></div>')
 	    .attr('onclick', onclick_cmd)
 	    .css('position','relative')
@@ -177,7 +177,7 @@ function display_message (message, css_class) {
 	wrapper_div.append(msg_div);
 	$('#geo_info').append(wrapper_div);
     }
-    map.resize();
+    map_mgr.resize();
     return (msg_id);
 }
 
@@ -841,7 +841,7 @@ var device_id_bind = {
     native_app_redirect: function (message) {
 	// make sure this can't fire again
 	$('#'+device_id_bind.countdown_native_app_redirect_div_id).remove();
-	map.update_canvas_pos ();
+	map_mgr.update_canvas_pos ();
 
         var native_app_deeplink = "geopeers://";
 	if (message) {
@@ -891,7 +891,7 @@ function handleOpenURL(url) {
 // MAP STUFF
 //
 
-var map = {
+var map_mgr = {
     update_canvas_pos: function() {
 	var content_height = $('#geo_info').height() + 65;
 	$('#content').css('top', content_height+'px');
@@ -916,7 +916,7 @@ var map = {
 
 	// reset the header height everytime the map's bounds change
 	var map = $('#map_canvas').gmap('get','map');
-	google.maps.event.addListener(map, 'bounds_changed', map.update_canvas_pos);
+	google.maps.event.addListener(map, 'bounds_changed', map_mgr.update_canvas_pos);
 	google.maps.event.addListener(map, 'bounds_changed', marker_mgr.overlap_detection);
 	google.maps.event.addListener(map, 'dragend', my_pos.set_user_action);
     },
@@ -924,7 +924,7 @@ var map = {
 	if (page_mgr.get_active_page() === 'index') {
 	    // Do this twice
 	    // Once before resizing the map
-	    map.update_canvas_pos();
+	    map_mgr.update_canvas_pos();
 	    
 	    var map = $('#map_canvas').gmap('get','map');
 	    console.log(map.getZoom());
@@ -1709,7 +1709,7 @@ function heartbeat () {
     my_pos.reposition();
 
     // last ditch to keep the UI clean
-    map.resize();
+    map_mgr.resize();
 
     // if we get here, schedule the next iteration
     setTimeout(heartbeat, period_minutes * 60 * 1000);
@@ -1736,7 +1736,7 @@ var init_geo = {
 	// turn on when GEOP-40 is fixed
 	// window.addEventListener('orientationchange', change_orientation);
 
-	run_position_function (function(position) {map.create(position)});
+	run_position_function (function(position) {map_mgr.create(position)});
 
 	device_id_mgr.init ();
 
@@ -1765,7 +1765,7 @@ var init_geo = {
 
 	// keep the UI clean while changes come in (e.g. markers, current pos)
 	for (var i=1; i<10; i++) {
-	    setTimeout(map.resize, 1000*i);
+	    setTimeout(map_mgr.resize, 1000*i);
 	}
 
 	page_mgr.init();
