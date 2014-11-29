@@ -1,15 +1,23 @@
-<div data-role="page" id="<%= popup_id %>">
-  <div data-role="header">
-    <h1><%= popup_title %></h1>
-  </div>
-  <a href="#index"
-     data-transition="slide"
-     class="ui-btn ui-corner-all ui-btn-inline">
-    Back
-  </a>
-  <div role="main" class="ui-content">
-    <div class="popup_content">
-      <%= nested_html %>
+<div data-role="page" id="<%= page_id %>">
+  <div class="page_frame">
+    <div data-role="header">
+      <div class="page_header">
+	<%= page_title %>
+      </div>
+      <a data-role="button"
+	 data-direction="reverse"
+	 data-rel="back"
+	 data-icon="arrow-l"
+	 data-iconpos="left"
+	 href="#index"
+	 >
+	Back
+      </a>
+    </div>
+    <div role="main" class="ui-content">
+      <div class="page_content">
+	<%= nested_html %>
+      </div>
     </div>
   </div>
 </div>
