@@ -297,10 +297,10 @@ function run_position_function (post_func) {
 
 var page_mgr = {
     init: function () {
+	// install an event handler to clean up the map when we return to the index page
 	$( document ).on( "pagecontainerchange", function( event, ui ) {
 	    if (ui.toPage.attr('id') === 'index') {
-		// clean up the map when we return to the index page
-		resize_map();
+		map_mgr.resize();
 	    }
 	} );
     },    
@@ -807,7 +807,7 @@ var device_id_bind = {
 	// Get this div off the page
 	// We're done with it and we don't want it firing again
 	$('#'+device_id_bind.countdown_web_app_redirect_div_id).remove();
-	resize_map();
+	map_mgr.resize();
 
 	// Defensive coding:
 	// This is an in-memory version of globals.device_id_bind_complete
