@@ -288,6 +288,10 @@ var my_pos = {
     // control the initial pan/zoom
     current_position: null,
     marker: null,
+    user_action: false,
+    set_user_action: function () {
+	my_pos.user_action = true;
+    },
     update_position: function (position_from_server) {
 	if (! device_id_mgr.phonegap || ! position_from_server)
 	    return;
@@ -311,6 +315,10 @@ var my_pos = {
 	return;
     },
     pan_zoom: function () {
+	// Don't update the screen if the user has already interacted with it
+	if (my_pos.user_action)
+	    return;
+	
 	var bounds = new google.maps.LatLngBounds ();
 	if (jQuery.isEmptyObject(marker_mgr.markers)) {
 	    if (my_pos.current_position) {
@@ -318,8 +326,6 @@ var my_pos = {
 		var current_location = new google.maps.LatLng(my_pos.current_position.coords.latitude,
 							      my_pos.current_position.coords.longitude);
 		bounds.extend (current_location);
-	    } else {
-		bounds.extend (display_mgr.us_center);
 	    }
 	} else {
 	    // create a bounding box with the markers
@@ -338,13 +344,18 @@ var my_pos = {
 	}
 
 	var map = $('#map_canvas').gmap('get','map');
-	map.fitBounds (bounds);
+	if (bounds.isEmpty()) {
+	    bounds.extend (display_mgr.us_center);
+	    map.fitBounds (bounds);
+	    map.setZoom(4);
+	} else {
+	    map.fitBounds (bounds);
+	    // if we only have one marker, fitBounds zooms to maximum.
+	    // Back off to max_zoom
+	    var zoom = Math.min(map.getZoom(), 18)
+	    map.setZoom(zoom);
+	}
 
-	// if we only have one marker, fitBounds zooms to maximum.
-	// Back off to max_zoom
-	var zoom = Math.min(map.getZoom(), 18)
-	console.log (zoom);
-	map.setZoom(zoom);
     },
     reposition: function (position) {
 	run_position_function (function(position) {
@@ -524,7 +535,11 @@ var marker_mgr = {
     },
     create_label_text: function (sighting) {
 	var elapsed_str = marker_mgr.create_elapsed_str (sighting);
-	var label_text = '<span style="text-align:center;font-size:20px;font-weight:bold;color:#453345"><div>' + sighting.name + '</div><div style="font-size:16px">' + elapsed_str + '</div></span>';
+	var elapsed_div = '<div class="elapsed_str marker_label">' + elapsed_str + '</div>';
+	var name_div = '<div>' + sighting.name + '</div>';
+	var div_id = "marker_label_"+sighting.device_id;
+	var label_text = '<span id="'+ div_id + '" class="marker_label_text">' +
+	    name_div + elapsed_div + '</span>';
 	return (label_text);
     },
     update_marker_view: function (marker_info) {
@@ -533,7 +548,7 @@ var marker_mgr = {
 						       sighting.gps_longitude);
 	var label_text = marker_mgr.create_label_text (sighting);
 	$('#map_canvas').gmap('find', 'markers',
-{ 'property': 'device_id', 'value': sighting.device_id },
+			      { 'property': 'device_id', 'value': sighting.device_id },
 			      function(marker, found) {
 				  if (found) {
 				      marker.labelContent = label_text;
@@ -547,6 +562,8 @@ var marker_mgr = {
 
 	// This is probably not the right way to dereference the event
 	var event = e.nb;
+	if (! event)
+	    return;
 
 	// reposition the menu so it is next to the marker that was clicked
 	$("#marker_menu").css( {position:"absolute", top:event.pageY, left: event.pageX});
@@ -599,7 +616,7 @@ var marker_mgr = {
 	    return;
 
 	// In addition to the markers, the server sends us our position
-	// For native (phonegap) apps, the background GPS, kills our GPS
+	// For native (phonegap) apps, the background GPS kills the webview GPS
 	// so the server has to send us our position.  Go figure.
 	my_pos.update_position (data.current_position);
 
@@ -613,16 +630,78 @@ var marker_mgr = {
 	    if (! marker_mgr.markers[sighting.device_id]) {
 		marker_mgr.markers[sighting.device_id] = marker_mgr.create_marker (sighting);
 	    }
-	    // and hold the most recent sighting to keep this marker's label up to date
+	    // hold the most recent sighting to keep this marker's label up to date
 	    marker_mgr.markers[sighting.device_id].sighting = sighting;
+
 	}
 
 	// update the views of all the markers
-	// so we update the elapsed time of markers where the position has not changed
+	// so we update the elapsed time of markers,
+	// even where the position has not changed
 	for (var device_id in marker_mgr.markers) {
 	    marker_mgr.update_marker_view (marker_mgr.markers[device_id]);
 	}
-	return;
+
+	marker_mgr.overlap_detection();
+    },
+    overlaps: function (box_1, box_2) {
+	if (! box_1 || ! box_1)
+	    return (false);
+	console.log (box_1);
+	console.log (box_2);
+	var x_overlap =
+	    (box_1.x <= box_2.x && box_2.x <= box_1.x+box_1.width) ||
+	    (box_2.x <= box_1.x && box_1.x <= box_2.x+box_2.width);
+	var y_overlap =
+	    (box_1.y <= box_2.y && box_2.y <= box_1.y+box_1.height) ||
+	    (box_2.y <= box_1.y && box_1.y <= box_2.y+box_2.height);
+	return (x_overlap && y_overlap);
+    },
+    overlap_detection: function () {
+	// if the labels overlap, hide the elapsed time
+	var device_ids = [];
+	for (var device_id in marker_mgr.markers) {
+	    device_ids.push (device_id);
+	    // get the parent of our label div
+	    var marker_label_id = 'marker_label_'+device_id;
+	    var marker_label = $('#'+marker_label_id).parent();
+	    if (marker_label.height()) {
+		marker_mgr.markers[device_id].bound_box =
+		    { 'x'       : marker_label.css('left').replace(/px$/,"") - 0,
+		      'y'       : marker_label.css('top').replace(/px$/,"") - 0,
+		      'height'  : marker_label.height(),
+		      'width'   : marker_label.width(),
+		      'overlap' : false,
+		    };
+	    }
+	}
+
+	// compute the pairwise permutations of device ids and check for overlap
+	for (var i=0; i<device_ids.length-1; i++) {
+	    for (var j=i+1; j<device_ids.length; j++) {
+		var box_1 = marker_mgr.markers[device_ids[i]].bound_box;
+		var box_2 = marker_mgr.markers[device_ids[j]].bound_box;
+		if (marker_mgr.overlaps (box_1, box_2)) {
+		    box_1.overlap = true;
+		    box_2.overlap = true;
+		}
+	    }
+	}
+
+	// we marked any boxes that overlap
+	// comb through all the boxes and set their new visibility
+	for (var device_id in marker_mgr.markers) {
+	    var marker = marker_mgr.markers[device_id];
+	    if (marker.bound_box) {
+		var marker_label_id = 'marker_label_'+device_id;
+		var elapsed_div = $('#'+marker_label_id).find('.elapsed_str');
+		if (marker.bound_box.overlap) {
+		    elapsed_div.css('visibility', 'hidden');
+		} else {
+		    elapsed_div.css('visibility', 'visible');
+		}
+	    }
+	}
     },
     show_directions: function () {
 	var url = "https://maps.google.com/maps";
@@ -794,10 +873,11 @@ function create_map (position) {
     // reset the header height everytime the map's bounds change
     var map = $('#map_canvas').gmap('get','map');
     google.maps.event.addListener(map, 'bounds_changed', update_map_canvas_pos);
+    google.maps.event.addListener(map, 'bounds_changed', marker_mgr.overlap_detection);
+    google.maps.event.addListener(map, 'dragend', my_pos.set_user_action);
 }
 
 function resize_map () {
-    console.log ("resizing");
     // Do this twice
     // Once before resizing the map
     update_map_canvas_pos();
@@ -1028,16 +1108,16 @@ function config_callback (data, textStatus, jqXHR) {
 	db.get_global ('device_id_bind_complete', device_id_bind.check);
 	// if we didn't get redirected, we'll still be here after 1000 msec
 	setTimeout(function() {
-		background_gps.init ();
+	    background_gps.init ();
 
-		// sets registration.status
-		registration.init();
-		heartbeat();
-	    }, 1000);
+	    // sets registration.status
+	    registration.init();
+	    start_heartbeat();
+	}, 1000);
     } else {
 	// sets registration.status
 	registration.init();
-	heartbeat();
+	start_heartbeat();
     }
     return;
 }
@@ -1357,6 +1437,16 @@ var registration = {
     },
 }
 
+function start_heartbeat () {
+    // start one beat immediately
+    heartbeat();
+
+    // normally, heartbeats are very 60 sec
+    // but queue one heartbeat after 10 sec to try to get past all the initialization foo
+    setTimeout(heartbeat, 10 * 1000);
+    return;
+}
+
 function heartbeat () {
     // things that should happen periodically
     var period_minutes = 1;
@@ -1624,7 +1714,7 @@ var init_geo = {
 
 	// keep updating bounding box pan/zoom for first 5 sec
 	// after that, the user has to pan/zoom manually
-	for (var i=1; i<10; i++) {
+	for (var i=1; i<5; i++) {
 	    setTimeout(my_pos.pan_zoom, 1000*i);
 	}
 
