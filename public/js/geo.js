@@ -4,6 +4,19 @@
 // Utils
 //
 
+function get_client_type () {
+    var user_agent = navigator.userAgent;
+    console.log (user_agent);
+    if (/android/i.exec(user_agent)) {
+	return ('android');
+    } else if (/iphone/i.exec(user_agent) ||
+	       /ipad/i.exec(user_agent)) {
+	return ('ios');
+    } else {
+	return ('web');
+    }
+}
+
 function get_parms (url) {
     var parm_str = url.match (/^geopeers:\/\/api\?(.*)/);
     if (! parm_str) {
@@ -72,13 +85,6 @@ function if_else_native (is_native_function, is_not_native_function) {
 	    is_not_native_function();
 	}
     }
-}
-
-function update_map_canvas_pos () {
-    var content_height = $('#geo_info').height() + 65;
-    $('#content').css('top', content_height+'px');
-    console.log ("content_height="+content_height);
-    return;
 }
 
 function display_alert_message (alert_method, message) {
@@ -155,7 +161,7 @@ function display_message (message, css_class) {
     } else {
 	// create new divs - message and close button
 	// append to geo_info
-	var onclick_cmd = "$('#"+msg_id+"').hide(); resize_map()";
+	var onclick_cmd = "$('#"+msg_id+"').hide(); map.resize()";
 	var x_div = $('<div></div>')
 	    .attr('onclick', onclick_cmd)
 	    .css('position','relative')
@@ -171,7 +177,7 @@ function display_message (message, css_class) {
 	wrapper_div.append(msg_div);
 	$('#geo_info').append(wrapper_div);
     }
-    resize_map();
+    map.resize();
     return (msg_id);
 }
 
@@ -835,7 +841,7 @@ var device_id_bind = {
     native_app_redirect: function (message) {
 	// make sure this can't fire again
 	$('#'+device_id_bind.countdown_native_app_redirect_div_id).remove();
-	update_map_canvas_pos ();
+	map.update_canvas_pos ();
 
         var native_app_deeplink = "geopeers://";
 	if (message) {
@@ -864,6 +870,14 @@ var device_id_bind = {
     },
 }
 
+function device_id_bind_webapp (alert_method, message) {
+    // this is only sent to the webapp, so we only need to check for .ready
+    $(document).ready(function() {
+	init_geo.after_ready();
+	display_alert_message(alert_method, message);
+    });
+}
+
 // this is a magic function name for catching a deeplink call
 function handleOpenURL(url) {
     // alert ("in handleOpenURL");
@@ -877,40 +891,47 @@ function handleOpenURL(url) {
 // MAP STUFF
 //
 
-function create_map (position) {
-    // flip the loading image
-    $('#gps_spinner').hide();
-    $('#index').show();
+var map = {
+    update_canvas_pos: function() {
+	var content_height = $('#geo_info').height() + 65;
+	$('#content').css('top', content_height+'px');
+	console.log ("content_height="+content_height);
+	return;
+    },
+    create: function(position) {
+	// flip the loading image
+	$('#gps_spinner').hide();
+	$('#index').show();
 
-    if (position) {
-	var initial_position = new google.maps.LatLng(position.coords.latitude,
-						      position.coords.longitude);
-	$('#map_canvas').gmap({center: initial_position});
-	console.log (initial_position);
-    } else {
-	// We don't know our current position
-	// show the whole US
-	$('#map_canvas').gmap({center: display_mgr.us_center, zoom:8});
-    }
+	if (position) {
+	    var initial_position = new google.maps.LatLng(position.coords.latitude,
+							  position.coords.longitude);
+	    $('#map_canvas').gmap({center: initial_position});
+	    console.log (initial_position);
+	} else {
+	    // We don't know our current position
+	    // show the whole US
+	    $('#map_canvas').gmap({center: display_mgr.us_center, zoom:8});
+	}
 
-    // reset the header height everytime the map's bounds change
-    var map = $('#map_canvas').gmap('get','map');
-    google.maps.event.addListener(map, 'bounds_changed', update_map_canvas_pos);
-    google.maps.event.addListener(map, 'bounds_changed', marker_mgr.overlap_detection);
-    google.maps.event.addListener(map, 'dragend', my_pos.set_user_action);
-}
-
-function resize_map () {
-    if (page_mgr.get_active_page() === 'index') {
-	// Do this twice
-	// Once before resizing the map
-	update_map_canvas_pos();
-	
+	// reset the header height everytime the map's bounds change
 	var map = $('#map_canvas').gmap('get','map');
-	console.log(map.getZoom());
-	// And again in the bounds_changed callback if the bounds have changed
-	google.maps.event.trigger(map, 'resize');
-    }
+	google.maps.event.addListener(map, 'bounds_changed', map.update_canvas_pos);
+	google.maps.event.addListener(map, 'bounds_changed', marker_mgr.overlap_detection);
+	google.maps.event.addListener(map, 'dragend', my_pos.set_user_action);
+    },
+    resize: function() {
+	if (page_mgr.get_active_page() === 'index') {
+	    // Do this twice
+	    // Once before resizing the map
+	    map.update_canvas_pos();
+	    
+	    var map = $('#map_canvas').gmap('get','map');
+	    console.log(map.getZoom());
+	    // And again in the bounds_changed callback if the bounds have changed
+	    google.maps.event.trigger(map, 'resize');
+	}
+    },
 }
 
 //
@@ -1190,8 +1211,6 @@ function get_positions () {
 // GET_SHARES
 //
 
-var DT;
-
 function format_time (time) {
     // JS version of same routine in geo.rb on server
 
@@ -1326,7 +1345,7 @@ function manage_shares_callback (data, textStatus, jqXHR) {
 	$('#manage_msg').show();
     }
 
-    DT = $('#manage_table').dataTable( {
+    var dt = $('#manage_table').dataTable( {
 	retrieve:     true,
 	searching:    false,
 	lengthChange: false,
@@ -1375,6 +1394,10 @@ function share_active_toggle(share_id) {
     ajax_request (request_parms, manage_shares_callback, geo_ajax_fail_callback);
     return;
 }
+
+//
+// REGISTRATION
+//
 
 function validate_registration_form () {
     var name = $('#registration_form #name').val();
@@ -1469,48 +1492,6 @@ var registration = {
 	registration.init();
 	return;
     },
-}
-
-function start_heartbeat () {
-    // start one beat immediately
-    heartbeat();
-
-    // normally, heartbeats are very 60 sec
-    // but queue one heartbeat after 10 sec to try to get past all the initialization foo
-    setTimeout(heartbeat, 10 * 1000);
-    return;
-}
-
-function heartbeat () {
-    // things that should happen periodically
-    var period_minutes = 1;
-
-    // refresh the sightings for our shares
-    get_positions();
-
-    // keep the green star in the right spot
-    my_pos.reposition();
-
-    // last ditch to keep the UI clean
-    resize_map();
-
-    // if we get here, schedule the next iteration
-    setTimeout(heartbeat, period_minutes * 60 * 1000);
-    return;
-}
-
-
-function get_client_type () {
-    var user_agent = navigator.userAgent;
-    console.log (user_agent);
-    if (/android/i.exec(user_agent)) {
-	return ('android');
-    } else if (/iphone/i.exec(user_agent) ||
-	       /ipad/i.exec(user_agent)) {
-	return ('ios');
-    } else {
-	return ('web');
-    }
 }
 
 var download = {
@@ -1707,6 +1688,34 @@ function select_contact () {
 // Init and startup
 //
 
+function start_heartbeat () {
+    // start one beat immediately
+    heartbeat();
+
+    // normally, heartbeats are very 60 sec
+    // but queue one heartbeat after 10 sec to try to get past all the initialization foo
+    setTimeout(heartbeat, 10 * 1000);
+    return;
+}
+
+function heartbeat () {
+    // things that should happen periodically
+    var period_minutes = 1;
+
+    // refresh the sightings for our shares
+    get_positions();
+
+    // keep the green star in the right spot
+    my_pos.reposition();
+
+    // last ditch to keep the UI clean
+    map.resize();
+
+    // if we get here, schedule the next iteration
+    setTimeout(heartbeat, period_minutes * 60 * 1000);
+    return;
+}
+
 var init_geo = {
     after_ready: function () {
 	// This is called after we are ready
@@ -1727,7 +1736,7 @@ var init_geo = {
 	// turn on when GEOP-40 is fixed
 	// window.addEventListener('orientationchange', change_orientation);
 
-	run_position_function (function(position) {create_map(position)});
+	run_position_function (function(position) {map.create(position)});
 
 	device_id_mgr.init ();
 
@@ -1756,7 +1765,7 @@ var init_geo = {
 
 	// keep the UI clean while changes come in (e.g. markers, current pos)
 	for (var i=1; i<10; i++) {
-	    setTimeout(resize_map, 1000*i);
+	    setTimeout(map.resize, 1000*i);
 	}
 
 	page_mgr.init();
@@ -1790,18 +1799,6 @@ var init_geo = {
 	}
     },
 };
-
-function console_log (msg) {
-    console.log (Date.now()+':'+msg);
-}
-
-function device_id_bind_webapp (alert_method, message) {
-    // this is only sent to the webapp, so we only need to check for .ready
-    $(document).ready(function() {
-	init_geo.after_ready();
-	display_alert_message(alert_method, message);
-    });
-}
 
 function start () {
     console.log ('start');
