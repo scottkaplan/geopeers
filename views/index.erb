@@ -159,6 +159,24 @@
       <ul class="no-js">
 	<li>
 	  <ul id="navContainer">
+	    <div id="send_email_menu_item">
+	      <li>
+		<a onclick="marker_mgr.send_to_form('email')">
+		  Send email to
+		  <span class="menu_account_name"></span>
+		</a>
+	      </li>
+	    </div>
+	    <hr>
+	    <div id="send_mobile_menu_item">
+	      <li>
+		<a onclick="marker_mgr.send_to_form('mobile')">
+		  Send text message to
+		  <span class="menu_account_name"></span>
+		</a>
+	      </li>
+	    </div>
+	    <hr>
 	    <div id="share_location_menu_item">
 	      <li>
 		<a onclick="marker_mgr.popup_share_location()">
@@ -196,6 +214,7 @@
     <%= share_location_page %>
     <%= support_page %>
     <%= share_management_page %>
+    <%= send_to_page %>
 
     <script>
       <% if initial_js %>
