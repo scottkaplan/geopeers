@@ -1700,7 +1700,7 @@ function select_contact_callback (contact) {
 	    console.log ("switching to share_location_page");
 	    page_mgr.switch_page ('share_location_page');
 	    window.history.back();
-	}
+	});
     }, 500);
 }
 
