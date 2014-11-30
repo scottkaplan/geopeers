@@ -1697,10 +1697,13 @@ function select_contact_callback (contact) {
 
 	// finally ready to display the page
 	setTimeout(function() {
-	    console.log ("switching to share_location_page");
-	    page_mgr.switch_page ('share_location_page');
+	    console.log ('back');
 	    window.history.back();
-	});
+	}, 1000);
+	setTimeout(function() {
+	    console.log ('share_location_page');
+	    page_mgr.switch_page ('share_location_page');
+	}, 2000);
     }, 500);
 }
 
