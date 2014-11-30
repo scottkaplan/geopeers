@@ -128,7 +128,8 @@ body {
     border-radius:10px;
     border: 1px solid #3eb1dd;
     background-color: #d2e9ff;
-    margin: 10px;
+    /* extra top margin is for some iphone status bars */
+    margin: 15px 10px 10px 10px;
     overflow:hidden;
 }
 
