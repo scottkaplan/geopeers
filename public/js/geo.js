@@ -319,7 +319,8 @@ var page_mgr = {
 	} );
     },    
     switch_page: function (page_id) {
-	$(":mobile-pagecontainer").pagecontainer("change", '#'+page_id, {transition: 'slide'});
+	$(":mobile-pagecontainer").pagecontainer("change", '#'+page_id,
+						 {transition: 'slide'});
 	return;
     },
     get_active_page: function () {
@@ -1691,9 +1692,12 @@ function select_contact_callback (contact) {
 	$('#my_contacts_button').hide();
 
 	// finally ready to display the page
-	setTimeout(function() {
-	    page_mgr.switch_page ('share_location_page')
-	}, 1000)
+	for (var i=1; i<10; i++) {
+	    setTimeout(function() {
+		alert ("switching to share_location_page");
+		page_mgr.switch_page ('share_location_page');
+	    }, 1000*i);
+	}
     }, 500);
 }
 
@@ -1709,7 +1713,7 @@ function select_contact () {
     $('input[name=share_to]').val(null);
     $('input[name=share_via]').prop('checked',false);
 
-    page_mgr.switch_page ('share_location_page');
+    // page_mgr.switch_page ('share_location_page');
 
     navigator.contacts.pickContact(function(contact){
 	    select_contact_callback(contact);
