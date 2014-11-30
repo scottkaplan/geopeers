@@ -185,13 +185,20 @@ body {
     font-weight:normal;
 }
 
+.form_button {
+    background-color:#3eb1dd;
+    color:white;
+    text-shadow:0 0;
+    font-weight:normal;
+}
+
 /* Menu */
 .dropdown_menu ul li {
     list-style:none;
     cursor:pointer;
 }
 .dropdown_menu {
-    /* margin-left: 150px; */
+
 }
 .dropdown_menu .js {
     margin-top: 0px;
