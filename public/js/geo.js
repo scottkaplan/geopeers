@@ -1699,11 +1699,8 @@ function select_contact_callback (contact) {
 	setTimeout(function() {
 	    console.log ('back');
 	    window.history.back();
-	}, 1000);
-	setTimeout(function() {
-	    console.log ('share_location_page');
 	    page_mgr.switch_page ('share_location_page');
-	}, 2000);
+	}, 1000);
     }, 500);
 }
 
