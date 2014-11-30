@@ -1693,14 +1693,13 @@ function select_contact_callback (contact) {
 
 	// back-to-back My Contacts are broken
 	// (returns to blank screen)
-	$('#my_contacts_button').hide();
+	// $('#my_contacts_button').hide();
 
 	// finally ready to display the page
-	setTimeout(function() {
-	    console.log ('back');
+//	setTimeout(function() {
 	    window.history.back();
 	    page_mgr.switch_page ('share_location_page');
-	}, 1000);
+//	}, 500);
     }, 500);
 }
 
