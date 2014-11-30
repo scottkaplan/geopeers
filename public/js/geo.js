@@ -317,6 +317,10 @@ var page_mgr = {
 		map_mgr.resize();
 	    }
 	} );
+	$( document ).on( "pagecontainerchangefailed", function( event, ui ) {
+	    console.log(event);
+	    console.log(ui);
+	} );
     },    
     switch_page: function (page_id) {
 	$(":mobile-pagecontainer").pagecontainer("change", '#'+page_id,
@@ -1694,7 +1698,7 @@ function select_contact_callback (contact) {
 	// finally ready to display the page
 	for (var i=1; i<10; i++) {
 	    setTimeout(function() {
-		alert ("switching to share_location_page");
+		console.log ("switching to share_location_page");
 		page_mgr.switch_page ('share_location_page');
 	    }, 1000*i);
 	}
