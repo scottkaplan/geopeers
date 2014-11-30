@@ -223,6 +223,20 @@ function form_request (form, extra_params, success_callback, failure_callback) {
     ajax_request (params, success_callback, failure_callback);
 }
 
+function form_request_callback (data, spinner_id, form_info_id) {
+    $('#'+spinner_id).hide();
+    if (data.page_message) {
+	// show message on this page
+	$('#'+form_info_id).html(data.page_message);
+    } else {
+	// show message on index page
+	page_mgr.switch_page ('index');
+	var css_class = data.css_class ? data.css_class : 'message_success'
+	display_message(data.message, css_class);
+	$('#'+form_info_id).empty();
+    }
+    return;
+}
 
 function ajax_request (request_parms, success_callback, failure_callback) {
     // phonegap runs from https://geopeers.com
@@ -594,16 +608,29 @@ var marker_mgr = {
 	if (! event)
 	    return;
 
-	// reposition the menu so it is next to the marker that was clicked
-	$("#marker_menu").css( {position:"absolute", top:event.pageY, left: event.pageX});
+	// reposition the menu so it is over the marker that was clicked
+	$("#marker_menu").css( {position:"absolute", top:event.pageY, left: event.pageX-120});
 
 	// The menu item to share your location with the marker
 	// We only put up this menu item if the server has account info
 	// for the currently selected marker
-	if (marker_mgr.selected_sighting.have_addr == 1) {
+	if (marker_mgr.selected_sighting.have_email == 1 ||
+	    marker_mgr.selected_sighting.have_mobile == 1) {
 	    $('#share_location_menu_item').show();
 	} else {
 	    $('#share_location_menu_item').hide();
+	}
+
+	if (marker_mgr.selected_sighting.have_email == 1) {
+	    $('#send_email_menu_item').show();
+	} else {
+	    $('#send_email_menu_item').hide();
+	}
+
+	if (marker_mgr.selected_sighting.have_mobile == 1) {
+	    $('#send_mobile_menu_item').show();
+	} else {
+	    $('#send_mobile_menu_item').hide();
 	}
 
 	// the name can appear in multiple menu items
@@ -620,12 +647,28 @@ var marker_mgr = {
 	$('#marker_menu .js ul').slideToggle(200);
 	event.stopPropagation();
     },
+    send_to_form: function (type) {
+	$('#send_to_name').text(marker_mgr.selected_sighting.name);
+	$('#send_to_type').text(type);
+	$("input[type='hidden'][name='device_id']").val(marker_mgr.selected_sighting.device_id);
+	$("input[type='hidden'][name='send_to_type']").val(type);
+	$('#send_to_form_info').empty();
+	page_mgr.switch_page ('send_to_page');
+	return;
+    },
+    process_send_to_form: function (type) {
+	$('#send_to_form_spinner').show();
+	form_request ($('#send_to_form'), null, marker_mgr.send_to_callback, geo_ajax_fail_callback);
+    },
+    send_to_callback: function (data, textStatus, jqXHR) {
+	form_request_callback (data, 'send_to_form_spinner', 'send_to_form_info');
+    },
     popup_share_location: function () {
 	$('#share_via').hide();
 	$('#share_with').show();
 	$('#share_account_name').text(marker_mgr.selected_sighting.name);
 	$("input[type='hidden'][name='seer_device_id']").val(marker_mgr.selected_sighting.device_id);
-	$('#share_location_form_info').html('');
+	$('#share_location_form_info').empty();
 	page_mgr.switch_page ('share_location_page');
 	return;
     },
@@ -1091,7 +1134,7 @@ function share_location () {
 // SEND_SUPPORT
 //
 
-function send_support_callback  (data, textStatus, jqXHR) {
+function send_support_callback (data, textStatus, jqXHR) {
     $('#support_form_spinner').hide();
     $('#support_form_problem').empty();
     $('#support_form_reproduction').empty();
@@ -1543,17 +1586,7 @@ var download = {
 	form_request ($('#download_link_form'), null, download.send_link_callback);
     },
     send_link_callback: function (data, textStatus, jqXHR) {
-	$('#download_link_form_spinner').hide();
-	if (data.page_message) {
-	    // show message on this page
-	    $('#download_link_form_info').html(data.page_message);
-	} else {
-	    // show message on index page
-	    page_mgr.switch_page ('index');
-	    var css_class = data.css_class ? data.css_class : 'message_success'
-	    display_message(data.message, css_class);
-	    $('#download_link_form_info').empty();
-	}
+	form_request_callback (data, 'download_link_form_spinner', 'download_link_form_info');
     },
 };
 
