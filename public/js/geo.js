@@ -1690,9 +1690,11 @@ function select_contact_callback (contact) {
 	// (returns to blank screen)
 	$('#my_contacts_button').hide();
 
-	// finally ready to display the popup
-	page_mgr.switch_page ('share_location_page');
-	}, 500);
+	// finally ready to display the page
+	setTimeout(function() {
+	    page_mgr.switch_page ('share_location_page')
+	}, 1000)
+    }, 500);
 }
 
 function select_contact () {
