@@ -1,0 +1,15 @@
+Content-Type: multipart/alternative; boundary=<%= @boundary_random %>
+
+--<%= @boundary_random %>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed; delsp=yes
+
+<%= @name %> sent you a message via GeoPeers:
+
+<%= @message %>
+
+--<%= @boundary_random %>
+Content-Type: text/html; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
+
+<%= @quoted_html_body %>
+--<%= @boundary_random %>--
