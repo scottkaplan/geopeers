@@ -114,9 +114,10 @@ class Sms
     num
   end
 
-  def send (num, msg)
+  def send (num, msg, subject=nil)
     options = {
       :message => msg,
+      :subject => subject,
       :phonenumber => Sms.clean_num(num),
     }
     msg = Eztexting::Sms.single(options).first
@@ -406,6 +407,11 @@ def create_index(params=nil)
                "Manage Shared Locations",
                "views/share_management_form.erb",
                params)
+  send_to_page =
+    make_page("send_to_page",
+               "Send a Message",
+               "views/send_to_form.erb",
+               params)
   ERB.new(File.read('views/index.erb')).result(binding)
 end
 
@@ -509,14 +515,16 @@ class Protocol
     ERB.new(msg_erb).result(binding)
   end
 
-  def Protocol.send_sms (msg, num)
+  def Protocol.send_sms (msg, num, subject=nil)
     sms_obj = Sms.new
-    err = sms_obj.send(num, msg)
-    if /Globally opted out phone number/.match(err)
-      return "#{num} has opted out of text messages.  Text 'EZ' to 313131 from #{num} to opt that number back in"
-    else
-      log_error (err)
-      return "There was a problem sending a text to #{num}"
+    err = sms_obj.send(num, msg, subject)
+    if err
+      if /Globally opted out phone number/.match(err)
+        return "#{num} has opted out of text messages.  Text 'EZ' to 313131 from #{num} to opt that number back in"
+      else
+        log_error (err)
+        return "There was a problem sending a text to #{num}"
+      end
     end
   end
 
@@ -862,7 +870,8 @@ class Protocol
     elems = []
     Sighting.find_by_sql(sql).each { |row|
       elems.push ({ 'name'          => row.account_name ? row.account_name : 'Anonymous',
-                    'have_addr'     => row.account_email || row.account_mobile ? 1 : 0,
+                    'have_email'    => row.account_email ? 1 : 0,
+                    'have_mobile'   => row.account_mobile ? 1 : 0,
                     'device_id'     => row.device_id,
                     'gps_longitude' => row.gps_longitude,
                     'gps_latitude'  => row.gps_latitude,
@@ -1533,6 +1542,33 @@ class Protocol
       redirect_url = create_alert_url("NO_NATIVE")
     end
     {redirect_url: redirect_url};
+  end
+  
+  def Protocol.process_request_send_to (params)
+    # params:
+    #   device_id       target for the message
+    #   send_to_message message to send
+    #   send_to_type    'email' | 'mobile'
+    #
+    account = Protocol.get_account_from_device_id (params['device_id'])
+    name = account.name ? account.name : 'Anonymous'
+    if params['send_to_type'] == 'email' && account.email
+      err = Protocol.send_html_email('views/send_to_email_body.erb',
+                                     'views/send_to_email_msg.erb',
+                                     "#{name} sent you a message via Geopeers",
+                                     account.email,
+                                     {message: params['send_to_message'],
+                                      name: name})
+    elsif params['send_to_type'] == 'mobile' && account.mobile
+      msg = "Via Geopeers:#{params['send_to_message']}"
+      err = Protocol.send_sms(msg, account.mobile, "From #{name}")
+    end
+    if err
+      log_error (err);
+      {message: "There was a problem sending your message to #{name}.  Support has been contacted", message_class: 'message_error'}
+    else
+      {message: "Your message to #{name} has been sent"}
+    end
   end
   
   def Protocol.process_request_share_active_toggle (params)
