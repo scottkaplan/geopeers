@@ -1040,16 +1040,18 @@ function clear_share_location_page () {
     $('input[name=my_contacts_email]').val(null);
     $('input[name=my_contacts_mobile]').val(null);
     $('#share_location_form_info').empty();
-    $('.share_to_group').empty();
 }
 
 function set_manual_share_to (display_type) {
+    $('.share_to_group').val("");
     $.each(['email', 'mobile'], function (i, type) {
 	var share_to_div = 'share_to_'+type;
 	if (display_type === type) {
-	    $('#'+share_to_div).show();
+	    $('#share_to_'+type).show();
+	    $('#share_via_'+type).prop('checked',true);
 	} else {
-	    $('#'+share_to_div).hide();
+	    $('#share_to_'+type).hide();
+	    $('#share_via_'+type).prop('checked',false);
 	}
     })
 }
@@ -1057,16 +1059,12 @@ function set_manual_share_to (display_type) {
 function main_page_share_location_page () {
     if (device_id_mgr.phonegap) {
         // configure page in case it was used previously
-	clear_share_location_page()
 	page_mgr.switch_page ('share_location_page');
     } else {
 	// set to false to allow sharing from webapp (testing)
 	if (true) {
 	    download.download_app();
 	} else {
-	    $('#share_via').show();
-	    $('#manual_share_via').show();
-	    $('#manual_share_to').show();
 	    page_mgr.switch_page ('share_location_page');
 	}
     }
@@ -1091,6 +1089,10 @@ function share_location_callback (data, textStatus, jqXHR) {
 	// error message on page which stays open
 	$('#share_location_form_info').html(data.page_message);
     }
+
+    // We try to keep un-submitted data in the form
+    // If we got this far, it's time to clear the form
+    clear_share_location_page();
 
     // in case the name was updated, update registration.reg_info
     registration.init();
@@ -1819,6 +1821,9 @@ var init_geo = {
 	for (var i=1; i<10; i++) {
 	    setTimeout(map_mgr.resize, 1000*i);
 	}
+
+	// share location page in known state
+	clear_share_location_page();
 
 	page_mgr.init();
     },
