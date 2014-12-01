@@ -1044,13 +1044,13 @@ function clear_share_location_page () {
 
 function set_manual_share_to (display_type) {
     $.each(['generic', 'email', 'mobile'], function (i, type) {
-	var share_to_div = 'share_to_'+type
+	var share_to_div = 'share_to_'+type;
 	if (display_type === type) {
 	    $('#'+share_to_div).show();
 	} else {
 	    $('#'+share_to_div).hide();
 	}
-    }
+    })
 }
 
 function main_page_share_location_page () {
