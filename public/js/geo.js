@@ -1032,7 +1032,7 @@ function clear_share_location_page () {
     $('#share_via').show();
     $('#manual_share_via').show();
     $('#manual_share_to').show();
-    set_manual_share_to('generic')
+    set_manual_share_to('mobile')
     $('#share_with').hide();
     $('#or_div').show();
     $('#my_contacts_display').hide();
@@ -1040,10 +1040,11 @@ function clear_share_location_page () {
     $('input[name=my_contacts_email]').val(null);
     $('input[name=my_contacts_mobile]').val(null);
     $('#share_location_form_info').empty();
+    $('.share_to_group').empty();
 }
 
 function set_manual_share_to (display_type) {
-    $.each(['generic', 'email', 'mobile'], function (i, type) {
+    $.each(['email', 'mobile'], function (i, type) {
 	var share_to_div = 'share_to_'+type;
 	if (display_type === type) {
 	    $('#'+share_to_div).show();

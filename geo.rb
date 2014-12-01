@@ -91,6 +91,18 @@ def log_info(msg)
   msg
 end
 
+def first_string field
+  if field.kind_of? Array
+    field.find { | n |
+      if not n.nil?
+        break n if n.length > 0
+      end
+    }
+  else
+    field
+  end
+end
+
 class ERBContext
   def initialize(hash)
     hash.each_pair do |key, value|
@@ -148,14 +160,6 @@ def clear_shares (device_id)
   # delete all the shares that track device_id
   Share.where("device_id=?",device_id).find_each do |share|
     share.destroy
-  end
-end
-
-def clear_redeems (device_id, share_id)
-  Redeem.where("share_id=? AND device_id=?",share_id, TEST_VALUES[:device_id_2]).each do
-    | redeem |
-    $LOG.debug redeem
-    redeem.destroy
   end
 end
 
@@ -565,8 +569,9 @@ class Protocol
   
   def Protocol.send_share_mobile (share, params)
     # send the standard message with the link
+    num = first_string share.share_to
     msg = Protocol.create_share_msg(share, params)
-    err = Protocol.send_sms(msg, share.share_to)
+    err = Protocol.send_sms(msg, num)
     return error_response err if (err)
 
     # If the user supplied a message, send that as a separate message
@@ -577,10 +582,10 @@ class Protocol
         msg = "From #{account.name}: "
       end
       msg += params['share_message']
-      err = Protocol.send_sms(msg, share.share_to)
+      err = Protocol.send_sms(msg, num)
       return error_response err if err
     end
-    {message: "Sent location share to #{share.share_to}"}
+    {message: "Sent location share to #{num}"}
   end
 
   def Protocol.send_email (msg, from_email, from_name, to_email, subject, is_html=nil)
@@ -611,13 +616,13 @@ class Protocol
       subject = "#{name} shared their location with you"
       msg = Protocol.create_share_msg(share, params)
       $LOG.debug account
-      email = account.email ? account.email : 'anon_user@geopeers.com'
-      $LOG.debug email
-      err = Protocol.send_email(msg, email, account.name, share.share_to, subject)
+      from_email = account.email ? account.email : 'anon_user@geopeers.com'
+      to_email = first_string share.share_to
+      err = Protocol.send_email(msg, from_email, account.name, to_email, subject)
       if (err)
         {message: 'There was a problem sending your email.  Support has been contacted', message_class: 'message_error'}
       else
-        {message: "Sent location share to #{share.share_to}"}
+        {message: "Sent location share to #{to_email}"}
       end
     end
   end
@@ -1198,30 +1203,31 @@ class Protocol
     end
       
     if params['share_to']
+      share_to = first_string params['share_to']
       if ! params['share_via']
         # see if we can figure it out
-        if /.+@.+/.match(params["share_to"])
+        if /.+@.+/.match(share_to)
           params["share_via"] = 'email'
         else
-          sms_num = Sms.clean_num(params["share_to"])
+          sms_num = Sms.clean_num(share_to)
           if /^\d{10}$/.match(sms_num)
             params["share_via"] = 'mobile'
           else
-            response['page_message'] = "#{params['share_to']} doesn't look like an email or phone number"
+            response['page_message'] = "#{share_to} doesn't look like an email or phone number"
             # This can fall thru since share_via is not set
           end
         end
       end
       
       if params["share_via"] == 'mobile'
-        sms_num = Sms.clean_num(params["share_to"])
+        sms_num = Sms.clean_num(share_to)
         if /^\d{10}$/.match(sms_num)
           response = create_and_send_share(share_parms.merge({ share_via: params['share_via'],
-                                                               share_to:  params['share_to'],
+                                                               share_to:  share_to,
                                                              }),
                                            params,
                                            response)
-          Logging.milestone ("Share by typing to #{params['share_to']} via #{params['share_via']}")
+          Logging.milestone ("Share by typing to #{share_to} via #{params['share_via']}")
         else 
           response['page_message'] = "The phone number (share to) must be 10 digits"
         end
@@ -1230,13 +1236,13 @@ class Protocol
       if params["share_via"] == 'email'
         # In general, RFC-822 email validation can't be done with regex
         # For now, just make sure it has an '@'
-        if /.+@.+/.match(params["share_to"])
+        if /.+@.+/.match(share_to)
           response = create_and_send_share(share_parms.merge({ share_via: params['share_via'],
-                                                               share_to:  params['share_to'],
+                                                               share_to:  share_to,
                                                              }),
                                            params,
                                            response)
-          Logging.milestone ("Share by typing to #{params['share_to']} via #{params['share_via']}")
+          Logging.milestone ("Share by typing to #{share_to} via #{params['share_via']}")
         else
           response['page_message'] = "Email should be in the form 'fred@company.com'"
         end
