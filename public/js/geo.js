@@ -1032,6 +1032,9 @@ function clear_share_location_page () {
     $('#share_via').show();
     $('#manual_share_via').show();
     $('#manual_share_to').show();
+    $('#share_to_generic').show();
+    $('#share_to_email').hide();
+    $('#share_to_mobile').hide();
     $('#share_with').hide();
     $('#or_div').show();
     $('#my_contacts_display').hide();

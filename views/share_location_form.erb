@@ -83,11 +83,19 @@
 		    data-mini="true">
 	    <div id="manual_share_via">
 	      <label for="share_via_mobile">
-		<input type="radio" name="share_via" value="mobile" id="share_via_mobile">
+		<input type="radio"
+		       onclick="$('#share_to_email').hide();$('#share_to_mobile').show();$('#share_to_generic').hide();"
+		       name="share_via"
+		       value="mobile"
+		       id="share_via_mobile">
 		Text Msg
 	      </label>
 	      <label for="share_via_email">
-		<input type="radio" name="share_via" value="email" id="share_via_email">
+		<input type="radio"
+		       onclick="$('#share_to_email').show();$('#share_to_mobile').hide();$('#share_to_generic').hide();"
+		       name="share_via"
+		       value="email"
+		       id="share_via_email">
 		Email
 	      </label>
 	    </div>
@@ -96,12 +104,30 @@
 
 	<div id="manual_share_to">
 	  <label for="share_to" class="ui-hidden-accessible">Share To</label>
-	  <input type="text"
-		 name="share_to"
-		 id="share_to"
-		 placeholder="Share To"
-		 style="padding:5px"
-		 >
+	  <div id="share_to_generic" style="display:none">
+	    <input type="text"
+		   name="share_to"
+		   id="share_to"
+		   placeholder="Share To"
+		   style="padding:5px"
+		   >
+	  </div>
+	  <div id="share_to_mobile" style="display:none">
+	    <input type="tel"
+		   name="share_to"
+		   id="share_to"
+		   placeholder="Share To"
+		   style="padding:5px"
+		   >
+	  </div>
+	  <div id="share_to_email" style="display:none">
+	    <input type="email"
+		   name="share_to"
+		   id="share_to"
+		   placeholder="Share To"
+		   style="padding:5px"
+		   >
+	  </div>
 	</div>
       </div>
     </div>
