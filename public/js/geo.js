@@ -1122,7 +1122,8 @@ function share_location () {
     //   1) share_via (email | mobile) / share_to (<addr>)
     //   2) seer_device_id - get location from seer_device.account
 
-    if (seer_device_id.length == 0) {
+    // GEOP-48 For now, the input check will happen at the server
+    if (0 && seer_device_id.length == 0) {
 	if (share_to.length == 0) {
 	    display_in_div ("Please supply the address to send your share to",
 			    'share_location_form_info', {color:'red'});
