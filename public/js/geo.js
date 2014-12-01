@@ -1696,10 +1696,10 @@ function select_contact_callback (contact) {
 	// $('#my_contacts_button').hide();
 
 	// finally ready to display the page
-//	setTimeout(function() {
+	setTimeout(function() {
 	    window.history.back();
 	    page_mgr.switch_page ('share_location_page');
-//	}, 500);
+	}, 500);
     }, 500);
 }
 
