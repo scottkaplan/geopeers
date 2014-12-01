@@ -84,7 +84,7 @@
 	    <div id="manual_share_via">
 	      <label for="share_via_mobile">
 		<input type="radio"
-		       onclick="$('#share_to_email').hide();$('#share_to_mobile').show();$('#share_to_generic').hide();"
+		       onclick="set_manual_share_to('mobile')"
 		       name="share_via"
 		       value="mobile"
 		       id="share_via_mobile">
@@ -92,7 +92,7 @@
 	      </label>
 	      <label for="share_via_email">
 		<input type="radio"
-		       onclick="$('#share_to_email').show();$('#share_to_mobile').hide();$('#share_to_generic').hide();"
+		       onclick="set_manual_share_to('email')"
 		       name="share_via"
 		       value="email"
 		       id="share_via_email">
@@ -103,7 +103,10 @@
 	</div>
 
 	<div id="manual_share_to">
-	  <label for="share_to" class="ui-hidden-accessible">Share To</label>
+	  <label for="share_to"
+		 class="ui-hidden-accessible">
+	    Share To
+	  </label>
 	  <div id="share_to_generic" style="display:none">
 	    <input type="text"
 		   name="share_to"

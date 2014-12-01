@@ -1032,16 +1032,25 @@ function clear_share_location_page () {
     $('#share_via').show();
     $('#manual_share_via').show();
     $('#manual_share_to').show();
-    $('#share_to_generic').show();
-    $('#share_to_email').hide();
-    $('#share_to_mobile').hide();
+    set_manual_share_to('generic')
     $('#share_with').hide();
     $('#or_div').show();
     $('#my_contacts_display').hide();
     $('#my_contacts_button').show();
     $('input[name=my_contacts_email]').val(null);
     $('input[name=my_contacts_mobile]').val(null);
-    $('#share_location_form_info').html('');
+    $('#share_location_form_info').empty();
+}
+
+function set_manual_share_to (display_type) {
+    $.each(['generic', 'email', 'mobile'], function (i, type) {
+	var share_to_div = 'share_to_'+type
+	if (display_type === type) {
+	    $('#'+share_to_div).show();
+	} else {
+	    $('#'+share_to_div).hide();
+	}
+    }
 }
 
 function main_page_share_location_page () {
@@ -1178,7 +1187,7 @@ function display_support () {
     var build_id = $('#geopeers_config').attr('build_id');
     $('#support_version').text(build_id);
     $("input[type='hidden'][name='support_version']").val(build_id);
-    $('#support_form_info').html('');
+    $('#support_form_info').empty();
     page_mgr.switch_page ('support_page');
     return;
 }
@@ -1295,9 +1304,6 @@ function format_time (time) {
 					   minute: date.getMinutes()});
     }
     var time_zone_str = /\((.*)\)/.exec(date.toTimeString())[0];
-    // var matches = time_zone_str.match(/\b(\w)/g);
-    // var time_zone_acronym = matches.join('');
-    // time_str += ' ' + time_zone_acronym;
     time_str += ' ' + time_zone_str;
     return (time_str);
 }
@@ -1482,7 +1488,7 @@ function update_registration_page () {
 
 function display_registration () {
     update_registration_page();
-    $('#registration_form_info').html('');
+    $('#registration_form_info').empty();
     page_mgr.switch_page ('registration_page');
     return;
 }
@@ -1524,7 +1530,7 @@ var registration = {
 	}
     },
     send: function () {
-	$('#registration_form_info').html('');
+	$('#registration_form_info').empty();
 	if (! validate_registration_form()) {
 	    return;
 	}
@@ -1625,7 +1631,7 @@ function native_app_redirect_wrapper () {
 
 function populate_dropdown (id, optionList) {
     var dropdown = $('#'+id);
-    dropdown.html('');
+    dropdown.empty();
     $.each(optionList, function (i, el) {
 	    dropdown.append("<option>" + el.value + "</option>");
 	});
@@ -1642,7 +1648,7 @@ function select_contact_callback (contact) {
 	//   my_contacts_[mobile|email] - a single display box
 	//   my_contacts_[mobile|email]_dropdown - multi-select dropdown
 	var mobile;
-	$('#my_contacts_mobile').html('');
+	$('#my_contacts_mobile').empty();
 	$('#my_contacts_mobile_dropdown').empty();
 	if (contact && contact.phoneNumbers ) {
 	    if (contact.phoneNumbers.length == 1) {
@@ -1659,7 +1665,7 @@ function select_contact_callback (contact) {
 	}
 
 	var email;
-	$('#my_contacts_email').html('');
+	$('#my_contacts_email').empty();
 	$('#my_contacts_email_dropdown').empty();
 	if (contact && contact.emails) {
 	    if (contact.emails.length == 1) {
