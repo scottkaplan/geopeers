@@ -1037,9 +1037,14 @@ function clear_share_location_page () {
     $('#or_div').show();
     $('#my_contacts_display').hide();
     $('#my_contacts_button').show();
-    $('input[name=my_contacts_email]').val(null);
-    $('input[name=my_contacts_mobile]').val(null);
-    $('#share_location_form_info').empty();
+    $('input[name=my_contacts_email]').val('');
+    $('input[name=my_contacts_mobile]').val('');
+    if (registration.reg_info &&
+	registration.reg_info.account &&
+	! registration.reg_info.account.name) {
+	$('#account_name_box').show();
+    }
+
 }
 
 function set_manual_share_to (display_type) {
@@ -1100,32 +1105,16 @@ function share_location_callback (data, textStatus, jqXHR) {
 }
 
 function share_location () {
-    var share_via = $("#share_via").val();
-    var share_to = $("#share_to").val();
-    var seer_device_id = $('input:input[name=seer_device_id]');
-
-    // If the user supplied an account name:
-    if ($("#account_name").val()) {
-	// and make sure it shows up in the Account Settings page
-	if (registration.reg_info &&
-	    registration.reg_info.account) {
-	    registration.reg_info.account.name = $("#account_name").val();
-	}
-	$('#account_name_box').hide();
-    } else {
-	if (registration.reg_info &&
-	    registration.reg_info.account &&
-	    ! registration.reg_info.account.name) {
-	    $('#account_name_box').show();
-	}
-    }
-
     // location can be shared either by:
     //   1) share_via (email | mobile) / share_to (<addr>)
     //   2) seer_device_id - get location from seer_device.account
 
     // GEOP-48 For now, the input check will happen at the server
+    var seer_device_id = $('input:input[name=seer_device_id]');
     if (0 && seer_device_id.length == 0) {
+	var share_via = $("#share_via").val();
+	var share_to = $("#share_to").val();
+
 	if (share_to.length == 0) {
 	    display_in_div ("Please supply the address to send your share to",
 			    'share_location_form_info', {color:'red'});
@@ -1146,6 +1135,8 @@ function share_location () {
     }
     $('#share_location_form_spinner').show();
     var tz = jstz.determine();
+    // clear out old error messages
+    $('#share_location_form_info').empty();
     form_request ($('#share_location_form'), {tz: tz.name()},
 		  share_location_callback, geo_ajax_fail_callback);
 }

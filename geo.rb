@@ -1171,8 +1171,8 @@ class Protocol
       account = Protocol.get_account_from_device_id (params['seer_device_id'])
       ['mobile','email'].each do | type |
         if account[type]
-          response = create_and_send_share(share_parms.merge({ share_via: type,
-                                                               share_to:  account[type],
+          response = create_and_send_share(share_parms.merge({ 'share_via' => type,
+                                                               'share_to'  => account[type],
                                                              }),
                                            params,
                                            response)
@@ -1193,8 +1193,8 @@ class Protocol
         $LOG.debug params[my_contacts_field]
         type = field_type.sub(/_dropdown/, '')
         share_to = params[my_contacts_field]
-        response = create_and_send_share(share_parms.merge({ share_via: type,
-                                                             share_to:  share_to,
+        response = create_and_send_share(share_parms.merge({ 'share_via' => type,
+                                                             'share_to'  => share_to,
                                                            }),
                                          params,
                                          response)
@@ -1202,8 +1202,8 @@ class Protocol
       end
     end
       
-    if params['share_to']
-      share_to = first_string params['share_to']
+    share_to = first_string params['share_to']
+    if share_to
       if ! params['share_via']
         # see if we can figure it out
         if /.+@.+/.match(share_to)
@@ -1222,8 +1222,8 @@ class Protocol
       if params["share_via"] == 'mobile'
         sms_num = Sms.clean_num(share_to)
         if /^\d{10}$/.match(sms_num)
-          response = create_and_send_share(share_parms.merge({ share_via: params['share_via'],
-                                                               share_to:  share_to,
+          response = create_and_send_share(share_parms.merge({ 'share_via' => params['share_via'],
+                                                               'share_to'  => share_to,
                                                              }),
                                            params,
                                            response)
@@ -1237,8 +1237,8 @@ class Protocol
         # In general, RFC-822 email validation can't be done with regex
         # For now, just make sure it has an '@'
         if /.+@.+/.match(share_to)
-          response = create_and_send_share(share_parms.merge({ share_via: params['share_via'],
-                                                               share_to:  share_to,
+          response = create_and_send_share(share_parms.merge({ 'share_via' => params['share_via'],
+                                                               'share_to'  => share_to,
                                                              }),
                                            params,
                                            response)
@@ -1247,6 +1247,8 @@ class Protocol
           response['page_message'] = "Email should be in the form 'fred@company.com'"
         end
       end
+    else
+      response['page_message'] = "Please supply a mobile number or email address"
     end
 
     $LOG.debug response
