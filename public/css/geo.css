@@ -10,6 +10,17 @@ body {
     padding: 0;
 }
 
+.splash_div {
+    text-align:center;
+    display:block
+}
+
+.splash_text {
+    font-size:24px;
+    font-weight:bold;
+    padding-bottom:36px;
+    padding-top:30px;
+}
 
 #map-canvas {
     height: 100%;
@@ -153,6 +164,11 @@ body {
     padding:5px;
 }
 
+.page_spinner {
+    text-align: center;
+    display: none;
+}
+
 .box_outer {
     padding: 5px;
 }
@@ -275,6 +291,49 @@ body {
     font-size: 14px;
 }
 
+.share_manage_msg {
+    text-align:center;
+    font-size:16px;
+    font-weight:bold;
+    color: purple;
+    padding:5px;
+}
+
+.share_manage_table {
+    min-height:250px;
+}
+
+.share_location_my_contacts_button {
+    margin-left:0px;
+}
+
+.share_location_my_contacts_display {
+    font-size:16px;
+}
+
+.share_to_group {
+    padding:5px;
+}
+
+.share_with {
+    font-size:18px;
+    font-weight:bold;
+    text-align:center;
+}
+
+.share_duration_num {
+    width:28%;
+    float:left;
+    margin-left:3px;
+    padding-top:3px;
+}
+
+.share_duration_unit {
+    width:68%;
+    float:right;
+    margin-right:3px;
+}
+
 #manage_info {
     font-size: 14px;
 }
@@ -332,6 +391,17 @@ body {
     float: left;
 }
 
+.my_contact_value {
+    font-weight:bold;
+    margin-left: 5px
+}
+
+.my_contact_dropdown {
+    float: left;
+    margin-left: 5px;
+    display: none
+}
+
 .marker_label {
     font-size:16px;
     visibility:hidden;
@@ -343,3 +413,21 @@ body {
     font-weight:bold;
     color:#453345
 }
+
+.marker_menu_expire_time {
+    color:black;
+    text-align:center;
+    padding:3px
+}
+
+.support_input_text {
+    padding:5px;
+}
+
+.form_button {
+    background-color:#3eb1dd;
+    color:white;
+    text-shadow:0 0;
+    font-weight:normal
+}
+
