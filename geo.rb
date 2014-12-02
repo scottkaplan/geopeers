@@ -741,6 +741,9 @@ class Protocol
     # The deeplink includes these parameters for completeness.
     # Since we will merge the accounts here,
     # the native app doesn't need to do anything with these params
+    #
+    # Send back the HTML for the main page
+    # and call a JS routine to put up the appropriate message
 
     if native_app_device.account_id == web_app_device.account_id
       # This was already done
@@ -767,7 +770,6 @@ class Protocol
       event_msg += format_device_name native_app_device
       Logging.milestone (event_msg)
     end
-    $LOG.debug html
     {html: html}
   end
 
@@ -1876,7 +1878,7 @@ class ProtocolEngine < Sinatra::Base
 
       # RT processing
       # ~ 300ms
-      params['is_production'] = false
+      params['is_production'] = true
       create_index params
 
       # pre-processed

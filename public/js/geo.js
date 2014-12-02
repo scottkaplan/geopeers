@@ -943,7 +943,6 @@ var map_mgr = {
     update_canvas_pos: function() {
 	var content_height = $('#geo_info').height() + 65;
 	$('#content').css('top', content_height+'px');
-	console.log ("content_height="+content_height);
 	return;
     },
     create: function(position) {
@@ -975,7 +974,6 @@ var map_mgr = {
 	    map_mgr.update_canvas_pos();
 	    
 	    var map = $('#map_canvas').gmap('get','map');
-	    console.log(map.getZoom());
 	    // And again in the bounds_changed callback if the bounds have changed
 	    google.maps.event.trigger(map, 'resize');
 	}
