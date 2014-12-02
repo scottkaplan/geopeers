@@ -41,6 +41,13 @@ function is_phonegap () {
     return (window.location.href.match (/^file:/));
 }
 
+function getParameterByName(name) {
+    name = name.replace(/[\[]/, "\\[").replace(/[\]]/, "\\]");
+    var regex = new RegExp("[\\?&]" + name + "=([^&#]*)"),
+	results = regex.exec(location.search);
+    return results == null ? "" : decodeURIComponent(results[1].replace(/\+/g, " "));
+}
+
 function have_native_app () {
     // is the native app installed on this device?
     if (registration.reg_info &&
@@ -264,13 +271,6 @@ function geo_ajax_fail_callback (data, textStatus, jqXHR) {
     $('#registration_form_spinner').hide();
     $('#share_location_form_spinner').hide();
     return;
-}
-
-function getParameterByName(name) {
-    name = name.replace(/[\[]/, "\\[").replace(/[\]]/, "\\]");
-    var regex = new RegExp("[\\?&]" + name + "=([^&#]*)"),
-	results = regex.exec(location.search);
-    return results == null ? "" : decodeURIComponent(results[1].replace(/\+/g, " "));
 }
 
 function gps_position_succeeded (post_func, position) {
