@@ -605,16 +605,22 @@ var marker_mgr = {
 			      });
 	return;
     },
+    latlng_to_point: function (latLng, map) {
+	var topRight = map.getProjection().fromLatLngToPoint(map.getBounds().getNorthEast());
+	var bottomLeft = map.getProjection().fromLatLngToPoint(map.getBounds().getSouthWest());
+	var scale = Math.pow(2, map.getZoom());
+	var worldPoint = map.getProjection().fromLatLngToPoint(latLng);
+	var point = new google.maps.Point((worldPoint.x - bottomLeft.x) * scale, (worldPoint.y - topRight.y) * scale);
+	return (point);
+    },
     marker_menu: function (e, sighting) {
+	// keep the current sighting in the marker
 	marker_mgr.selected_sighting = sighting;
 
-	// This is probably not the right way to dereference the event
-	var event = e.nb;
-	if (! event)
-	    return;
-
 	// reposition the menu so it is over the marker that was clicked
-	$("#marker_menu").css( {position:"absolute", top:event.pageY, left: event.pageX-120});
+	var map = $('#map_canvas').gmap('get','map');
+	var point = marker_mgr.latlng_to_point (e.latLng, map);
+	$("#marker_menu").css( {position:"absolute", top:point.y, left:point.x-120} );
 
 	// The menu item to share your location with the marker
 	// We only put up this menu item if the server has account info
@@ -649,8 +655,12 @@ var marker_mgr = {
 	    $('#share_location_expire_time_div').hide();
 	}
 
-	$('#marker_menu .js ul').slideToggle(200);
-	event.stopPropagation();
+	// ugly hack
+	// some rogue event is causing the menu to be closed right away
+	// wait .5 sec for that event to clear
+	setTimeout (function() {$('#marker_menu .js ul').slideToggle(200)}, 500);
+	e.stop();
+	return (false);
     },
     send_to_form: function (type) {
 	$('#send_to_name').text(marker_mgr.selected_sighting.name);
