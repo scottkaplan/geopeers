@@ -789,10 +789,10 @@ class Protocol
 
     response = {}
     # handle upgrade
-    current_build_id = get_global ('build_id')
+    current_release_id = get_global ('release_id')
     device = Device.find_by(device_id: params['device_id'])
     if (params['version'] &&
-        params['version'].to_i < current_build_id.to_i &&
+        params['version'].to_i < current_release_id.to_i &&
         device['app_type'] == 'native')
       response.merge! ({update: true})
     end
