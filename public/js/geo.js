@@ -313,15 +313,32 @@ var page_mgr = {
     init: function () {
 	// install an event handler to clean up the map when we return to the index page
 	$( document ).on( "pagecontainerchange", function( event, ui ) {
-	    if (ui.toPage.attr('id') === 'index') {
+	    var page_id = ui.toPage.attr('id');
+	    if (page_id === 'index') {
 		map_mgr.resize();
+	    } else {
+		// giant hack to fix JQM's habit of shrinking the content height
+		page_mgr.scale_content(page_id);
 	    }
 	} );
 	$( document ).on( "pagecontainerchangefailed", function( event, ui ) {
 	    console.log(event);
 	    console.log(ui);
 	} );
-    },    
+	$(window).on("resize orientationchange", function(){
+	    page_mgr.scale_content(page_id);
+	});
+    },
+    scale_content: function (page_id) {
+	scroll(0, 0);
+	var content_height =
+	    $.mobile.getScreenHeight() -
+	    $("#"+page_id+" .ui-header").outerHeight() -
+	    $("#"+page_id+" .ui-footer").outerHeight() -
+	    $("#"+page_id+" .ui-content").outerHeight() +
+	    $("#"+page_id+" .ui-content").height();
+	$(".ui-content").height(content_height);
+    },
     switch_page: function (page_id) {
 	$(":mobile-pagecontainer").pagecontainer("change", '#'+page_id,
 						 {transition: 'slide'});
@@ -951,7 +968,7 @@ function handleOpenURL(url) {
 
 var map_mgr = {
     update_canvas_pos: function() {
-	var content_height = $('#geo_info').height() + 65;
+	var content_height = $('#geo_info').height() + 55;
 	$('#content').css('top', content_height+'px');
 	return;
     },
