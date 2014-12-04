@@ -18,4 +18,5 @@ ENV['GEM_PATH'] = "/home/geopeers/.gem/ruby/2.0:/usr/share/ruby/gems/2.0:/usr/lo
 disable :run, :reload
 
 require './geo'
+init()
 run ProtocolEngine.new
