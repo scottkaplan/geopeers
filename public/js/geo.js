@@ -1066,45 +1066,23 @@ function set_manual_share_to (display_type) {
 }
 
 function main_page_share_location_page () {
-    if (device_id_mgr.phonegap) {
-        // configure page in case it was used previously
-	page_mgr.switch_page ('share_location_page');
+    var allow_webapp_shares = false;	// used for testing
+    if (! device_id_mgr.phonegap && ! allow_webapp_shares) {
+	download.download_app();
     } else {
-	// set to false to allow sharing from webapp (testing)
-	if (true) {
-	    download.download_app();
-	} else {
-	    page_mgr.switch_page ('share_location_page');
-	}
+        // configure page in case it was used previously
+	clear_share_location_page();
+	page_mgr.switch_page ('share_location_page');
     }
     return;
 }
 
 function share_location_callback (data, textStatus, jqXHR) {
-    $('#share_location_form_spinner').hide();
-    if (data.message) {
-	// message box on main page
-	var css_class = data.css_class ? data.css_class : 'message_success'
-	display_message(data.message, css_class, 'geo_info');
-
-	page_mgr.switch_page ('index');
-
-	// clear error message
-	$('#share_location_form_info').val('');
-
-	// clear form text
-	$('#share_location_page').find("input[type=text], textarea").val("");
-    } else if (data.page_message) {
-	// error message on page which stays open
-	$('#share_location_form_info').html(data.page_message);
-    }
-
-    // We try to keep un-submitted data in the form
-    // If we got this far, it's time to clear the form
-    clear_share_location_page();
+    form_request_callback (data, 'share_location_form_spinner', 'share_location_form_info');
 
     // in case the name was updated, update registration.reg_info
     registration.init();
+
     return;
 }
 
