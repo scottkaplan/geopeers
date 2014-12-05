@@ -194,6 +194,11 @@ border-width:0;
     font-size:18px;
 }
 
+.page_title {
+    /* take back arrow into account when centering in page_header div */
+    margin-left: -62px;
+}
+
 .page_content {
     margin: 5px;
     font-size:14px;
