@@ -325,9 +325,6 @@ var page_mgr = {
 	    console.log(event);
 	    console.log(ui);
 	} );
-	$(window).on("resize orientationchange", function(){
-	    page_mgr.scale_content(page_id);
-	});
     },
     scale_content: function (page_id) {
 	scroll(0, 0);
@@ -916,7 +913,6 @@ var device_id_bind = {
     native_app_redirect: function (message) {
 	// make sure this can't fire again
 	$('#'+device_id_bind.countdown_native_app_redirect_div_id).remove();
-	map_mgr.update_canvas_pos ();
 
         var native_app_deeplink = "geopeers://";
 	if (message) {
@@ -967,11 +963,6 @@ function handleOpenURL(url) {
 //
 
 var map_mgr = {
-    update_canvas_pos: function() {
-	var content_height = $('#geo_info').height() + 55;
-	$('#content').css('top', content_height+'px');
-	return;
-    },
     create: function(position) {
 	// flip the loading image
 	$('#gps_spinner').hide();
@@ -990,18 +981,12 @@ var map_mgr = {
 
 	// reset the header height everytime the map's bounds change
 	var map = $('#map_canvas').gmap('get','map');
-	google.maps.event.addListener(map, 'bounds_changed', map_mgr.update_canvas_pos);
 	google.maps.event.addListener(map, 'bounds_changed', marker_mgr.overlap_detection);
 	google.maps.event.addListener(map, 'dragend', my_pos.set_user_action);
     },
     resize: function() {
 	if (page_mgr.get_active_page() === 'index') {
-	    // Do this twice
-	    // Once before resizing the map
-	    map_mgr.update_canvas_pos();
-	    
 	    var map = $('#map_canvas').gmap('get','map');
-	    // And again in the bounds_changed callback if the bounds have changed
 	    google.maps.event.trigger(map, 'resize');
 	}
     },

@@ -65,7 +65,7 @@ body {
 .header_title_text {
     padding-top: 5px;
     margin-right: 30px;
-	text-shadow: none;
+    text-shadow: none;
 }
 
 #header_title {
@@ -78,19 +78,20 @@ body {
 .error {
     color: red;
 }
-.info {
-    color: blue;
-    text-align: center;
-    font-size: 24px;
-    position: relative;
-    width: 80%;
-    margin-left: auto;
-    margin-right: auto;
+
+.info_box {
+    position: absolute;
+    top:0;
+    left:0;
+    width: 100%;
+    z-index: 10;
 }
 
 .message_info, .message_success, .message_warning, .message_error, .message_validation {
     font-family:Arial, Helvetica, sans-serif; 
-    font-size:16px;
+    font-size:18px;
+    text-shadow: none;
+    text-align: center;
     border: 1px solid;
     margin: 10px 10px;
     padding:15px 30px 15px 50px;
@@ -99,13 +100,24 @@ body {
 }
 .message_info {
     color: #00529B;
-    background-color: #BDE5F8;
+    background-color: rgba(189, 229, 248, 0.5) /* #BDE5F8 */ ;
     background-image: url('/images/info.png');
 }
 .message_success {
     color: #4F8A10;
-    background-color: #DFF2BF;
+    background-color: rgba(79, 138, 16, 0.5) /* #DFF2BF */ ;
     background-image:url('/images/success.png');
+}
+
+.message_warning {
+    color: #9F6000;
+    background-color: rgba(254, 239, 179, 0.5) /* #FEEFB3 */ ;
+    background-image: url('/images/warning.png');
+}
+.message_error {
+    color: #D8000C;
+    background-color: rgba(255, 186, 186, 0.5) /* #FFBABA */ ;
+    background-image: url('/images/error.png');
 }
 
 .message_button {
@@ -120,17 +132,6 @@ body {
     color: #4F8A10;
     font-size: 18px;
     margin-top: 2px;
-}
-
-.message_warning {
-    color: #9F6000;
-    background-color: #FEEFB3;
-    background-image: url('/images/warning.png');
-}
-.message_error {
-    color: #D8000C;
-    background-color: #FFBABA;
-    background-image: url('/images/error.png');
 }
 
 
