@@ -147,11 +147,30 @@ function display_alert_message (alert_method, message) {
 	message_type = 'message_warning';
 	break;
     }
-    var message_div_id = display_message(message, message_type);
+    var message_div_id = display_message(message, message_type, 'geo_info');
     return (message_div_id);
 }
 
-function display_message (message, css_class) {
+function create_message_div (message, css_class, msg_id) {
+    // create new divs - message and close button
+    var onclick_cmd = "$('#"+msg_id+"').hide(); map_mgr.resize()";
+    var x_div = $('<div></div>')
+	.attr('onclick', onclick_cmd)
+	.css('position','relative')
+	.css('right','16px')
+	.css('top','40px')
+	.css('text-align','right');
+    x_div.append ('<img src="https://prod.geopeers.com/images/x_black.png">');
+    var msg_div = $('<div></div>')
+	.html(message)
+	.addClass(css_class);
+    var wrapper_div = $('<div></div>').attr('id',msg_id);
+    wrapper_div.append(x_div);
+    wrapper_div.append(msg_div);
+    return (wrapper_div);
+}
+
+function display_message (message, css_class, target_div) {
     if (! message) {
 	return;
     }
@@ -166,40 +185,10 @@ function display_message (message, css_class) {
 	    $('#'+msg_id).fadeOut(10).fadeIn(100);
 	}
     } else {
-	// create new divs - message and close button
-	// append to geo_info
-	var onclick_cmd = "$('#"+msg_id+"').hide(); map_mgr.resize()";
-	var x_div = $('<div></div>')
-	    .attr('onclick', onclick_cmd)
-	    .css('position','relative')
-	    .css('right','16px')
-	    .css('top','40px')
-	    .css('text-align','right');
-	x_div.append ('<img src="https://prod.geopeers.com/images/x_black.png">');
-	var msg_div = $('<div></div>')
-	    .html(message)
-	    .addClass(css_class);
-	var wrapper_div = $('<div></div>').attr('id',msg_id);
-	wrapper_div.append(x_div);
-	wrapper_div.append(msg_div);
-	$('#geo_info').append(wrapper_div);
+	var msg_div = create_message_div (message, css_class, msg_id);
+	$('#'+target_div).append(msg_div);
     }
-    map_mgr.resize();
     return (msg_id);
-}
-
-function display_in_div (msg, div_id, style) {
-    if (! div_id) {
-	return;
-    }
-    if (typeof msg === 'object') {
-	msg = JSON.stringify (msg);
-    }
-    $('#'+div_id).html(msg);
-    if (style) {
-	$('#'+div_id).css(style);
-    }
-    return;
 }
 
 function form_request (form, extra_params, success_callback, failure_callback) {
@@ -232,14 +221,16 @@ function form_request (form, extra_params, success_callback, failure_callback) {
 
 function form_request_callback (data, spinner_id, form_info_id) {
     $('#'+spinner_id).hide();
+    var css_class = data.css_class ? data.css_class : 'message_success'
     if (data.page_message) {
 	// show message on this page
-	$('#'+form_info_id).html(data.page_message);
+	display_message(data.page_message, css_class, form_info_id);
     } else {
 	// show message on index page
 	page_mgr.switch_page ('index');
-	var css_class = data.css_class ? data.css_class : 'message_success'
-	display_message(data.message, css_class);
+	display_message(data.message, css_class, 'geo_info');
+
+	// clear any old error messages
 	$('#'+form_info_id).empty();
     }
     return;
@@ -267,7 +258,7 @@ function geo_ajax_fail_callback (data, textStatus, jqXHR) {
     } else if (data.responseJSON) {
 	error_html = data.responseJSON.error_html ? data.responseJSON.error_html : data.responseJSON.error;
     }
-    display_message (error_html, 'message_error');
+    display_message (error_html, 'message_error', 'geo_info');
     $('#registration_form_spinner').hide();
     $('#share_location_form_spinner').hide();
     return;
@@ -325,6 +316,9 @@ var page_mgr = {
 	    console.log(event);
 	    console.log(ui);
 	} );
+	if (device_id_mgr.phonegap) {
+	    StatusBar.overlaysWebView (false);
+	}
     },
     scale_content: function (page_id) {
 	scroll(0, 0);
@@ -533,7 +527,7 @@ var display_mgr = {
 	display_mgr.geo_down = true;
 	display_mgr.message_displayed = true;
 	display_mgr.last_msg = msg;
-	display_message (msg, 'message_warning');
+	display_message (msg, 'message_warning', 'geo_info');
     },
     display_ok: function(position) {
 	if (! display_mgr.initial_pan) {
@@ -546,7 +540,7 @@ var display_mgr = {
 	if (display_mgr.showed_timeout_warning) {
 	    $('#'+display_mgr.timeout_warning_md5).hide();
 	    display_mgr.showed_timeout_warning = null;
-	    display_message ('Your GPS is now available','message_info');
+	    display_message ('Your GPS is now available','message_info', 'geo_info');
 	}
     }
 }
@@ -870,7 +864,7 @@ var device_id_bind = {
 	var msg = "To finish installation, switch to the web app to copy the shares to the native app.";
 	msg += "<p><div class='message_button' onclick='device_id_bind.web_app_redirect()'><div class='message_button_text'>Go to web app</div></div>";
 	msg += "<p><span>You will be switched automatically in </span><span id='countdown_web_app_redirect' style='font-size:18px'>11</span><script>device_id_bind.countdown_web_app_redirect()</script>";
-	device_id_bind.countdown_web_app_redirect_div_id = display_message (msg, 'message_success');
+	device_id_bind.countdown_web_app_redirect_div_id = display_message (msg, 'message_success', 'geo_info');
     },
     web_app_redirect: function () {
 	// kick off the handshake by redirecting to the device browser
@@ -1091,7 +1085,7 @@ function share_location_callback (data, textStatus, jqXHR) {
     if (data.message) {
 	// message box on main page
 	var css_class = data.css_class ? data.css_class : 'message_success'
-	display_message(data.message, css_class);
+	display_message(data.message, css_class, 'geo_info');
 
 	page_mgr.switch_page ('index');
 
@@ -1126,20 +1120,20 @@ function share_location () {
 	var share_to = $("#share_to").val();
 
 	if (share_to.length == 0) {
-	    display_in_div ("Please supply the address to send your share to",
-			    'share_location_form_info', {color:'red'});
+	    display_message ("Please supply the address to send your share to",
+			     'message_error', 'share_location_form_info');
 	    return;
 	}
 	if (share_via == 'email' && ! share_to.match(/.+@.+/)) {
-	    display_in_div ("Email should be in the form 'fred@company.com'",
-			    'share_location_form_info', {color:'red'});
+	    display_message ("Email should be in the form 'fred@company.com'",
+			     'message_error' , 'share_location_form_info');
 	    return;
 	}
 	share_to.replace(/[\s\-\(\)]/, null);
 	console.log (share_to);
 	if (share_via == 'mobile' && ! share_to.match(/^\d{10}$/)) {
-	    display_in_div ("The phone number (share to) must be 10 digits",
-			    'share_location_form_info', {color:'red'});
+	    display_message ("The phone number (share to) must be 10 digits",
+			     'message_error', 'share_location_form_info');
 	    return;
 	}
     }
@@ -1157,16 +1151,7 @@ function share_location () {
 //
 
 function send_support_callback (data, textStatus, jqXHR) {
-    $('#support_form_spinner').hide();
-    $('#support_form_problem').empty();
-    $('#support_form_reproduction').empty();
-    $('#support_form_feature').empty();
-    $('#support_form_cool_use').empty();
-    var css_class = data.css_class ? data.css_class : 'message_success'
-    display_message(data.message, css_class);
-    page_mgr.switch_page ('index');
-    $('#support_page').find("input[type=text], textarea").val("");
-    return;
+    form_request_callback (data, 'support_form_spinner', 'support_form_info');
 }
 
 function send_support () {
@@ -1180,8 +1165,8 @@ function send_support () {
 	}
     }
     if (typeof (typed_something) === 'undefined') {
-	display_in_div ("Please type something in at least one box",
-			'support_form_info', {color:'red'});
+	display_message ("Please type something in at least one box",
+			 'message_error', 'support_form_info');
 	return;
     }
     $('#support_form_spinner').show();
@@ -1192,6 +1177,7 @@ function display_support () {
     var build_id = $('#geopeers_config').attr('build_id');
     $('#support_version').text(build_id);
     $("input[type='hidden'][name='support_version']").val(build_id);
+    $('#support_page').find("input[type=text], textarea").val("");
     $('#support_form_info').empty();
     page_mgr.switch_page ('support_page');
     return;
@@ -1468,14 +1454,14 @@ function validate_registration_form () {
 
     mobile = mobile.replace(/[\s\-\(\)]/g, '');
     if (mobile.length > 0 && ! mobile.match(/^\d{10}$/)) {
-	display_in_div ("The mobile number must be 10 digits",
-			'registration_form_info', {color:'red'});
+	display_message ("The mobile number must be 10 digits",
+			 'message_error', 'registration_form_info');
 	return;
     }
 
     if (email.length > 0 && ! email.match(/.+@.+/)) {
-	display_in_div ("Email should be in the form 'fred@company.com'",
-			'registration_form_info', {color:'red'});
+	display_message ("Email should be in the form 'fred@company.com'",
+			 'message_error', 'registration_form_info');
 	return;
     }
 
@@ -1546,9 +1532,9 @@ var registration = {
 	$('#registration_form_spinner').hide();
 	if (data) {
 	    registration.status = 'REGISTERED';
-	    display_in_div (data.message, 'registration_form_info', data.style);
+	    display_message (data.message, 'message_success', 'registration_form_info');
 	} else {
-	    display_in_div ('No data', 'registration_form_info', {color:'red'});
+	    display_message ('No data', 'message_error', 'registration_form_info');
 	}
 	// update reg_info
 	registration.init();
