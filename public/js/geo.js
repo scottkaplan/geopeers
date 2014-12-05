@@ -317,7 +317,9 @@ var page_mgr = {
 	    console.log(ui);
 	} );
 	if (device_id_mgr.phonegap) {
+	    // deal with the iOS status bar
 	    StatusBar.overlaysWebView (false);
+	    StatusBar.backgroundColorByHexString ('#10a8ab');
 	}
     },
     scale_content: function (page_id) {
