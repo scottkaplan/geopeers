@@ -6,7 +6,7 @@
 	  type="image/x-icon"
 	  href="/favicon.ico" />
     <link rel="apple-touch-icon"
-	  href="https://prod.geopeers.com/images/pin_wings_128x128_whitebg.png" />
+	  href="<%= url_prefix %>images/pin_wings_128x128_whitebg.png" />
     <title>
       Geopeers
     </title>
@@ -62,7 +62,9 @@
     </div>
     <div id="geopeers_config"
 	 build_id="<%= build_id %>"
-	 version="<%= version %>" >
+	 version="<%= version %>"
+	 server="<%= server %>"
+	 >
     </div>
     <% end %>
 

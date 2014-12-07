@@ -191,8 +191,12 @@ def host
   Socket.gethostname
 end
 
+def server
+  "prod.geopeers.com"
+end
+
 def url_base
-  'https://geopeers.com'
+  'https://'+server()+'/'
 end
 
 def log_error(err)
@@ -223,7 +227,7 @@ def parse_params (params_str)
 end
 
 def create_alert_url(alert_method, params=nil)
-  url = "#{url_base()}/?alert_method=#{alert_method}"
+  url = "#{url_base()}?alert_method=#{alert_method}"
   if params
     params.each do | key, val |
       url += "&#{key}=#{val}"
@@ -289,9 +293,9 @@ def init
 end
 
 DOWNLOAD_URLS = {
-  ios:     url_base() + '/bin/ios/index.html',
+  ios:     url_base() + 'bin/ios/index.html',
   android: 'market://search?q=pname:com.geopeers.app',
-#  web:     url_base() + '/bin/android/index.html',
+#  web:     url_base() + 'bin/android/index.html',
 }
 
 def parse_user_agent (user_agent)
@@ -352,7 +356,8 @@ def bump_build_id
 end
 
 def create_index(params=nil)
-  version = "0.7"
+  server = server()
+  version = "0.8"
   is_phonegap = nil
   is_production = nil
   url_prefix = nil
@@ -368,7 +373,8 @@ def create_index(params=nil)
     is_phonegap = true
   else
     build_id = get_build_id()
-    params['url_prefix'] = "https://prod.geopeers.com/"
+    # params['url_prefix'] = "https://prod.geopeers.com/"
+    params['url_prefix'] = ""
     is_phonegap = false
   end
   registration_page =
@@ -462,19 +468,19 @@ class Protocol
   end
 
   def Protocol.create_share_url (share, params)
-    url_base() + "/api?method=redeem&cred="+share.share_cred
+    url_base() + "api?method=redeem&cred="+share.share_cred
   end
 
   def Protocol.create_verification_url (params)
-    url_base() + "/api?method=verify&cred=#{params['cred']}&device_id=#{params['device_id']}"
+    url_base() + "api?method=verify&cred=#{params['cred']}&device_id=#{params['device_id']}"
   end
 
   def Protocol.create_download_url (params)
-    url_base() + "/api?method=download_app&device_id=#{params['device_id']}"
+    url_base() + "api?method=download_app&device_id=#{params['device_id']}"
   end
 
   def Protocol.create_unsolicited_url (params)
-    url_base() + "/api?method=unsolicited&cred=#{params['cred']}&device_id=#{params['device_id']}"
+    url_base() + "api?method=unsolicited&cred=#{params['cred']}&device_id=#{params['device_id']}"
   end
 
   def Protocol.format_expire_time (share, params)

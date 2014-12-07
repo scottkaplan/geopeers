@@ -34,7 +34,8 @@ function get_parms (url) {
 }
 
 function host () {
-    return ('geopeers.com');
+    var server = $('#geopeers_config').attr('server');
+    return (server);
 }
 
 function is_phonegap () {
@@ -160,7 +161,7 @@ function create_message_div (message, css_class, msg_id) {
 	.css('right','16px')
 	.css('top','40px')
 	.css('text-align','right');
-    x_div.append ('<img src="https://prod.geopeers.com/images/x_black.png">');
+    x_div.append ('<img src="images/x_black.png">');
     var msg_div = $('<div></div>')
 	.html(message)
 	.addClass(css_class);
@@ -361,7 +362,7 @@ var my_pos = {
 	    return;
 	if (! position)
 	    return;
-	var image = 'https://prod.geopeers.com/images/green_star_32x32.png';
+	var image = 'images/green_star_32x32.png';
 
 	var marker_parms = { marker_id: 'my_pos',
 			     icon: image,
@@ -703,7 +704,7 @@ var marker_mgr = {
 		'device_id':    sighting.device_id,
 		'position':     new google.maps.LatLng(sighting.gps_latitude,sighting.gps_longitude),
 		'marker':       MarkerWithLabel,
-		'icon':         'https://prod.geopeers.com/images/pin_wings.png',
+		'icon':         'images/pin_wings.png',
 		'labelAnchor':  new google.maps.Point(60, 0),
 		'labelContent': label_text}).click(function(e) {marker_mgr.marker_menu(e, sighting)});
 	return ({marker: marker});
@@ -1524,9 +1525,9 @@ var registration = {
 
 var download = {
     download_urls: { ios:     'https://prod.geopeers.com/bin/ios/index.html',
-		     // android: 'https://prod.geopeers.com/bin/android/index.html',
 		     android: 'market://search?q=pname:com.geopeers.app',
-		     // web:     'https://www.geopeers.com/bin/android/index.html',
+		     // android: 'https://prod.geopeers.com/bin/android/index.html',
+		     // web:     'https://www.geopeers.com',
     },
     download_url: function () {
 	var client_type = get_client_type ();

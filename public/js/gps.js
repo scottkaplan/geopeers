@@ -8,21 +8,19 @@ var background_gps = {
 	console.log ("init_background_gps - start");
 	background_gps.handle = window.plugins.backgroundGeoLocation;
 	background_gps.handle.configure(background_gps.callback, background_gps.callback_error, {
-		// Android only
-		url: 'http://eng.geopeers.com/api',
-		    params: {
-		    method:    'send_position',
-			device_id: device_id_mgr.get(),
-			},
-		    notificationTitle: 'Background tracking', // customize the title of the notification
-		    notificationText: 'ENABLED',              // customize the text of the notification
-
-		    desiredAccuracy: 10,
-		    stationaryRadius: 20,
-		    distanceFilter: 30, 
-		    activityType: 'AutomotiveNavigation',
-		    debug: false	// <-- enable this hear sounds for background-geolocation life-cycle.
-		    });
+	    url: 'https://'+host()+'/api',
+	    params: {
+		method:    'send_position',
+		device_id: device_id_mgr.get(),
+	    },
+	    notificationTitle: 'Background tracking', // customize the title of the notification
+	    notificationText: 'ENABLED',              // customize the text of the notification
+	    desiredAccuracy: 10,
+	    stationaryRadius: 20,
+	    distanceFilter: 30, 
+	    activityType: 'AutomotiveNavigation',
+	    debug: false	// <-- enable this hear sounds for background-geolocation life-cycle.
+	});
 
 	// Turn ON the background-geolocation system.  The user will be tracked whenever they suspend the app.
 	background_gps.handle.start();
