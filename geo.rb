@@ -1156,7 +1156,7 @@ class Protocol
     end
 
     # there are multiple ways to specify a share from the share_location form
-    #   1) seer_device_id:
+    #   1) share_device_id:
     #      boomerang share - A shares with B, now B wants to share with A
     #   2) my_contacts_mobile and/or my_contacts_email
     #      A single value came back from the device Contacts picker
@@ -1175,12 +1175,12 @@ class Protocol
     }
     share_parms['device_id'] = params["device_id"]
 
-    if params['seer_device_id']
+    if params['share_device_id']
       # share location of requesting device
       # with account associated with a share
       # (i.e. share my location with pin)
       #
-      account = Protocol.get_account_from_device_id (params['seer_device_id'])
+      account = Protocol.get_account_from_device_id (params['share_device_id'])
       ['mobile','email'].each do | type |
         if account[type]
           response = create_and_send_share(share_parms.merge({ 'share_via' => type,
@@ -1188,7 +1188,7 @@ class Protocol
                                                              }),
                                            params,
                                            response)
-          Logging.milestone ("Share by seer_device_id to #{account[type]} via #{type}")
+          Logging.milestone ("Share by share_device_id to #{account[type]} via #{type}")
         end
       end
       # TODO: This only returns the last response
