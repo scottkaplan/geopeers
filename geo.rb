@@ -431,6 +431,10 @@ def make_page(page_id, page_title, nested_erb, params)
   ERB.new(File.read('views/frame.erb')).result(binding)
 end
 
+def create_display_name (name)
+  name ? name : "Anonymous"
+end
+
 ##
 #
 # class which implements the geopeers protocol server
@@ -882,7 +886,7 @@ class Protocol
     # $LOG.debug sql.gsub("\n"," ")
     elems = []
     Sighting.find_by_sql(sql).each { |row|
-      elems.push ({ 'name'          => row.account_name ? row.account_name : 'Anonymous',
+      elems.push ({ 'name'          => create_display_name(row.account_name),
                     'have_email'    => row.account_email ? 1 : 0,
                     'have_mobile'   => row.account_mobile ? 1 : 0,
                     'device_id'     => row.device_id,
@@ -1151,7 +1155,7 @@ class Protocol
       end
     end
 
-    # there are multipe ways to specify a share from the share_location form
+    # there are multiple ways to specify a share from the share_location form
     #   1) seer_device_id:
     #      boomerang share - A shares with B, now B wants to share with A
     #   2) my_contacts_mobile and/or my_contacts_email
@@ -1193,6 +1197,7 @@ class Protocol
       if response.empty?
         response[page_message] = 'No email or phone number found'
       end
+      return response
     end
 
     ['mobile','email', 'mobile_dropdown', 'email_dropdown'].each do | field_type |
@@ -1208,6 +1213,7 @@ class Protocol
                                          response)
         Logging.milestone ("Share by #{my_contacts_field} to #{share_to} via #{type}")
       end
+      return response
     end
       
     share_to = first_string params['share_to']
@@ -1255,12 +1261,10 @@ class Protocol
           response['page_message'] = "Email should be in the form 'fred@company.com'"
         end
       end
-    else
-      response['page_message'] = "Please supply a mobile number or email address"
+      return response
     end
-
-    $LOG.debug response
-    response
+    response['page_message'] = "Please supply a mobile number or email address"
+    return response
   end
 
   def Protocol.process_request_redeem (params)
@@ -1495,7 +1499,7 @@ class Protocol
       }
       account = Protocol.get_account_from_device_id (row.redeem_device_id)
       if account
-        elem['redeem_name'] = account['name'] ? account['name'] : "Anonymous"
+        elem['redeem_name'] = create_display_name(account['name'])
       end
       elems.push (elem)
     }
@@ -1567,7 +1571,7 @@ class Protocol
     #   send_to_type    'email' | 'mobile'
     #
     account = Protocol.get_account_from_device_id (params['device_id'])
-    name = account.name ? account.name : 'Anonymous'
+    name = create_display_name(account.name)
     if params['send_to_type'] == 'email' && account.email
       err = Protocol.send_html_email('views/send_to_email_body.erb',
                                      'views/send_to_email_msg.erb',
@@ -1680,7 +1684,7 @@ class Protocol
     msg = '<div style="font-size:20px; font-weight:bold">User Info</div>'
     msg += '<div style="font-size:18px; font-weight:normal; margin-left:10px; margin-bottom:10px">'
     msg += "From "
-    msg += account.name ? account.name : "Anonymous User" + ' '
+    msg += create_display_name(account.name) + ' '
     msg += "(" + params['device_id'] + ")" + '<br>'
     msg += "Email:" + account.email + '<br>' if account.email
     msg += "Mobile:" + account.mobile + '<br>' if account.mobile
