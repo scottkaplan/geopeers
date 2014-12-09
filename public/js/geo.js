@@ -260,8 +260,9 @@ function geo_ajax_fail_callback (data, textStatus, jqXHR) {
 	error_html = data.responseJSON.error_html ? data.responseJSON.error_html : data.responseJSON.error;
     }
     display_message (error_html, 'message_error', 'geo_info');
-    $('#registration_form_spinner').hide();
-    $('#share_location_form_spinner').hide();
+    // Don't bother trying to figure out who failed
+    // turn off all the spinners
+    $('.page_spinner').hide();
     return;
 }
 
@@ -333,8 +334,14 @@ var page_mgr = {
 	    $("#"+page_id+" .ui-content").height();
 	$(".ui-content").height(content_height);
     },
-    switch_page: function (page_id) {
+    switch_page: function (page_id, info_id) {
+	// clear out old errors
+	if (info_id) {
+	    $('#'+info_id).empty();
+	}
+
 	if (page_id !== 'index') {
+	    // clear out index page errors when you move off the index page
 	    $('#geo_info').empty();
 	}
 	$(":mobile-pagecontainer").pagecontainer("change", '#'+page_id,
@@ -693,12 +700,15 @@ var marker_mgr = {
 	form_request_callback (data, 'send_to_form_spinner', 'send_to_form_info');
     },
     popup_share_location: function () {
+	// We got here from the marker menu
+	// Send a share to the device_id associated with the marker
+	// This will become the share_device_id
+	// 
 	$('#share_via').hide();
 	$('#share_with').show();
 	$('#share_account_name').text(marker_mgr.selected_sighting.name);
-	$("input[type='hidden'][name='seer_device_id']").val(marker_mgr.selected_sighting.device_id);
-	$('#share_location_form_info').empty();
-	page_mgr.switch_page ('share_location_page');
+	$("input[type='hidden'][name='share_device_id']").val(marker_mgr.selected_sighting.device_id);
+	page_mgr.switch_page ('share_location_page', 'share_location_form_info');
 	return;
     },
     create_marker: function (sighting) {
@@ -1048,7 +1058,7 @@ function clear_share_location_page () {
     $('input[name=share_via]').val('');
     $('input[name=share_to]').val('');
     $('input[name=share_message]').val('');
-    $('input[name=seer_device_id]').val('');
+    $('input[name=share_device_id]').val('');
     $('input[name=my_contacts_email]').val('');
     $('input[name=my_contacts_email_dropdown]').val('');
     $('input[name=my_contacts_mobile]').val('');
@@ -1090,7 +1100,7 @@ function main_page_share_location_page () {
     } else {
         // configure page in case it was used previously
 	clear_share_location_page();
-	page_mgr.switch_page ('share_location_page');
+	page_mgr.switch_page ('share_location_page', 'share_location_form_info');
     }
     return;
 }
@@ -1107,11 +1117,11 @@ function share_location_callback (data, textStatus, jqXHR) {
 function share_location () {
     // location can be shared either by:
     //   1) share_via (email | mobile) / share_to (<addr>)
-    //   2) seer_device_id - get location from seer_device.account
+    //   2) share_device_id - get location from seer_device.account
 
     // GEOP-48 For now, the input check will happen at the server
-    var seer_device_id = $('input:input[name=seer_device_id]');
-    if (0 && seer_device_id.length == 0) {
+    var share_device_id = $('input:input[name=share_device_id]');
+    if (0 && share_device_id.length == 0) {
 	var share_via = $("#share_via").val();
 	var share_to = $("#share_to").val();
 
@@ -1175,7 +1185,7 @@ function display_support () {
     $("input[type='hidden'][name='support_version']").val(build_id);
     $('#support_page').find("input[type=text], textarea").val("");
     $('#support_form_info').empty();
-    page_mgr.switch_page ('support_page');
+    page_mgr.switch_page ('support_page', 'support_form_info');
     return;
 }
 
@@ -1193,7 +1203,7 @@ function config_callback (data, textStatus, jqXHR) {
     }
 
     if (data.update) {
-	page_mgr.switch_page ('update_app_page');
+	page_mgr.switch_page ('update_app_page', 'update_app_form_info');
     }
 
     // The server is telling us if there is an account name for this device
@@ -1476,7 +1486,7 @@ function update_registration_page () {
 function display_registration () {
     update_registration_page();
     $('#registration_form_info').empty();
-    page_mgr.switch_page ('registration_page');
+    page_mgr.switch_page ('registration_page', 'registration_form_info');
     return;
 }
 
@@ -1573,11 +1583,11 @@ var download = {
 	    } else {
 		if (download.download_url()) {
 		    // don't start the download without warning them in a popup
-		    page_mgr.switch_page ('download_app_page');
+		    page_mgr.switch_page ('download_app_page', 'download_app_form_info');
 		} else {
 		    // we don't have a native app for this device, offer to send a link
 		    $('#native_app_not_available').show();
-		    page_mgr.switch_page ('download_link_page');
+		    page_mgr.switch_page ('download_link_page', 'download_link_form_info');
 		}
 	    }
 	}
@@ -1597,7 +1607,7 @@ function download_app_wrapper () {
 
 function download_link_wrapper () {
     $('#native_app_not_available').hide();
-    page_mgr.switch_page ('download_link_page');
+    page_mgr.switch_page ('download_link_page', 'download_link_form_info');
 }
 
 function download_redirect_wrapper () {
