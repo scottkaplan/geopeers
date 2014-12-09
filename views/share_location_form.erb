@@ -15,7 +15,9 @@
       <div class="box_content" style="text-align:center">
 	The label next to your location pin
 	<div>
-	  <label for="account_name" class="ui-hidden-accessible">Account Name</label>
+	  <label for="account_name" class="ui-hidden-accessible">
+	      Account Name
+	  </label>
 	  <input type="text"
 		 name="account_name"
 		 id="account_name"
@@ -28,7 +30,7 @@
   </div>
 
   <div class="box_outer" id="share_via" style="display:none">
-    <div class="box_title" style="margin-top:-20px">
+    <div class="box_title">
       Share via:
     </div>
     <div style="text-align:center; width:100%">
@@ -37,17 +39,17 @@
 		data-role="fieldcontain"
 		data-mini="true">
 	<div id="share_via">
-	  <label for="share_via_mycontacts">
+	  <label for="share_via_my_contacts">
 	    <input type="radio"
-		   onclick="select_contact()"
+		   onclick="share_location.set_share_to('my_contacts')"
 		   name="share_via"
-		   value="mycontacts"
-		   id="share_via_mycontacts">
+		   value="my_contacts"
+		   id="share_via_my_contacts">
 	    My Contacts
 	  </label>
 	  <label for="share_via_mobile">
 	    <input type="radio"
-		   onclick="set_manual_share_to('mobile')"
+		   onclick="share_location.set_share_to('mobile')"
 		   name="share_via"
 		   value="mobile"
 		   id="share_via_mobile">
@@ -55,7 +57,7 @@
 	  </label>
 	  <label for="share_via_email">
 	    <input type="radio"
-		   onclick="set_manual_share_to('email')"
+		   onclick="share_location.set_share_to('email')"
 		   name="share_via"
 		   value="email"
 		   id="share_via_email">
@@ -67,7 +69,8 @@
 
     <div class="box_frame">
       <div class="box_content">
-	<div id="my_contacts_display"
+	<div style="text-align:center">	
+	  <div id="share_to_my_contacts"
 	     style="display:none"
 	     class="share_location_my_contacts_display">
 	  <div>
@@ -78,12 +81,11 @@
 		 class="my_contact_element my_contact_value">
 	    </div>
 	    <div id="my_contacts_email_dropdown_div"
-		 class="my_contact_dropdown">
+		 class="my_contact_element my_contact_dropdown">
 	      <select id="my_contacts_email_dropdown"
 		      name="my_contacts_email_dropdown">
 	      </select>
 	    </div>
-	    <div style="clear:both"></div>
 	    <input type="hidden" name="my_contacts_email">
 	  </div>
 
@@ -95,17 +97,15 @@
 		 class="my_contact_element my_contact_value">
 	    </div>
 	    <div id="my_contacts_mobile_dropdown_div"
-		 class="my_contact_dropdown">
+		 class="my_contact_element my_contact_dropdown">
 	      <select id="my_contacts_mobile_dropdown"
 		      name="my_contacts_mobile_dropdown">
 	      </select>
 	    </div>
-	    <div style="clear:both"></div>
 	    <input type="hidden" name="my_contacts_mobile">
 	  </div>
 	</div>
 
-	<div style="text-align:center">
 	  <div id="share_to_mobile" style="display:none">
 	    <div style="display:inline-block">
 	      Mobile #: 
@@ -197,7 +197,7 @@
   </div>
   <button class="form_button"
 	  type="button"
-	  onclick="share_location()">
+	  onclick="share_location.submit_form()">
     Send
   </button>
   <input type="hidden" name="method" value="share_location">

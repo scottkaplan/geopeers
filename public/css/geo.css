@@ -87,16 +87,25 @@ body {
     z-index: 10;
 }
 
+.x_div {
+    position: relative;
+    right: 16px;
+    top: -60px;
+    text-align: right;
+}
+
 .message_info, .message_success, .message_warning, .message_error, .message_validation {
     font-family:Arial, Helvetica, sans-serif; 
     font-size:18px;
     text-shadow: none;
     text-align: center;
     border: 1px solid;
-    margin: 10px 10px;
-    padding:15px 30px 15px 50px;
+    margin: 10px /* top/bottom */ 10px /* right/left */;
+    padding:15px 30px 15px 50px;	/* top right bottom left */
     background-repeat: no-repeat;
     background-position: 10px center;
+    position: relative;
+    top: 0px;
 }
 .message_info {
     color: #00529B;
@@ -218,7 +227,6 @@ border-width:0;
 .box_title {
     font-size: 16px;
     font-weight: bold;
-    padding-top: 20px;
 }
 
 .box_frame {
@@ -440,8 +448,7 @@ border-width:0;
 }
 
 .my_contact_element {
-    padding-top: 20px;
-    float: left;
+    display:inline-block;
 }
 
 .my_contact_value {

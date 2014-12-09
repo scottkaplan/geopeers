@@ -1202,6 +1202,7 @@ class Protocol
 
     ['mobile','email', 'mobile_dropdown', 'email_dropdown'].each do | field_type |
       my_contacts_field = "my_contacts_#{field_type}"
+      saw_field = false;
       if params[my_contacts_field]
         $LOG.debug params[my_contacts_field]
         type = field_type.sub(/_dropdown/, '')
@@ -1212,11 +1213,13 @@ class Protocol
                                          params,
                                          response)
         Logging.milestone ("Share by #{my_contacts_field} to #{share_to} via #{type}")
+        saw_field = true
       end
-      return response
+      return response if saw_field
     end
       
     share_to = first_string params['share_to']
+    $LOG.debug share_to
     if share_to
       if ! params['share_via']
         # see if we can figure it out
@@ -1228,7 +1231,7 @@ class Protocol
             params["share_via"] = 'mobile'
           else
             response['page_message'] = "#{share_to} doesn't look like an email or phone number"
-            # This can fall thru since share_via is not set
+            return (response)
           end
         end
       end
