@@ -320,7 +320,7 @@ var page_mgr = {
 	if (device_id_mgr.phonegap) {
 	    // deal with the iOS status bar
 	    StatusBar.overlaysWebView (false);
-	    StatusBar.backgroundColorByHexString ('#10a8ab');
+	    StatusBar.backgroundColorByHexString ('#66acd0');
 	}
     },
     scale_content: function (page_id) {
@@ -1676,10 +1676,10 @@ function select_contact_callback (contact) {
 	}
 
 	// wait .5 sec or we can get stuck on the blank screen after the user selects a contact
-	setTimeout(function() {
-	    window.history.back();
-	    page_mgr.switch_page ('share_location_page');
-	}, 500);
+//	setTimeout(function() {
+//	    window.history.back();
+//	    page_mgr.switch_page ('share_location_page');
+//	}, 500);
     }, 500);
 }
 
