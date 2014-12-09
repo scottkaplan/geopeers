@@ -28,19 +28,48 @@
   </div>
 
   <div class="box_outer" id="share_via" style="display:none">
-    <div class="box_title">
+    <div class="box_title" style="margin-top:-20px">
       Share via:
     </div>
+    <div style="text-align:center; width:100%">
+      <fieldset data-role="controlgroup"
+		data-type="horizontal"
+		data-role="fieldcontain"
+		data-mini="true">
+	<div id="share_via">
+	  <label for="share_via_mycontacts">
+	    <input type="radio"
+		   onclick="select_contact()"
+		   name="share_via"
+		   value="mycontacts"
+		   id="share_via_mycontacts">
+	    My Contacts
+	  </label>
+	  <label for="share_via_mobile">
+	    <input type="radio"
+		   onclick="set_manual_share_to('mobile')"
+		   name="share_via"
+		   value="mobile"
+		   id="share_via_mobile">
+	    Text Msg
+	  </label>
+	  <label for="share_via_email">
+	    <input type="radio"
+		   onclick="set_manual_share_to('email')"
+		   name="share_via"
+		   value="email"
+		   id="share_via_email">
+	    Email
+	  </label>
+	</div>
+      </fieldset>
+    </div>
+
     <div class="box_frame">
       <div class="box_content">
-
-	<div id="my_contacts_button">
-	  <button  data-mini="true" onclick="select_contact();" class="share_location_my_contacts_button">
-	    Select from My Contacts
-	  </button>
-	</div>
-
-	<div id="my_contacts_display" style="display:none" class="share_location_my_contacts_display">
+	<div id="my_contacts_display"
+	     style="display:none"
+	     class="share_location_my_contacts_display">
 	  <div>
 	    <div class="my_contact_element">
 	      Email
@@ -76,61 +105,42 @@
 	  </div>
 	</div>
 
-	<div id="or_div" style="text-align:center">
-	  - or -
-	</div>
-
-	<div style="text-align:center; width:100%">
-	  <fieldset data-role="controlgroup"
-		    data-type="horizontal"
-		    data-role="fieldcontain"
-		    data-mini="true">
-	    <div id="manual_share_via">
-	      <label for="share_via_mobile">
-		<input type="radio"
-		       onclick="set_manual_share_to('mobile')"
-		       name="share_via"
-		       value="mobile"
-		       id="share_via_mobile">
-		Text Msg
-	      </label>
-	      <label for="share_via_email">
-		<input type="radio"
-		       onclick="set_manual_share_to('email')"
-		       name="share_via"
-		       value="email"
-		       id="share_via_email">
-		Email
-	      </label>
-	    </div>
-	  </fieldset>
-	</div>
-
-	<div id="manual_share_to">
-	  <label for="share_to"
-		 class="ui-hidden-accessible">
-	    Share To
-	  </label>
-	  <div id="share_to_mobile" style="display:none">
+	<div style="text-align:center">
+	<div id="share_to_mobile" style="display:none">
+	  <div style="display:inline-block">
+	    Mobile #: 
+	  </div>
+	  <div style="display:inline-block">
 	    <input type="tel"
 		   name="share_to"
 		   id="share_to"
-		   placeholder="Share To"
+		   placeholder="415-555-1212"
 		   class="share_to_group"
-		   >
-	  </div>
-	  <div id="share_to_email" style="display:none">
-	    <input type="email"
-		   name="share_to"
-		   id="share_to"
-		   placeholder="Share To"
-		   class="share_to_group"
+		   style="color:black"
 		   >
 	  </div>
 	</div>
+
+	<div id="share_to_email" style="display:none">
+	  <div style="display:inline-block">
+	    Email:
+	  </div>
+	  <div style="display:inline-block">
+  	    <input type="email"
+		   name="share_to"
+		   id="share_to"
+		   placeholder="fred@friendly.com"
+		   class="share_to_group"
+		   style="color:black"
+		   >
+	  </div>
+	</div>
+	</div>
+
       </div>
     </div>
   </div>
+
   <div class="box_outer" id="share_with" style="display:none">
     <div class="box_frame">
       <div class="box_content share_with">
@@ -141,6 +151,7 @@
       </div>
     </div>
   </div>
+
   <div class="box_outer">
     <div class="box_title">
       Share how long?
@@ -156,7 +167,7 @@
 		 >
 	</div>
 	<div class="share_duration_unit">
-	  <select name="share_duration_unit" data-mini="true">
+	  <select id="share_duration_unit_dropdown" name="share_duration_unit" data-mini="true">
 	    <option value="minute">minute</option>
 	    <option value="hour" selected>hour</option>
 	    <option value="day">day</option>
@@ -168,11 +179,6 @@
       </div>
     </div>
   </div>
-  <button class="form_button"
-	  type="button"
-	  onclick="share_location()">
-    Send
-  </button>
   <div class="box_outer">
     <div class="box_title">
       Add Message (Optional):
@@ -183,9 +189,15 @@
 	       name="share_message"
 	       id="share_message"
 	       placeholder="Type a message"
+	       style="color:black"
 	       >
       </div>
     </div>
   </div>
+  <button class="form_button"
+	  type="button"
+	  onclick="share_location()">
+    Send
+  </button>
   <input type="hidden" name="method" value="share_location">
 </form>

@@ -105,7 +105,7 @@ body {
 }
 .message_success {
     color: #4F8A10;
-    background-color: rgba(79, 138, 16, 0.5) /* #DFF2BF */ ;
+    background-color: rgba(79, 138, 16, 0.2) /* #DFF2BF */ ;
     background-image:url('/images/success.png');
 }
 
@@ -137,46 +137,43 @@ body {
 
 /* Colors */
 .page_frame, .page_content{
-	background-color:rgba(57,65,101,1);
-	color: #fff;
+    background-color: rgba(232, 238, 245, 1);
+	color: #000;
 	text-shadow: none;
 }
 
 .page_header,#header_title{
-    background-color:rgba(16,168,171,1);
+    /* 
+    background-color: #34aadc;
+   */
+    background-color: rgba(102,172,208,1);
     color:#fff;
 }
 
-	/* Form Colors */
-	.ui-page-theme-a .ui-btn{
-		color:white;
-		background-color:rgba(230,76,102,1);
-		text-shadow:none;
-		border:none;
-	}
+/* Form Colors */
+.ui-page-theme-a .ui-btn{
+    color:white;
+    background-color:rgba(217,121,105,1);
+    text-shadow:none;
+    border:none;
+}
 
-	.ui-page-theme-a .page_header .ui-btn {
-	background-color:transparent;
-	text-shadow:none;
-	-webkit-box-shadow: none;
-	-moz-box-shadow: none;
-	box-shadow: none;
-	margin:0px;
-	font-size:18px;
-	}
+.ui-page-theme-a .page_header .ui-btn {
+    background-color:transparent;
+    text-shadow:none;
+    -webkit-box-shadow: none;
+    -moz-box-shadow: none;
+    box-shadow: none;
+    margin:0px;
+    font-size:18px;
+}
 
-	.ui-page-theme-a .ui-input-text{
-		color:#fff;
-		background-color: rgba(255,255,255,0.2);
-		text-shadow:none;
-		border:none;
-	}
-
-	/** End Form Colors*/
-
-/** End Colors */
-
-
+.ui-page-theme-a .ui-input-text{
+    color:#fff;
+    background-color: rgba(255,255,255,0.2);
+    text-shadow:none;
+    border:none;
+}
 
 .ui-header, .ui-footer{
 border-width:0;
@@ -205,7 +202,7 @@ border-width:0;
 }
 
 .page_title {
-    font-size:14px;
+    font-size:18px;
     padding:5px;
 }
 
@@ -221,6 +218,7 @@ border-width:0;
 .box_title {
     font-size: 16px;
     font-weight: bold;
+    padding-top: 20px;
 }
 
 .box_frame {
@@ -327,6 +325,15 @@ border-width:0;
     background:#147498;
 }
 
+/* The buttons on the share_location form */
+#my_contacts_button .ui-btn, #share_duration_unit_dropdown-button, #share_via .ui-btn {
+    background-color: rgba(17,168,171,1);
+    text-shadow:none;
+}
+
+#share_via .ui-btn-active {
+    background-color: rgba(17,130,130,1);
+}
 .share_expired {
     color: red;
     text-decoration: line-through;
@@ -366,11 +373,14 @@ border-width:0;
     text-align:center;
 }
 
+#share_duration_number {
+    color:black;
+}
+
 .share_duration_num {
     width:28%;
     float:left;
     margin-left:3px;
-    padding-top:3px;
 }
 
 .share_duration_unit {

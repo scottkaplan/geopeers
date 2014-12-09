@@ -334,6 +334,9 @@ var page_mgr = {
 	$(".ui-content").height(content_height);
     },
     switch_page: function (page_id) {
+	if (page_id !== 'index') {
+	    $('#geo_info').empty();
+	}
 	$(":mobile-pagecontainer").pagecontainer("change", '#'+page_id,
 						 {transition: 'slide'});
 	return;
@@ -1037,15 +1040,19 @@ function send_position_request (position) {
 
 function clear_share_location_page () {
     $('#share_via').show();
-    $('#manual_share_via').show();
-    $('#manual_share_to').show();
-    set_manual_share_to('mobile')
+    $('#share_to_mobile').show();
+    $('#share_to_email').show();
+    set_manual_share_to('mobile');
     $('#share_with').hide();
-    $('#or_div').show();
     $('#my_contacts_display').hide();
-    $('#my_contacts_button').show();
+    $('input[name=share_via]').val('');
+    $('input[name=share_to]').val('');
+    $('input[name=share_message]').val('');
+    $('input[name=seer_device_id]').val('');
     $('input[name=my_contacts_email]').val('');
+    $('input[name=my_contacts_email_dropdown]').val('');
     $('input[name=my_contacts_mobile]').val('');
+    $('input[name=my_contacts_mobile_dropdown]').val('');
     if (registration.reg_info &&
 	registration.reg_info.account &&
 	! registration.reg_info.account.name) {
@@ -1061,15 +1068,17 @@ function set_manual_share_to (display_type) {
 	if (display_type === type) {
 	    $('#share_to_'+type).show();
 	    $('#share_via_'+type).prop('checked',true);
+	    console.log (type+" on");
 	} else {
 	    $('#share_to_'+type).hide();
 	    $('#share_via_'+type).prop('checked',false);
+	    console.log (type+" off");
 	}
-    })
+    });
 }
 
 function main_page_share_location_page () {
-    var allow_webapp_shares = false;	// used for testing
+    var allow_webapp_shares = true;	// used for testing
     if (! device_id_mgr.phonegap && ! allow_webapp_shares) {
 	download.download_app();
     } else {
@@ -1654,7 +1663,6 @@ function select_contact_callback (contact) {
 	}
 
 	// manage the UI elements on the popup
-	$('#or_div').hide();
 	if (contact && (contact.phoneNumbers || contact.emails)) {
 	    // we got something back
 	    // activate the dropdowns (if any)
@@ -1662,21 +1670,12 @@ function select_contact_callback (contact) {
 	    $('#my_contacts_display').show();
 
 	    // turn off the manual inputs
-	    $('#manual_share_via').hide();
-	    $('#manual_share_to').hide();
-	} else {
-	    // we didn't get anything back from the contact list
-	    // configure for manual input
-	    $('#my_contacts_display').hide();
-	    $('#manual_share_via').show();
-	    $('#manual_share_to').show();
+	    $('#share_to_mobile').hide();
+	    $('#share_to_email').hide();
+	    $('#share_with').hide();
 	}
 
-	// back-to-back My Contacts are broken
-	// (returns to blank screen)
-	// $('#my_contacts_button').hide();
-
-	// finally ready to display the page
+	// wait .5 sec or we can get stuck on the blank screen after the user selects a contact
 	setTimeout(function() {
 	    window.history.back();
 	    page_mgr.switch_page ('share_location_page');
@@ -1685,19 +1684,6 @@ function select_contact_callback (contact) {
 }
 
 function select_contact () {
-    $('#my_contacts_display').hide();
-    $('#or_div').show();
-    $('#manual_share_via').show();
-    $('#manual_share_to').show();
-    $('#my_contacts_button').show();
-
-    // We have to dump any previously typed value
-    // to prevent it getting in the way of the my_contacts selection
-    $('input[name=share_to]').val(null);
-    $('input[name=share_via]').prop('checked',false);
-
-    // page_mgr.switch_page ('share_location_page');
-
     navigator.contacts.pickContact(function(contact){
 	    select_contact_callback(contact);
 	},function(err){
