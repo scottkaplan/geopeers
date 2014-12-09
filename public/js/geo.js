@@ -1057,6 +1057,8 @@ function clear_share_location_page () {
 	registration.reg_info.account &&
 	! registration.reg_info.account.name) {
 	$('#account_name_box').show();
+    } else {
+	$('#account_name_box').hide();
     }
 
 }
@@ -1075,6 +1077,10 @@ function set_manual_share_to (display_type) {
 	    console.log (type+" off");
 	}
     });
+    if (display_type === 'email' ||
+	display_type === 'mobile') {
+	$('#my_contacts_display').hide();
+    }
 }
 
 function main_page_share_location_page () {

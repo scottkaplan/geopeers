@@ -20,7 +20,7 @@
 		 name="account_name"
 		 id="account_name"
 		 placeholder="Fred Friendly"
-		 style="padding:5px; color:black"
+		 style="padding:5px"
 		 >
 	</div>
       </div>
@@ -106,35 +106,33 @@
 	</div>
 
 	<div style="text-align:center">
-	<div id="share_to_mobile" style="display:none">
-	  <div style="display:inline-block">
-	    Mobile #: 
+	  <div id="share_to_mobile" style="display:none">
+	    <div style="display:inline-block">
+	      Mobile #: 
+	    </div>
+	    <div style="display:inline-block">
+	      <input type="tel"
+		     name="share_to"
+		     id="share_to"
+		     placeholder="415-555-1212"
+		     class="share_to_group"
+		     >
+	    </div>
 	  </div>
-	  <div style="display:inline-block">
-	    <input type="tel"
-		   name="share_to"
-		   id="share_to"
-		   placeholder="415-555-1212"
-		   class="share_to_group"
-		   style="color:black"
-		   >
-	  </div>
-	</div>
 
-	<div id="share_to_email" style="display:none">
-	  <div style="display:inline-block">
-	    Email:
+	  <div id="share_to_email" style="display:none">
+	    <div style="display:inline-block">
+	      Email:
+	    </div>
+	    <div style="display:inline-block">
+  		<input type="email"
+		       name="share_to"
+		       id="share_to"
+		       placeholder="fred@friendly.com"
+		       class="share_to_group"
+		       >
+	    </div>
 	  </div>
-	  <div style="display:inline-block">
-  	    <input type="email"
-		   name="share_to"
-		   id="share_to"
-		   placeholder="fred@friendly.com"
-		   class="share_to_group"
-		   style="color:black"
-		   >
-	  </div>
-	</div>
 	</div>
 
       </div>
@@ -158,24 +156,28 @@
     </div>
     <div class="box_frame">
       <div class="box_content">
-	<div class="share_duration_num">
-	  <input type="text"
-		 name="share_duration_number"
-		 id="share_duration_number"
-		 value="1"
-		 placeholder="number"
-		 >
+	<div style="text-align:center">
+	  <div class="share_duration_num">
+	    <input type="text"
+		   name="share_duration_number"
+		   id="share_duration_number"
+		   value="1"
+		   placeholder="number"
+		   >
+	  </div>
+
+	  <div class="share_duration_unit">
+	    <select id="share_duration_unit_dropdown"
+		    name="share_duration_unit"
+		    data-mini="true">
+		<option value="minute">minute</option>
+		<option value="hour" selected>hour</option>
+		<option value="day">day</option>
+		<option value="week">week</option>
+		<option value="manual">forever</option>
+	    </select>
+	  </div>
 	</div>
-	<div class="share_duration_unit">
-	  <select id="share_duration_unit_dropdown" name="share_duration_unit" data-mini="true">
-	    <option value="minute">minute</option>
-	    <option value="hour" selected>hour</option>
-	    <option value="day">day</option>
-	    <option value="week">week</option>
-	    <option value="manual">forever</option>
-	  </select>
-	</div>
-	<div style="clear:both"></div>
       </div>
     </div>
   </div>
@@ -189,7 +191,6 @@
 	       name="share_message"
 	       id="share_message"
 	       placeholder="Type a message"
-	       style="color:black"
 	       >
       </div>
     </div>
