@@ -192,7 +192,7 @@ def host
 end
 
 def server
-  "dev.geopeers.com"
+  "geopeers.com"
 end
 
 def url_base
@@ -355,9 +355,13 @@ def bump_build_id
   build_id
 end
 
+def get_version
+  "0.8.0"
+end
+
 def create_index(params=nil)
   server = server()
-  version = "0.8"
+  version = get_version
   is_phonegap = nil
   is_production = nil
   url_prefix = nil
@@ -735,15 +739,15 @@ class Protocol
     $LOG.debug web_app_device
 
     if web_app_device.xdevice_id &&
-        web_app_device.xdevice_id != native_app_device.device_id
-      log_error ("changing web_app_device.xdevice_id from #{web_app_device.xdevice_id} to #{native_app_device.device_id}\nProbably from deleting and re-installing the native app")
+       web_app_device.xdevice_id != native_app_device.device_id
+      Logging.milestone ("changing web_app_device.xdevice_id from #{web_app_device.xdevice_id} to #{native_app_device.device_id}\nProbably from deleting and re-installing the native app")
     end
     web_app_device.xdevice_id = native_app_device.device_id
     web_app_device.save
 
     if native_app_device.xdevice_id &&
         native_app_device.xdevice_id != web_app_device.device_id
-      log_error ("changing native_app_device.xdevice_id from #{native_app_device.xdevice_id} to #{web_app_device.device_id}")
+      Logging.milestone ("changing native_app_device.xdevice_id from #{native_app_device.xdevice_id} to #{web_app_device.device_id}")
     end
     native_app_device.xdevice_id = web_app_device.device_id
     native_app_device.save
@@ -1891,7 +1895,7 @@ class ProtocolEngine < Sinatra::Base
 
       # RT processing
       # ~ 300ms
-      params['is_production'] = false
+      params['is_production'] = true
       create_index params
 
       # pre-processed
