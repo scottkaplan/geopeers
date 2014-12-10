@@ -1173,7 +1173,7 @@ var share_location = {
 	share_location.clear_elements();
     },
     main_page: function () {
-	var allow_webapp_shares = true;	// used for testing
+	var allow_webapp_shares = false;	// used for testing
 	if (! device_id_mgr.phonegap && ! allow_webapp_shares) {
 	    download.download_app();
 	} else {
