@@ -1256,8 +1256,10 @@ function send_support () {
 }
 
 function display_support () {
+    var version = $('#geopeers_config').attr('version');
+    $('#support_version').text(version);
     var build_id = $('#geopeers_config').attr('build_id');
-    $('#support_version').text(build_id);
+    $('#build_id').text(build_id);
     $("input[type='hidden'][name='support_version']").val(build_id);
     $('#support_page').find("input[type=text], textarea").val("");
     $('#support_form_info').empty();
