@@ -356,7 +356,7 @@ def bump_build_id
 end
 
 def get_version
-  "0.8.0"
+  "0.8.1"
 end
 
 def create_index(params=nil)
