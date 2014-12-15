@@ -9,6 +9,7 @@ public/bin/android/*.apk
 public/css/geopeers.css
 public/js/geopeers.min.js
 public/doc/
+public/sandbox/
 spec/
 test/
 vendor/
