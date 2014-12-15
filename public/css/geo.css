@@ -12,10 +12,13 @@ body {
 
 .splash_div {
     text-align:center;
-    display:block
+    display:block;
+    background-color: #141414;
+    height: 100%;
 }
 
 .splash_text {
+    color: white;
     font-size:24px;
     font-weight:bold;
     padding-bottom:36px;
