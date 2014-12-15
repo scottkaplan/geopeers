@@ -192,7 +192,7 @@ def host
 end
 
 def server
-  "dev.geopeers.com"
+  "geopeers.com"
 end
 
 def url_base
