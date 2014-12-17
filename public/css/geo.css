@@ -135,12 +135,12 @@ body {
     -moz-border-radius:10px;
     -webkit-border-radius:10px;
     border-radius:10px;
-    border: 1px solid #4F8A10;
+    border: 1px solid white;
     height: 26px;
 }
 
 .message_button_text {
-    color: #4F8A10;
+    color: white;
     font-size: 18px;
     margin-top: 2px;
 }
