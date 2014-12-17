@@ -157,17 +157,14 @@ function create_message_div (message, css_class, msg_id) {
     var onclick_cmd = "$('#"+msg_id+"').hide(); map_mgr.resize()";
     var x_div = $('<div></div>')
 	.attr('onclick', onclick_cmd)
-	.css('position','relative')
-	.css('right','16px')
-	.css('top','40px')
-	.css('text-align','right');
+	.addClass('x_div');
     x_div.append ('<img src="images/x_black.png">');
     var msg_div = $('<div></div>')
 	.html(message)
 	.addClass(css_class);
     var wrapper_div = $('<div></div>').attr('id',msg_id);
-    wrapper_div.append(x_div);
     wrapper_div.append(msg_div);
+    wrapper_div.append(x_div);
     return (wrapper_div);
 }
 
@@ -260,8 +257,9 @@ function geo_ajax_fail_callback (data, textStatus, jqXHR) {
 	error_html = data.responseJSON.error_html ? data.responseJSON.error_html : data.responseJSON.error;
     }
     display_message (error_html, 'message_error', 'geo_info');
-    $('#registration_form_spinner').hide();
-    $('#share_location_form_spinner').hide();
+    // Don't bother trying to figure out who failed
+    // turn off all the spinners
+    $('.page_spinner').hide();
     return;
 }
 
@@ -333,8 +331,14 @@ var page_mgr = {
 	    $("#"+page_id+" .ui-content").height();
 	$(".ui-content").height(content_height);
     },
-    switch_page: function (page_id) {
+    switch_page: function (page_id, info_id) {
+	// clear out old errors
+	if (info_id) {
+	    $('#'+info_id).empty();
+	}
+
 	if (page_id !== 'index') {
+	    // clear out index page errors when you move off the index page
 	    $('#geo_info').empty();
 	}
 	$(":mobile-pagecontainer").pagecontainer("change", '#'+page_id,
@@ -693,12 +697,15 @@ var marker_mgr = {
 	form_request_callback (data, 'send_to_form_spinner', 'send_to_form_info');
     },
     popup_share_location: function () {
+	// We got here from the marker menu
+	// Send a share to the device_id associated with the marker
+	// This will become the share_device_id
+	// 
 	$('#share_via').hide();
 	$('#share_with').show();
 	$('#share_account_name').text(marker_mgr.selected_sighting.name);
-	$("input[type='hidden'][name='seer_device_id']").val(marker_mgr.selected_sighting.device_id);
-	$('#share_location_form_info').empty();
-	page_mgr.switch_page ('share_location_page');
+	$("input[type='hidden'][name='share_device_id']").val(marker_mgr.selected_sighting.device_id);
+	page_mgr.switch_page ('share_location_page', 'share_location_form_info');
 	return;
     },
     create_marker: function (sighting) {
@@ -1033,108 +1040,193 @@ function send_position_request (position) {
     return;
 }
 
+//
+// My Contacts
+//
+
+var my_contacts = {
+    populate_dropdown: function(id, optionList) {
+	var dropdown = $('#'+id);
+	dropdown.empty();
+	$.each(optionList, function (i, el) {
+	    dropdown.append("<option>" + el.value + "</option>");
+	});
+	dropdown.selectmenu();
+	dropdown.selectmenu('refresh', true);
+	dropdown.show();
+    },
+    callback: function(contact) {
+	console.log (contact);
+	setTimeout(function() {
+	    // for mobile/email
+	    // there are two fields
+	    //   my_contacts_[mobile|email] - a single display box
+	    //   my_contacts_[mobile|email]_dropdown - multi-select dropdown
+	    var mobile;
+	    $('#my_contacts_mobile').empty();
+	    $('#my_contacts_mobile_dropdown').empty();
+	    if (contact && contact.phoneNumbers ) {
+		if (contact.phoneNumbers.length == 1) {
+		    mobile = contact.phoneNumbers[0].value;
+		    $('#my_contacts_mobile').html(mobile);
+		    $('input:input[name=my_contacts_mobile]').val(mobile);
+		} else {
+		    my_contacts.populate_dropdown ('my_contacts_mobile_dropdown', contact.phoneNumbers);
+		    $('#my_contacts_mobile_dropdown_div').show();
+		}
+	    } else {
+		$('#my_contacts_mobile').html("<i>None</i>");
+		$('#my_contacts_mobile_dropdown_div').hide();
+	    }
+
+	    var email;
+	    $('#my_contacts_email').empty();
+	    $('#my_contacts_email_dropdown').empty();
+	    if (contact && contact.emails) {
+		if (contact.emails.length == 1) {
+		    email = contact.emails[0].value;
+		    $('#my_contacts_email').html(email);
+		    $('input:input[name=my_contacts_email]').val(email);
+		} else {
+		    my_contacts.populate_dropdown ('my_contacts_email_dropdown', contact.emails);
+		    $('#my_contacts_email_dropdown_div').show();
+		}
+	    } else {
+		$('#my_contacts_email').html("<i>None</i>");
+		$('#my_contacts_email_dropdown_div').hide();
+	    }
+
+	    // manage the UI elements on the popup
+	    if (contact && (contact.phoneNumbers || contact.emails)) {
+		// we got something back
+		// activate the dropdowns (if any)
+		$('#share_to_my_contacts').trigger("change");
+		$('#share_to_my_contacts').show();
+
+		// turn off the manual inputs
+		$('#share_to_mobile').hide();
+		$('#share_to_email').hide();
+		$('#share_with').hide();
+	    }
+	}, 500);
+    },
+    select_contact: function() {
+	navigator.contacts.pickContact(function(contact){
+	    my_contacts.callback(contact);
+	},function(err){
+	    console.log('Error: ' + err);
+	});
+    }
+}
 
 //
 // SHARE_LOCATION
 //
 
-function clear_share_location_page () {
-    $('#share_via').show();
-    $('#share_to_mobile').show();
-    $('#share_to_email').show();
-    set_manual_share_to('mobile');
-    $('#share_with').hide();
-    $('#my_contacts_display').hide();
-    $('input[name=share_via]').val('');
-    $('input[name=share_to]').val('');
-    $('input[name=share_message]').val('');
-    $('input[name=seer_device_id]').val('');
-    $('input[name=my_contacts_email]').val('');
-    $('input[name=my_contacts_email_dropdown]').val('');
-    $('input[name=my_contacts_mobile]').val('');
-    $('input[name=my_contacts_mobile_dropdown]').val('');
-    if (registration.reg_info &&
-	registration.reg_info.account &&
-	! registration.reg_info.account.name) {
-	$('#account_name_box').show();
-    }
+var share_location = {
+    clear_elements: function () {
+	$('#share_to_my_contacts').hide();
+	$('input[name=my_contacts_email]').val('');
+	$('input[name=my_contacts_email_dropdown]').val('');
+	$('input[name=my_contacts_mobile]').val('');
+	$('input[name=my_contacts_mobile_dropdown]').val('');
+	$('input[name=share_via]').val('');
+	$('input[name=share_to]').val('');
+	$('input[name=share_device_id]').val('');
+    },
+    clear_page: function () {
+	// start by showing the share_location form 
+	$('#share_via').show();
+	share_location.set_share_to('mobile');
+	$('#share_to_mobile').show();
+	$('#share_to_email').hide();
+	$('#share_with').hide();
+	share_location.clear_elements();
+	$('input[name=share_message]').val('');
 
-}
-
-function set_manual_share_to (display_type) {
-    $('.share_to_group').val("");
-    $.each(['email', 'mobile'], function (i, type) {
-	var share_to_div = 'share_to_'+type;
-	if (display_type === type) {
-	    $('#share_to_'+type).show();
-	    $('#share_via_'+type).prop('checked',true);
-	    console.log (type+" on");
+	if (registration.reg_info &&
+	    registration.reg_info.account &&
+	    ! registration.reg_info.account.name) {
+	    $('#account_name_box').show();
 	} else {
-	    $('#share_to_'+type).hide();
-	    $('#share_via_'+type).prop('checked',false);
-	    console.log (type+" off");
+	    $('#account_name_box').hide();
 	}
-    });
-}
+    },
+    set_share_to: function (display_type) {
+	// my_contacts.select_contact()
+	$('.share_to_group').val("");
+	$.each(['email', 'mobile', 'my_contacts'], function (i, type) {
+	    $('#share_via_'+type).checkboxradio();
+	    if (display_type === type) {
+		$('#share_to_'+type).show();
+		$('#share_via_'+type).prop('checked',true).checkboxradio('refresh');
+		console.log (type+" on");
+	    } else {
+		$('#share_to_'+type).hide();
+		$('#share_via_'+type).prop('checked',false).checkboxradio('refresh');
+		console.log (type+" off");
+	    }
+	});
+	if (display_type === 'my_contacts') {
+	    my_contacts.select_contact();
+	}
+	share_location.clear_elements();
+    },
+    main_page: function () {
+	var allow_webapp_shares = false;	// used for testing
+	if (! device_id_mgr.phonegap && ! allow_webapp_shares) {
+	    download.download_app();
+	} else {
+            // configure page in case it was used previously
+	    share_location.clear_page();
+	    page_mgr.switch_page ('share_location_page', 'share_location_form_info');
+	}
+	return;
+    },
+    callback:  function (data, textStatus, jqXHR) {
+	form_request_callback (data, 'share_location_form_spinner', 'share_location_form_info');
 
-function main_page_share_location_page () {
-    var allow_webapp_shares = true;	// used for testing
-    if (! device_id_mgr.phonegap && ! allow_webapp_shares) {
-	download.download_app();
-    } else {
-        // configure page in case it was used previously
-	clear_share_location_page();
-	page_mgr.switch_page ('share_location_page');
+	// in case the name was updated, update registration.reg_info
+	registration.init();
+	return;
+    },
+    submit_form: function () {
+	// location can be shared either by:
+	//   1) share_via (email | mobile) / share_to (<addr>)
+	//   2) share_device_id - get location from seer_device.account
+
+	// GEOP-48 For now, the input check will happen at the server
+	var share_device_id = $('input:input[name=share_device_id]');
+	if (0 && share_device_id.length == 0) {
+	    var share_via = $("#share_via").val();
+	    var share_to = $("#share_to").val();
+
+	    if (share_to.length == 0) {
+		display_message ("Please supply the address to send your share to",
+				 'message_error', 'share_location_form_info');
+		return;
+	    }
+	    if (share_via == 'email' && ! share_to.match(/.+@.+/)) {
+		display_message ("Email should be in the form 'fred@company.com'",
+				 'message_error' , 'share_location_form_info');
+		return;
+	    }
+	    share_to.replace(/[\s\-\(\)]/, null);
+	    console.log (share_to);
+	    if (share_via == 'mobile' && ! share_to.match(/^\d{10}$/)) {
+		display_message ("The phone number (share to) must be 10 digits",
+				 'message_error', 'share_location_form_info');
+		return;
+	    }
+	}
+	$('#share_location_form_spinner').show();
+	var tz = jstz.determine();
+	// clear out old error messages
+	$('#share_location_form_info').empty();
+	form_request ($('#share_location_form'), {tz: tz.name()},
+		      share_location.callback, geo_ajax_fail_callback);
     }
-    return;
 }
-
-function share_location_callback (data, textStatus, jqXHR) {
-    form_request_callback (data, 'share_location_form_spinner', 'share_location_form_info');
-
-    // in case the name was updated, update registration.reg_info
-    registration.init();
-
-    return;
-}
-
-function share_location () {
-    // location can be shared either by:
-    //   1) share_via (email | mobile) / share_to (<addr>)
-    //   2) seer_device_id - get location from seer_device.account
-
-    // GEOP-48 For now, the input check will happen at the server
-    var seer_device_id = $('input:input[name=seer_device_id]');
-    if (0 && seer_device_id.length == 0) {
-	var share_via = $("#share_via").val();
-	var share_to = $("#share_to").val();
-
-	if (share_to.length == 0) {
-	    display_message ("Please supply the address to send your share to",
-			     'message_error', 'share_location_form_info');
-	    return;
-	}
-	if (share_via == 'email' && ! share_to.match(/.+@.+/)) {
-	    display_message ("Email should be in the form 'fred@company.com'",
-			     'message_error' , 'share_location_form_info');
-	    return;
-	}
-	share_to.replace(/[\s\-\(\)]/, null);
-	console.log (share_to);
-	if (share_via == 'mobile' && ! share_to.match(/^\d{10}$/)) {
-	    display_message ("The phone number (share to) must be 10 digits",
-			     'message_error', 'share_location_form_info');
-	    return;
-	}
-    }
-    $('#share_location_form_spinner').show();
-    var tz = jstz.determine();
-    // clear out old error messages
-    $('#share_location_form_info').empty();
-    form_request ($('#share_location_form'), {tz: tz.name()},
-		  share_location_callback, geo_ajax_fail_callback);
-}
-
 
 //
 // SEND_SUPPORT
@@ -1164,12 +1256,14 @@ function send_support () {
 }
 
 function display_support () {
+    var version = $('#geopeers_config').attr('version');
+    $('#support_version').text(version);
     var build_id = $('#geopeers_config').attr('build_id');
-    $('#support_version').text(build_id);
+    $('#build_id').text(build_id);
     $("input[type='hidden'][name='support_version']").val(build_id);
     $('#support_page').find("input[type=text], textarea").val("");
     $('#support_form_info').empty();
-    page_mgr.switch_page ('support_page');
+    page_mgr.switch_page ('support_page', 'support_form_info');
     return;
 }
 
@@ -1187,7 +1281,7 @@ function config_callback (data, textStatus, jqXHR) {
     }
 
     if (data.update) {
-	page_mgr.switch_page ('update_app_page');
+	page_mgr.switch_page ('update_app_page', 'update_app_form_info');
     }
 
     // The server is telling us if there is an account name for this device
@@ -1470,7 +1564,7 @@ function update_registration_page () {
 function display_registration () {
     update_registration_page();
     $('#registration_form_info').empty();
-    page_mgr.switch_page ('registration_page');
+    page_mgr.switch_page ('registration_page', 'registration_form_info');
     return;
 }
 
@@ -1567,11 +1661,11 @@ var download = {
 	    } else {
 		if (download.download_url()) {
 		    // don't start the download without warning them in a popup
-		    page_mgr.switch_page ('download_app_page');
+		    page_mgr.switch_page ('download_app_page', 'download_app_form_info');
 		} else {
 		    // we don't have a native app for this device, offer to send a link
 		    $('#native_app_not_available').show();
-		    page_mgr.switch_page ('download_link_page');
+		    page_mgr.switch_page ('download_link_page', 'download_link_form_info');
 		}
 	    }
 	}
@@ -1591,7 +1685,7 @@ function download_app_wrapper () {
 
 function download_link_wrapper () {
     $('#native_app_not_available').hide();
-    page_mgr.switch_page ('download_link_page');
+    page_mgr.switch_page ('download_link_page', 'download_link_form_info');
 }
 
 function download_redirect_wrapper () {
@@ -1605,92 +1699,6 @@ function web_app_redirect_wrapper () {
 function native_app_redirect_wrapper () {
     device_id_bind.native_app_redirect();
 }
-
-//
-// My Contacts
-//
-
-function populate_dropdown (id, optionList) {
-    var dropdown = $('#'+id);
-    dropdown.empty();
-    $.each(optionList, function (i, el) {
-	    dropdown.append("<option>" + el.value + "</option>");
-	});
-    dropdown.selectmenu();
-    dropdown.selectmenu('refresh', true);
-    dropdown.show();
-}
-
-function select_contact_callback (contact) {
-    console.log (contact);
-    setTimeout(function() {
-	// for mobile/email
-	// there are two fields
-	//   my_contacts_[mobile|email] - a single display box
-	//   my_contacts_[mobile|email]_dropdown - multi-select dropdown
-	var mobile;
-	$('#my_contacts_mobile').empty();
-	$('#my_contacts_mobile_dropdown').empty();
-	if (contact && contact.phoneNumbers ) {
-	    if (contact.phoneNumbers.length == 1) {
-		mobile = contact.phoneNumbers[0].value;
-		$('#my_contacts_mobile').html(mobile);
-		$('input:input[name=my_contacts_mobile]').val(mobile);
-	    } else {
-		populate_dropdown ('my_contacts_mobile_dropdown', contact.phoneNumbers);
-		$('#my_contacts_mobile_dropdown_div').show();
-	    }
-	} else {
-	    $('#my_contacts_mobile').html("<i>None</i>");
-	    $('#my_contacts_mobile_dropdown_div').hide();
-	}
-
-	var email;
-	$('#my_contacts_email').empty();
-	$('#my_contacts_email_dropdown').empty();
-	if (contact && contact.emails) {
-	    if (contact.emails.length == 1) {
-		email = contact.emails[0].value;
-		$('#my_contacts_email').html(email);
-		$('input:input[name=my_contacts_email]').val(email);
-	    } else {
-		populate_dropdown ('my_contacts_email_dropdown', contact.emails);
-		$('#my_contacts_email_dropdown_div').show();
-	    }
-	} else {
-	    $('#my_contacts_email').html("<i>None</i>");
-	    $('#my_contacts_email_dropdown_div').hide();
-	}
-
-	// manage the UI elements on the popup
-	if (contact && (contact.phoneNumbers || contact.emails)) {
-	    // we got something back
-	    // activate the dropdowns (if any)
-	    $('#my_contacts_display').trigger("change");
-	    $('#my_contacts_display').show();
-
-	    // turn off the manual inputs
-	    $('#share_to_mobile').hide();
-	    $('#share_to_email').hide();
-	    $('#share_with').hide();
-	}
-
-	// wait .5 sec or we can get stuck on the blank screen after the user selects a contact
-//	setTimeout(function() {
-//	    window.history.back();
-//	    page_mgr.switch_page ('share_location_page');
-//	}, 500);
-    }, 500);
-}
-
-function select_contact () {
-    navigator.contacts.pickContact(function(contact){
-	    select_contact_callback(contact);
-	},function(err){
-	    console.log('Error: ' + err);
-	});
-}
-
 
 //
 // Init and startup
@@ -1708,7 +1716,7 @@ function start_heartbeat () {
 
 function heartbeat () {
     // things that should happen periodically
-    var period_minutes = 1;
+    var period_secs = 60;
 
     // refresh the sightings for our shares
     get_positions();
@@ -1720,7 +1728,7 @@ function heartbeat () {
     map_mgr.resize();
 
     // if we get here, schedule the next iteration
-    setTimeout(heartbeat, period_minutes * 60 * 1000);
+    setTimeout(heartbeat, period_secs * 1000);
     return;
 }
 
@@ -1777,7 +1785,7 @@ var init_geo = {
 	}
 
 	// share location page in known state
-	clear_share_location_page();
+	share_location.clear_page();
 
 	page_mgr.init();
     },

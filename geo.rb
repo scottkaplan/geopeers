@@ -355,9 +355,13 @@ def bump_build_id
   build_id
 end
 
+def get_version
+  "0.8.1"
+end
+
 def create_index(params=nil)
   server = server()
-  version = "0.8"
+  version = get_version
   is_phonegap = nil
   is_production = nil
   url_prefix = nil
@@ -429,6 +433,10 @@ def make_page(page_id, page_title, nested_erb, params)
   url_prefix = params['url_prefix']
   nested_html = ERB.new(File.read(nested_erb)).result(binding)
   ERB.new(File.read('views/frame.erb')).result(binding)
+end
+
+def create_display_name (name)
+  name ? name : "Anonymous"
 end
 
 ##
@@ -731,15 +739,15 @@ class Protocol
     $LOG.debug web_app_device
 
     if web_app_device.xdevice_id &&
-        web_app_device.xdevice_id != native_app_device.device_id
-      log_error ("changing web_app_device.xdevice_id from #{web_app_device.xdevice_id} to #{native_app_device.device_id}\nProbably from deleting and re-installing the native app")
+       web_app_device.xdevice_id != native_app_device.device_id
+      Logging.milestone ("changing web_app_device.xdevice_id from #{web_app_device.xdevice_id} to #{native_app_device.device_id}\nProbably from deleting and re-installing the native app")
     end
     web_app_device.xdevice_id = native_app_device.device_id
     web_app_device.save
 
     if native_app_device.xdevice_id &&
         native_app_device.xdevice_id != web_app_device.device_id
-      log_error ("changing native_app_device.xdevice_id from #{native_app_device.xdevice_id} to #{web_app_device.device_id}")
+      Logging.milestone ("changing native_app_device.xdevice_id from #{native_app_device.xdevice_id} to #{web_app_device.device_id}")
     end
     native_app_device.xdevice_id = web_app_device.device_id
     native_app_device.save
@@ -882,7 +890,7 @@ class Protocol
     # $LOG.debug sql.gsub("\n"," ")
     elems = []
     Sighting.find_by_sql(sql).each { |row|
-      elems.push ({ 'name'          => row.account_name ? row.account_name : 'Anonymous',
+      elems.push ({ 'name'          => create_display_name(row.account_name),
                     'have_email'    => row.account_email ? 1 : 0,
                     'have_mobile'   => row.account_mobile ? 1 : 0,
                     'device_id'     => row.device_id,
@@ -1151,8 +1159,8 @@ class Protocol
       end
     end
 
-    # there are multipe ways to specify a share from the share_location form
-    #   1) seer_device_id:
+    # there are multiple ways to specify a share from the share_location form
+    #   1) share_device_id:
     #      boomerang share - A shares with B, now B wants to share with A
     #   2) my_contacts_mobile and/or my_contacts_email
     #      A single value came back from the device Contacts picker
@@ -1171,12 +1179,12 @@ class Protocol
     }
     share_parms['device_id'] = params["device_id"]
 
-    if params['seer_device_id']
+    if params['share_device_id']
       # share location of requesting device
       # with account associated with a share
       # (i.e. share my location with pin)
       #
-      account = Protocol.get_account_from_device_id (params['seer_device_id'])
+      account = Protocol.get_account_from_device_id (params['share_device_id'])
       ['mobile','email'].each do | type |
         if account[type]
           response = create_and_send_share(share_parms.merge({ 'share_via' => type,
@@ -1184,7 +1192,7 @@ class Protocol
                                                              }),
                                            params,
                                            response)
-          Logging.milestone ("Share by seer_device_id to #{account[type]} via #{type}")
+          Logging.milestone ("Share by share_device_id to #{account[type]} via #{type}")
         end
       end
       # TODO: This only returns the last response
@@ -1193,10 +1201,12 @@ class Protocol
       if response.empty?
         response[page_message] = 'No email or phone number found'
       end
+      return response
     end
 
     ['mobile','email', 'mobile_dropdown', 'email_dropdown'].each do | field_type |
       my_contacts_field = "my_contacts_#{field_type}"
+      saw_field = false;
       if params[my_contacts_field]
         $LOG.debug params[my_contacts_field]
         type = field_type.sub(/_dropdown/, '')
@@ -1207,10 +1217,13 @@ class Protocol
                                          params,
                                          response)
         Logging.milestone ("Share by #{my_contacts_field} to #{share_to} via #{type}")
+        saw_field = true
       end
+      return response if saw_field
     end
       
     share_to = first_string params['share_to']
+    $LOG.debug share_to
     if share_to
       if ! params['share_via']
         # see if we can figure it out
@@ -1222,7 +1235,7 @@ class Protocol
             params["share_via"] = 'mobile'
           else
             response['page_message'] = "#{share_to} doesn't look like an email or phone number"
-            # This can fall thru since share_via is not set
+            return (response)
           end
         end
       end
@@ -1255,12 +1268,10 @@ class Protocol
           response['page_message'] = "Email should be in the form 'fred@company.com'"
         end
       end
-    else
-      response['page_message'] = "Please supply a mobile number or email address"
+      return response
     end
-
-    $LOG.debug response
-    response
+    response['page_message'] = "Please supply a mobile number or email address"
+    return response
   end
 
   def Protocol.process_request_redeem (params)
@@ -1495,7 +1506,7 @@ class Protocol
       }
       account = Protocol.get_account_from_device_id (row.redeem_device_id)
       if account
-        elem['redeem_name'] = account['name'] ? account['name'] : "Anonymous"
+        elem['redeem_name'] = create_display_name(account['name'])
       end
       elems.push (elem)
     }
@@ -1567,7 +1578,7 @@ class Protocol
     #   send_to_type    'email' | 'mobile'
     #
     account = Protocol.get_account_from_device_id (params['device_id'])
-    name = account.name ? account.name : 'Anonymous'
+    name = create_display_name(account.name)
     if params['send_to_type'] == 'email' && account.email
       err = Protocol.send_html_email('views/send_to_email_body.erb',
                                      'views/send_to_email_msg.erb',
@@ -1680,7 +1691,7 @@ class Protocol
     msg = '<div style="font-size:20px; font-weight:bold">User Info</div>'
     msg += '<div style="font-size:18px; font-weight:normal; margin-left:10px; margin-bottom:10px">'
     msg += "From "
-    msg += account.name ? account.name : "Anonymous User" + ' '
+    msg += create_display_name(account.name) + ' '
     msg += "(" + params['device_id'] + ")" + '<br>'
     msg += "Email:" + account.email + '<br>' if account.email
     msg += "Mobile:" + account.mobile + '<br>' if account.mobile
@@ -1884,7 +1895,7 @@ class ProtocolEngine < Sinatra::Base
 
       # RT processing
       # ~ 300ms
-      params['is_production'] = false
+      params['is_production'] = true
       create_index params
 
       # pre-processed
