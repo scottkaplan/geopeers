@@ -107,8 +107,8 @@ body {
     background-image: url('/images/info.png');
 }
 .message_success {
-    color: #4F8A10;
-    background-color: rgba(79, 138, 16, 0.2) /* #DFF2BF */ ;
+    color: #edffd9;
+    background-color: rgba(79, 138, 16, 0.7) /* #DFF2BF */ ;
     background-image:url('/images/success.png');
 }
 
@@ -118,8 +118,8 @@ body {
     background-image: url('/images/warning.png');
 }
 .message_error {
-    color: #D8000C;
-    background-color: rgba(255, 186, 186, 0.5) /* #FFBABA */ ;
+    color: #fff0f1;
+    background-color: rgba(236, 121, 121, 0.7) /* #FFBABA */ ;
     background-image: url('/images/error.png');
 }
 
@@ -373,6 +373,10 @@ border-width:0;
 .share_with {
     font-size:18px;
     font-weight:bold;
+    text-align:center;
+}
+
+.center {
     text-align:center;
 }
 
