@@ -152,9 +152,14 @@ function display_alert_message (alert_method, message) {
     return (message_div_id);
 }
 
+function hide_message_div (msg_id) {
+    $('#'+msg_id).hide();
+    // map_mgr.resize();
+}
+
 function create_message_div (message, css_class, msg_id) {
     // create new divs - message and close button
-    var onclick_cmd = "$('#"+msg_id+"').hide(); map_mgr.resize()";
+    var onclick_cmd = "hide_message_div('"+msg_id+"')";
     var x_div = $('<div></div>')
 	.attr('onclick', onclick_cmd)
 	.addClass('x_div');
@@ -330,6 +335,7 @@ var page_mgr = {
 	    $("#"+page_id+" .ui-content").outerHeight() +
 	    $("#"+page_id+" .ui-content").height();
 	$(".ui-content").height(content_height);
+	console.log (content_height);
     },
     switch_page: function (page_id, info_id) {
 	// clear out old errors
@@ -988,7 +994,6 @@ var map_mgr = {
 	    $('#map_canvas').gmap({center: display_mgr.us_center, zoom:8});
 	}
 
-	// reset the header height everytime the map's bounds change
 	var map = $('#map_canvas').gmap('get','map');
 	google.maps.event.addListener(map, 'bounds_changed', marker_mgr.overlap_detection);
 	google.maps.event.addListener(map, 'dragend', my_pos.set_user_action);
@@ -1775,15 +1780,11 @@ var init_geo = {
 	    download.download_app();
 	}
 
-	// keep updating bounding box pan/zoom for first 5 sec
+	// keep updating bounding box pan/zoom for first pan_zoom_window sec
 	// after that, the user has to pan/zoom manually
-	for (var i=1; i<5; i++) {
+	var pan_zoom_window = 30;
+	for (var i=1; i<pan_zoom_window; i++) {
 	    setTimeout(my_pos.pan_zoom, 1000*i);
-	}
-
-	// keep the UI clean while changes come in (e.g. markers, current pos)
-	for (var i=1; i<10; i++) {
-	    setTimeout(map_mgr.resize, 1000*i);
 	}
 
 	// share location page in known state

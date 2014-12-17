@@ -95,6 +95,7 @@ body {
     right: 16px;
     top: 10px;
     text-align: right;
+    z-index: 2;
 }
 
 .message_info, .message_success, .message_warning, .message_error, .message_validation {
