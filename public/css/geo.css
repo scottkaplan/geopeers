@@ -90,16 +90,25 @@ body {
     z-index: 10;
 }
 
+.x_div {
+    position: relative;
+    right: 16px;
+    top: -60px;
+    text-align: right;
+}
+
 .message_info, .message_success, .message_warning, .message_error, .message_validation {
     font-family:Arial, Helvetica, sans-serif; 
     font-size:18px;
     text-shadow: none;
     text-align: center;
     border: 1px solid;
-    margin: 10px 10px;
-    padding:15px 30px 15px 50px;
+    margin: 10px /* top/bottom */ 10px /* right/left */;
+    padding:15px 30px 15px 50px;	/* top right bottom left */
     background-repeat: no-repeat;
     background-position: 10px center;
+    position: relative;
+    top: 0px;
 }
 .message_info {
     color: #00529B;
@@ -108,7 +117,6 @@ body {
 }
 .message_success {
     color: #edffd9;
-    background-color: rgba(79, 138, 16, 0.7) /* #DFF2BF */ ;
     background-image:url('/images/success.png');
 }
 
@@ -155,7 +163,7 @@ body {
 
 /* Form Colors */
 .ui-page-theme-a .ui-btn{
-    color:white;
+    color:black;
     background-color:rgba(217,121,105,1);
     text-shadow:none;
     border:none;
@@ -171,7 +179,7 @@ body {
     font-size:18px;
 }
 
-.ui-page-theme-a .ui-input-text{
+.ui-input-text{
     color:#fff;
     background-color: rgba(255,255,255,0.2);
     text-shadow:none;
@@ -221,7 +229,6 @@ border-width:0;
 .box_title {
     font-size: 16px;
     font-weight: bold;
-    padding-top: 20px;
 }
 
 .box_frame {
@@ -381,19 +388,17 @@ border-width:0;
 }
 
 #share_duration_number {
-    color:black;
 }
 
 .share_duration_num {
-    width:28%;
-    float:left;
-    margin-left:3px;
+    width: 35px;
+    display:inline-block;
+    vertical-align:middle;
 }
 
 .share_duration_unit {
-    width:68%;
-    float:right;
-    margin-right:3px;
+    display:inline-block;
+    vertical-align:middle;
 }
 
 #manage_info {
@@ -449,8 +454,7 @@ border-width:0;
 }
 
 .my_contact_element {
-    padding-top: 20px;
-    float: left;
+    display:inline-block;
 }
 
 .my_contact_value {
