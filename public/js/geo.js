@@ -410,18 +410,19 @@ var my_pos = {
 	}
 
 	var map = $('#map_canvas').gmap('get','map');
+	var zoom;
 	if (bounds.isEmpty()) {
 	    bounds.extend (display_mgr.us_center);
-	    map.fitBounds (bounds);
-	    map.setZoom(4);
+	    zoom = 4;
 	} else {
-	    map.fitBounds (bounds);
 	    // if we only have one marker, fitBounds zooms to maximum.
 	    // Back off to max_zoom
-	    var zoom = Math.min(map.getZoom(), 18)
-	    map.setZoom(zoom);
+	    zoom = Math.min(map.getZoom(), 18)
 	}
+	map.fitBounds (bounds);
+	map.setZoom(zoom);
 	console.log (bounds.getCenter());
+	console.log (zoom);
 	map.setCenter(bounds.getCenter());
     },
     reposition: function (position) {
