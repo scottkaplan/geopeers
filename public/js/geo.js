@@ -421,6 +421,7 @@ var my_pos = {
 	    var zoom = Math.min(map.getZoom(), 18)
 	    map.setZoom(zoom);
 	}
+	console.log (bounds.getCenter());
 	map.setCenter(bounds.getCenter());
     },
     reposition: function (position) {
