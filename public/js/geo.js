@@ -1821,7 +1821,10 @@ var init_geo = {
 	    if (have_native_app()) {
 		// Show the deeplink on the main menu to switch to the native app
 		$('#native_app_switch').show();
-	    } else if (download.download_url()) {
+	    }
+	    // Show the download link even if we think we have_native_app
+	    // If the app was deleted, we won't know about it
+	    if (download.download_url()) {
 		$('#native_app_download').show();
 	    }
 	}
