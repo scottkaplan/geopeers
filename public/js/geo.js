@@ -163,8 +163,8 @@ function create_message_div (message, css_class, msg_id) {
 	.html(message)
 	.addClass(css_class);
     var wrapper_div = $('<div></div>').attr('id',msg_id);
-    wrapper_div.append(msg_div);
     wrapper_div.append(x_div);
+    wrapper_div.append(msg_div);
     return (wrapper_div);
 }
 

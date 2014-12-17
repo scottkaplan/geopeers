@@ -93,7 +93,6 @@ body {
 .x_div {
     position: relative;
     right: 16px;
-    top: -60px;
     text-align: right;
 }
 
@@ -108,7 +107,7 @@ body {
     background-repeat: no-repeat;
     background-position: 10px center;
     position: relative;
-    top: 0px;
+    top: -60px;
 }
 .message_info {
     color: #00529B;
