@@ -117,6 +117,7 @@ body {
 }
 .message_success {
     color: #edffd9;
+    background-color: rgba(79, 138, 16, 0.7) /* #DFF2BF */ ;
     background-image:url('/images/success.png');
 }
 
