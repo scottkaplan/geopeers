@@ -74,7 +74,7 @@ function is_orientation (requested_orientation) {
     if (typeof(orientation) === 'undefined') {
 	return (false);
     } else {
-	if (orientation == 90 ||
+	if (orientation ==  90 ||
 	    orientation == -90) {
 	    return (requested_orientation == 'landscape');
 	} else {
@@ -328,6 +328,11 @@ var page_mgr = {
     },
     scale_content: function (page_id) {
 	scroll(0, 0);
+	console.log ("screenHeight:"+$.mobile.getScreenHeight());
+	console.log ("ui-header:"+$("#"+page_id+" .ui-header").outerHeight());
+	console.log ("ui-footer:"+$("#"+page_id+" .ui-footer").outerHeight());
+	console.log ("ui-content outerHeight:"+$("#"+page_id+" .ui-content").outerHeight());
+	console.log ("ui-content height:"+$("#"+page_id+" .ui-content").height());
 	var content_height =
 	    $.mobile.getScreenHeight() -
 	    $("#"+page_id+" .ui-header").outerHeight() -
@@ -375,6 +380,7 @@ var my_pos = {
 	    return;
 	if (! position)
 	    return;
+	console.log (Date.now()+": creating green star");
 	var image = 'images/green_star_32x32.png';
 
 	var marker_parms = { marker_id: 'my_pos',
@@ -392,57 +398,59 @@ var my_pos = {
 	    return;
 	
 	var bounds = new google.maps.LatLngBounds ();
-	if (jQuery.isEmptyObject(marker_mgr.markers)) {
-	    if (my_pos.current_position) {
-		// include current position in the bounding box
-		var current_location = new google.maps.LatLng(my_pos.current_position.coords.latitude,
-							      my_pos.current_position.coords.longitude);
-		bounds.extend (current_location);
-	    }
-	} else {
+	// include current position in the bounding box
+	if (my_pos.current_position) {
+	    // include current position in the bounding box
+	    var current_location = new google.maps.LatLng(my_pos.current_position.coords.latitude,
+							  my_pos.current_position.coords.longitude);
+	    bounds.extend (current_location);
+	    console.log (Date.now()+":adding current_location");
+	}
+	if (! jQuery.isEmptyObject(marker_mgr.markers)) {
 	    // create a bounding box with the markers
 	    for (var device_id in marker_mgr.markers) {
 		var sighting = marker_mgr.markers[device_id].sighting;
 		var sighting_location = new google.maps.LatLng(sighting.gps_latitude,
 							       sighting.gps_longitude);
 		bounds.extend (sighting_location);
-	    }
-	    if (my_pos.current_position) {
-		// include current position in the bounding box
-		var current_location = new google.maps.LatLng(my_pos.current_position.coords.latitude,
-							      my_pos.current_position.coords.longitude);
-		bounds.extend (current_location);
+		console.log (Date.now()+":adding sighting_location");
 	    }
 	}
 
 	var map = $('#map_canvas').gmap('get','map');
-	var zoom;
 	if (bounds.isEmpty()) {
+	    // no markers and no current location
+	    console.log (Date.now()+":fitBounds to us_center");
 	    bounds.extend (display_mgr.us_center);
-	    zoom = 4;
+	    map.fitBounds (bounds);
+	    map.setZoom(4);
 	} else {
-	    // if we only have one marker, fitBounds zooms to maximum.
+	    console.log (Date.now()+":fitBounds to markers/curpos");
+	    console.log (bounds.getCenter());
+	    // we have to do this first or getZoom is wrong
+	    map.fitBounds (bounds);
+
+	    // in case we only have one marker, fitBounds zooms to maximum.
 	    // Back off to max_zoom
-	    zoom = Math.min(map.getZoom(), 18)
+	    var zoom = Math.min(map.getZoom(), 18);
+	    map.setZoom(zoom);
 	}
-	map.fitBounds (bounds);
-	map.setZoom(zoom);
-	console.log (bounds.getCenter());
-	console.log (zoom);
 	map.setCenter(bounds.getCenter());
+	map_mgr.resize();
     },
-    reposition: function (position) {
+    reposition: function () {
 	run_position_function (function(position) {
-		if (! position)
-		    return;
-		if (my_pos.marker) {
-		    my_pos.current_position = position;
-		    my_pos.marker[0].setPosition(new google.maps.LatLng(position.coords.latitude,
-									position.coords.longitude));
-		} else {
-		    my_pos.create (position);
-		}
-	    });
+	    if (! position)
+		return;
+	    if (my_pos.marker) {
+		my_pos.current_position = position;
+		my_pos.marker[0].setPosition(new google.maps.LatLng(position.coords.latitude,
+								    position.coords.longitude));
+	    } else {
+		my_pos.create (position);
+	    }
+	});
+	my_pos.pan_zoom();
     },
 };
 
@@ -483,7 +491,7 @@ var device_id_mgr = {
     get: function () {
 	if (! device_id_mgr.device_id) {
 	    device_id_mgr.device_id = device_id_mgr.get_cookie ('device_id');
-	    console.log (device_id_mgr.device_id);
+	    // console.log (device_id_mgr.device_id);
 	}
 	return (device_id_mgr.device_id);
     },
@@ -719,12 +727,13 @@ var marker_mgr = {
     create_marker: function (sighting) {
 	var label_text = marker_mgr.create_label_text (sighting);
 	var marker = $('#map_canvas').gmap('addMarker', {
-		'device_id':    sighting.device_id,
-		'position':     new google.maps.LatLng(sighting.gps_latitude,sighting.gps_longitude),
-		'marker':       MarkerWithLabel,
-		'icon':         'images/pin_wings.png',
-		'labelAnchor':  new google.maps.Point(60, 0),
-		'labelContent': label_text}).click(function(e) {marker_mgr.marker_menu(e, sighting)});
+	    'device_id':    sighting.device_id,
+	    'position':     new google.maps.LatLng(sighting.gps_latitude,sighting.gps_longitude),
+	    'marker':       MarkerWithLabel,
+	    'icon':         'images/pin_wings.png',
+	    'labelAnchor':  new google.maps.Point(60, 0),
+	    'labelContent': label_text}).click(function(e) {marker_mgr.marker_menu(e, sighting)});
+	console.log (Date.now()+":creating marker "+label_text);
 	return ({marker: marker});
     },
     update_markers: function (data, textStatus, jqXHR) {
@@ -748,7 +757,6 @@ var marker_mgr = {
 	    }
 	    // hold the most recent sighting to keep this marker's label up to date
 	    marker_mgr.markers[sighting.device_id].sighting = sighting;
-
 	}
 
 	// update the views of all the markers
@@ -757,7 +765,8 @@ var marker_mgr = {
 	for (var device_id in marker_mgr.markers) {
 	    marker_mgr.update_marker_view (marker_mgr.markers[device_id]);
 	}
-
+	console.log ("update_markers");
+	my_pos.pan_zoom();
 	marker_mgr.overlap_detection();
     },
     overlaps: function (box_1, box_2) {
@@ -987,16 +996,21 @@ var map_mgr = {
 	    var initial_position = new google.maps.LatLng(position.coords.latitude,
 							  position.coords.longitude);
 	    $('#map_canvas').gmap({center: initial_position});
-	    console.log (initial_position);
+	    console.log (Date.now()+":"+initial_position);
 	} else {
 	    // We don't know our current position
 	    // show the whole US
 	    $('#map_canvas').gmap({center: display_mgr.us_center, zoom:8});
+	    console.log (Date.now()+":us_center");
 	}
 
 	var map = $('#map_canvas').gmap('get','map');
 	google.maps.event.addListener(map, 'bounds_changed', marker_mgr.overlap_detection);
 	google.maps.event.addListener(map, 'dragend', my_pos.set_user_action);
+
+	console.log ("map_mgr.create");
+	// adjust for markers (if we got them by now)
+	my_pos.pan_zoom();
     },
     resize: function() {
 	if (page_mgr.get_active_page() === 'index') {
@@ -1167,11 +1181,9 @@ var share_location = {
 	    if (display_type === type) {
 		$('#share_to_'+type).show();
 		$('#share_via_'+type).prop('checked',true).checkboxradio('refresh');
-		console.log (type+" on");
 	    } else {
 		$('#share_to_'+type).hide();
 		$('#share_via_'+type).prop('checked',false).checkboxradio('refresh');
-		console.log (type+" off");
 	    }
 	});
 	if (display_type === 'my_contacts') {
@@ -1599,7 +1611,7 @@ var registration = {
 	}
     },
     get_callback: function (data, textStatus, jqXHR) {
-	console.log (data);
+	// console.log (data);
 	if (data) {
 	    registration.status = 'REGISTERED';
 	    registration.reg_info = data;
@@ -1715,7 +1727,7 @@ function start_heartbeat () {
     // start one beat immediately
     heartbeat();
 
-    // normally, heartbeats are very 60 sec
+    // normally, heartbeats are every 60 sec
     // but queue one heartbeat after 10 sec to try to get past all the initialization foo
     setTimeout(heartbeat, 10 * 1000);
     return;
@@ -1747,14 +1759,8 @@ var init_geo = {
 
 	console.log ("in init");
 
-	// show the spinner in 200mS (.2 sec)
-	// if there are no GPS issues, the map will display quickly and
-	// we don't want the spinner to flash up
-	// setTimeout($('#gps_spinner').show, 200);
-
 	// set this globally to clear the orientation warning on the share management popup
 	// if the device switches into landscape
-
 	// TODO
 	// turn on when GEOP-40 is fixed
 	// window.addEventListener('orientationchange', change_orientation);
@@ -1782,7 +1788,7 @@ var init_geo = {
 
 	// keep updating bounding box pan/zoom for first pan_zoom_window sec
 	// after that, the user has to pan/zoom manually
-	var pan_zoom_window = 30;
+	var pan_zoom_window = 0;
 	for (var i=1; i<pan_zoom_window; i++) {
 	    setTimeout(my_pos.pan_zoom, 1000*i);
 	}
