@@ -309,11 +309,11 @@ var page_mgr = {
 	// install an event handler to clean up the map when we return to the index page
 	$( document ).on( "pagecontainerchange", function( event, ui ) {
 	    var page_id = ui.toPage.attr('id');
+	    console.log (page_id);
+	    // giant hack to fix JQM's habit of shrinking the content height
+	    page_mgr.scale_content(page_id);
 	    if (page_id === 'index') {
 		map_mgr.resize();
-	    } else {
-		// giant hack to fix JQM's habit of shrinking the content height
-		page_mgr.scale_content(page_id);
 	    }
 	} );
 	$( document ).on( "pagecontainerchangefailed", function( event, ui ) {
@@ -1166,7 +1166,7 @@ var share_location = {
 	share_location.clear_elements();
 	$('input[name=share_message]').val('');
 
-	console.log (registration.reg_info);
+	console.log (registration.reg_info.account);
 	if (registration.reg_info &&
 	    registration.reg_info.account &&
 	    ! registration.reg_info.account.name) {
@@ -1747,7 +1747,7 @@ function heartbeat () {
     my_pos.reposition();
 
     // last ditch to keep the UI clean
-    map_mgr.pan_zoom();
+    my_pos.pan_zoom();
 
     // if we get here, schedule the next iteration
     setTimeout(heartbeat, period_secs * 1000);
