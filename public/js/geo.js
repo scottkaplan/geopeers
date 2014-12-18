@@ -426,7 +426,7 @@ var my_pos = {
 	    map.setZoom(4);
 	} else {
 	    console.log (Date.now()+":fitBounds to markers/curpos");
-	    console.log (bounds.getCenter());
+
 	    // we have to do this first or getZoom is wrong
 	    map.fitBounds (bounds);
 
@@ -450,6 +450,7 @@ var my_pos = {
 		my_pos.create (position);
 	    }
 	});
+	console.log ("reposition");
 	my_pos.pan_zoom();
     },
 };
@@ -1165,6 +1166,7 @@ var share_location = {
 	share_location.clear_elements();
 	$('input[name=share_message]').val('');
 
+	console.log (registration.reg_info);
 	if (registration.reg_info &&
 	    registration.reg_info.account &&
 	    ! registration.reg_info.account.name) {
@@ -1571,17 +1573,18 @@ function validate_registration_form () {
     return true;
 }
 
-function update_registration_page () {
+function update_registration_info () {
     if (registration.reg_info && registration.reg_info.account) {
 	$('#registration_form #name').val(registration.reg_info.account.name);
 	$('#registration_form #email').val(registration.reg_info.account.email);
 	$('#registration_form #mobile').val(registration.reg_info.account.mobile);
+	registration.reg_info.account.name ? $('#account_name_box').hide() : $('#account_name_box').show();
     }
     return;
 }
 
 function display_registration () {
-    update_registration_page();
+    update_registration_info();
     $('#registration_form_info').empty();
     page_mgr.switch_page ('registration_page', 'registration_form_info');
     return;
@@ -1611,11 +1614,11 @@ var registration = {
 	}
     },
     get_callback: function (data, textStatus, jqXHR) {
-	// console.log (data);
+	console.log (data);
 	if (data) {
 	    registration.status = 'REGISTERED';
 	    registration.reg_info = data;
-	    update_registration_page();
+	    update_registration_info();
 
 	    // initializations that require registration
 	    init_geo.update_main_menu();
@@ -1744,7 +1747,7 @@ function heartbeat () {
     my_pos.reposition();
 
     // last ditch to keep the UI clean
-    map_mgr.resize();
+    map_mgr.pan_zoom();
 
     // if we get here, schedule the next iteration
     setTimeout(heartbeat, period_secs * 1000);
@@ -1788,7 +1791,7 @@ var init_geo = {
 
 	// keep updating bounding box pan/zoom for first pan_zoom_window sec
 	// after that, the user has to pan/zoom manually
-	var pan_zoom_window = 0;
+	var pan_zoom_window = 5;
 	for (var i=1; i<pan_zoom_window; i++) {
 	    setTimeout(my_pos.pan_zoom, 1000*i);
 	}
