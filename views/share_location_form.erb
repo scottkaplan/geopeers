@@ -68,12 +68,12 @@
     </div>
 
     <div class="box_frame">
-      <div class="box_content">
-	<div style="text-align:center">	
-	  <div id="share_to_my_contacts"
+      <div class="box_content center">
+
+	<div id="share_to_my_contacts"
 	     style="display:none"
 	     class="share_location_my_contacts_display">
-	  <div>
+	  <div style="display:block">
 	    <div class="my_contact_element">
 	      Email
 	    </div>
@@ -89,7 +89,7 @@
 	    <input type="hidden" name="my_contacts_email">
 	  </div>
 
-	  <div>
+	  <div style="display:block">
 	    <div class="my_contact_element">
 	      Mobile
 	    </div>
@@ -106,37 +106,36 @@
 	  </div>
 	</div>
 
-	  <div id="share_to_mobile" style="display:none">
-	    <div style="display:inline-block">
-	      Mobile #: 
-	    </div>
-	    <div style="display:inline-block">
-	      <input type="tel"
-		     name="share_to"
-		     id="share_to"
-		     placeholder="415-555-1212"
-		     class="share_to_group"
-		     >
-	    </div>
+	<div id="share_to_mobile" style="display:none">
+	  <div style="display:inline-block">
+	    Mobile #: 
 	  </div>
-
-	  <div id="share_to_email" style="display:none">
-	    <div style="display:inline-block">
-	      Email:
-	    </div>
-	    <div style="display:inline-block">
-  		<input type="email"
-		       name="share_to"
-		       id="share_to"
-		       placeholder="fred@friendly.com"
-		       class="share_to_group"
-		       >
-	    </div>
+	  <div style="display:inline-block">
+	    <input type="tel"
+		   name="share_to"
+		   id="share_to"
+		   placeholder="415-555-1212"
+		   class="share_to_group"
+		   >
 	  </div>
 	</div>
 
-      </div>
-    </div>
+	<div id="share_to_email" style="display:none">
+	  <div style="display:inline-block">
+	    Email:
+	  </div>
+	  <div style="display:inline-block">
+  	    <input type="email"
+		   name="share_to"
+		   id="share_to"
+		   placeholder="fred@friendly.com"
+		   class="share_to_group"
+		   >
+	  </div>
+	</div>
+
+      </div>	<!-- box_content -->
+    </div>	<!-- box_frame -->
   </div>
 
   <div class="box_outer" id="share_with" style="display:none">
