@@ -1166,7 +1166,7 @@ var share_location = {
 	share_location.clear_elements();
 	$('input[name=share_message]').val('');
 
-	console.log (registration.reg_info.account);
+	console.log (registration.reg_info ? registration.reg_info.account : "No reg_info");
 	if (registration.reg_info &&
 	    registration.reg_info.account &&
 	    ! registration.reg_info.account.name) {
