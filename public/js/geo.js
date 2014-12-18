@@ -341,6 +341,7 @@ var page_mgr = {
 	    $("#"+page_id+" .ui-content").height();
 	$(".ui-content").height(content_height);
 	console.log (content_height);
+	map_mgr.resize();
     },
     switch_page: function (page_id, info_id) {
 	// clear out old errors
@@ -393,6 +394,9 @@ var my_pos = {
 	return;
     },
     pan_zoom: function () {
+	// google maps have a habit of shrinking the display window size
+	map_mgr.resize();
+
 	// Don't update the screen if the user has already interacted with it
 	if (my_pos.user_action)
 	    return;
