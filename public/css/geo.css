@@ -58,6 +58,7 @@ body {
 .menu_div {
     padding: 10px 3px 3px 15px;
     float: left;
+    z-index: 2;
 }
 
 .icon_img {
