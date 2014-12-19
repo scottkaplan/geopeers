@@ -41,6 +41,8 @@ var background_gps = {
 	// Turn ON the background-geolocation system.  The user will be tracked whenever they suspend the app.
 	background_gps.handle.start();
 
+	background_gps.main_menu('start');
+
 	console.log ("init_background_gps - end");
     },
     cmd: function (cmd) {
