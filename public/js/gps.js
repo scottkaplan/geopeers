@@ -20,7 +20,7 @@ var background_gps = {
 	    // resulting in higher accuracy readings.
 	    // 1000 results in lowest power drain and least accurate readings.
 	    // factory default: 10
-	    desiredAccuracy: 100,
+	    desiredAccuracy: 0,
 
 	    // When stopped, the minimum distance the device must move beyond
 	    // the stationary location for aggressive background-tracking to engage.
@@ -28,12 +28,12 @@ var background_gps = {
 	    // In normal conditions, it can take as much as 3 city-blocks to 1/2 km
 	    // before staionary-region exit is detected.
 	    // factory default: 20
-	    stationaryRadius: 100,
+	    stationaryRadius: 10,
 
 	    // The minimum distance (in meters) a device must move horizontally
 	    // before an update event is generated.
 	    // factory default: 30
-	    distanceFilter: 100, 
+	    distanceFilter: 10, 
 	    activityType: 'AutomotiveNavigation',
 	    debug: false	// <-- enable this hear sounds for background-geolocation life-cycle.
 	});
@@ -53,9 +53,12 @@ var background_gps = {
 	    if (cmd === 'start') {
 		background_gps.handle.start();
 		background_gps.main_menu('stop');
+		display_message ('GPS Started', 'message_success', 'geo_info');
 	    } else if (cmd === 'stop') {
 		background_gps.handle.stop();
 		background_gps.main_menu('start');
+		var msg = "GPS Stopped.  Your locations shares you sent to others WILL NOT be updated while the GPS is stopped";
+		display_message (msg, 'message_warning', 'geo_info');
 	    }
 	}
     },
