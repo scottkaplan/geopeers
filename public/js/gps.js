@@ -15,9 +15,25 @@ var background_gps = {
 	    },
 	    notificationTitle: 'Background tracking', // customize the title of the notification
 	    notificationText: 'ENABLED',              // customize the text of the notification
-	    desiredAccuracy: 10,
-	    stationaryRadius: 20,
-	    distanceFilter: 30, 
+	    // Valid values: [0, 10, 100, 1000] (in meters)
+	    // The lower the number, the more power devoted to GeoLocation
+	    // resulting in higher accuracy readings.
+	    // 1000 results in lowest power drain and least accurate readings.
+	    // factory default: 10
+	    desiredAccuracy: 100,
+
+	    // When stopped, the minimum distance the device must move beyond
+	    // the stationary location for aggressive background-tracking to engage.
+	    // the plugin cannot detect the exact moment the device moves out of the stationary-radius.
+	    // In normal conditions, it can take as much as 3 city-blocks to 1/2 km
+	    // before staionary-region exit is detected.
+	    // factory default: 20
+	    stationaryRadius: 100,
+
+	    // The minimum distance (in meters) a device must move horizontally
+	    // before an update event is generated.
+	    // factory default: 30
+	    distanceFilter: 100, 
 	    activityType: 'AutomotiveNavigation',
 	    debug: false	// <-- enable this hear sounds for background-geolocation life-cycle.
 	});
