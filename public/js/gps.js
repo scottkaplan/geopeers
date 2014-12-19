@@ -41,9 +41,30 @@ var background_gps = {
 	// Turn ON the background-geolocation system.  The user will be tracked whenever they suspend the app.
 	background_gps.handle.start();
 
-	// If you wish to turn OFF background-tracking, call the #stop method.
-	// background_gps.handle.stop();
 	console.log ("init_background_gps - end");
+    },
+    cmd: function (cmd) {
+	if (background_gps.handle) {
+	    if (cmd === 'start') {
+		background_gps.handle.start();
+	    } else if (cmd === 'stop') {
+		background_gps.handle.stop();
+	    }
+	}
+    },
+    main_menu: function (cmd) {
+	var onclick_cmd = "background_gps.cmd('"+cmd+"')";
+	if (cmd === 'start') {
+	    $('#gps_cmd_menu_entry')
+		.attr('onclick', onclick_cmd)
+		.text('Start GPS')
+		.show();
+	} else if (cmd === 'stop') {
+	    $('#gps_cmd_menu_entry')
+		.attr('onclick', onclick_cmd)
+		.text('Stop GPS')
+		.show();
+	}
     },
     callback: function (location) {
 	// executed every time a geolocation is recorded in the background.
