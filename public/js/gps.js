@@ -41,7 +41,10 @@ var background_gps = {
 	// Turn ON the background-geolocation system.  The user will be tracked whenever they suspend the app.
 	background_gps.handle.start();
 
-	background_gps.main_menu('start');
+	// update the main menu to activate the GPS control item
+	// and initialize it to turn off the GPS service we just turned on
+	$('#gps_cmd').show();
+	background_gps.main_menu('stop');
 
 	console.log ("init_background_gps - end");
     },
@@ -49,8 +52,10 @@ var background_gps = {
 	if (background_gps.handle) {
 	    if (cmd === 'start') {
 		background_gps.handle.start();
+		background_gps.main_menu('stop');
 	    } else if (cmd === 'stop') {
 		background_gps.handle.stop();
+		background_gps.main_menu('start');
 	    }
 	}
     },
@@ -59,13 +64,11 @@ var background_gps = {
 	if (cmd === 'start') {
 	    $('#gps_cmd_menu_entry')
 		.attr('onclick', onclick_cmd)
-		.text('Start GPS')
-		.show();
+		.text('Start GPS');
 	} else if (cmd === 'stop') {
 	    $('#gps_cmd_menu_entry')
 		.attr('onclick', onclick_cmd)
-		.text('Stop GPS')
-		.show();
+		.text('Stop GPS');
 	}
     },
     callback: function (location) {
