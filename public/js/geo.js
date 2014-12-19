@@ -1153,9 +1153,9 @@ var share_location = {
     clear_elements: function () {
 	$('#share_to_my_contacts').hide();
 	$('input[name=my_contacts_email]').val('');
-	$('input[name=my_contacts_email_dropdown]').val('');
+	$('input[name=my_contacts_email_dropdown]').empty();
 	$('input[name=my_contacts_mobile]').val('');
-	$('input[name=my_contacts_mobile_dropdown]').val('');
+	$('input[name=my_contacts_mobile_dropdown]').empty();
 	$('input[name=share_via]').val('');
 	$('input[name=share_to]').val('');
 	$('input[name=share_device_id]').val('');
@@ -1502,14 +1502,18 @@ function manage_shares_callback (data, textStatus, jqXHR) {
 	$('#manage_msg').show();
     }
 
-    var dt = $('#manage_table').dataTable( {
-	retrieve:     true,
-	searching:    false,
-	lengthChange: false,
-	paging:       false,
-	scrollX:      true,
-	order:        [ [ 3, 'desc' ], [ 2, 'desc' ] ],
-    } );
+    if ($('#manage_table').dataTable.isDataTable()) {
+	$('#manage_table').dataTable.draw();
+    } else {
+	$('#manage_table').dataTable( {
+	    retrieve:     true,
+	    searching:    false,
+	    lengthChange: false,
+	    paging:       false,
+	    scrollX:      true,
+	    order:        [ [ 3, 'desc' ], [ 2, 'desc' ] ],
+	} );
+    }
 
     // only show the checkbox UI control if there are expired shares
     if (have_expired_shares) {
