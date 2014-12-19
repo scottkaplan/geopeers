@@ -123,7 +123,6 @@ body {
     background-color: rgba(79, 138, 16, 0.7) /* #DFF2BF */ ;
     background-image:url('/images/success.png');
 }
-
 .message_warning {
     color: #9F6000;
     background-color: rgba(254, 239, 179, 0.5) /* #FEEFB3 */ ;
