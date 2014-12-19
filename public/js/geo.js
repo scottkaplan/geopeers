@@ -1098,7 +1098,7 @@ var my_contacts = {
 		    $('input:input[name=my_contacts_mobile]').val(mobile);
 		} else {
 		    my_contacts.populate_dropdown ('my_contacts_mobile_dropdown', contact.phoneNumbers);
-		    $('#my_contacts_mobile_dropdown_div').show();
+		    $('#my_contacts_mobile_dropdown_div').css('display', 'inline-block');
 		}
 	    } else {
 		$('#my_contacts_mobile').html("<i>None</i>");
@@ -1115,7 +1115,7 @@ var my_contacts = {
 		    $('input:input[name=my_contacts_email]').val(email);
 		} else {
 		    my_contacts.populate_dropdown ('my_contacts_email_dropdown', contact.emails);
-		    $('#my_contacts_email_dropdown_div').show();
+		    $('#my_contacts_email_dropdown_div').css('display', 'inline-block');
 		}
 	    } else {
 		$('#my_contacts_email').html("<i>None</i>");
