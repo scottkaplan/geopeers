@@ -20,7 +20,7 @@ var background_gps = {
 	    // resulting in higher accuracy readings.
 	    // 1000 results in lowest power drain and least accurate readings.
 	    // factory default: 10
-	    desiredAccuracy: 0,
+	    desiredAccuracy: 2,
 
 	    // When stopped, the minimum distance the device must move beyond
 	    // the stationary location for aggressive background-tracking to engage.
