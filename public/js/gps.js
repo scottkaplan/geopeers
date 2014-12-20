@@ -57,7 +57,7 @@ var background_gps = {
 	    } else if (cmd === 'stop') {
 		background_gps.handle.stop();
 		background_gps.main_menu('start');
-		var msg = "GPS Stopped.  Your locations shares you sent to others WILL NOT be updated while the GPS is stopped";
+		var msg = "GPS Stopped.<p>The location shares you sent to others WILL NOT be updated while the GPS is stopped";
 		display_message (msg, 'message_warning', 'geo_info');
 	    }
 	}
