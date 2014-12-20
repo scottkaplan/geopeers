@@ -454,7 +454,6 @@ var my_pos = {
 		my_pos.create (position);
 	    }
 	});
-	console.log ("reposition");
 	my_pos.pan_zoom();
     },
 };
@@ -596,24 +595,24 @@ var marker_mgr = {
 	var elapsed_sec = Math.round ((Date.now() - Date.parse(sighting.sighting_time)) / 1000);
 	var elapsed_str;
 	if (elapsed_sec < 60) {
-	    elapsed_str = elapsed_sec + ' seconds';
+	    elapsed_str = elapsed_sec + ' secs';
 	} else {
 	    var elapsed_min = Math.round (elapsed_sec / 60);
 	    if (elapsed_min < 60) {
-		elapsed_str = marker_mgr.create_time_elem_str (elapsed_min, 'minute');
+		elapsed_str = marker_mgr.create_time_elem_str (elapsed_min, 'min');
 	    } else {
 		var elapsed_hr = Math.round (elapsed_min / 60);
 		elapsed_min = elapsed_min % 60;
 		if (elapsed_hr < 24) {
-		    elapsed_str = marker_mgr.create_time_elem_str (elapsed_hr, 'hour');
+		    elapsed_str = marker_mgr.create_time_elem_str (elapsed_hr, 'hr');
 		    elapsed_str += ' ';
-		    elapsed_str += marker_mgr.create_time_elem_str (elapsed_min, 'minute');
+		    elapsed_str += marker_mgr.create_time_elem_str (elapsed_min, 'min');
 		} else {
 		    var elapsed_day = Math.round (elapsed_hr / 24);
 		    elapsed_hr = elapsed_hr % 24;
 		    elapsed_str = marker_mgr.create_time_elem_str (elapsed_day, 'day');
 		    elapsed_str += ' ';
-		    elapsed_str += marker_mgr.create_time_elem_str (elapsed_hr, 'hour');
+		    elapsed_str += marker_mgr.create_time_elem_str (elapsed_hr, 'hr');
 		}
 	    }
 	}
@@ -770,7 +769,6 @@ var marker_mgr = {
 	for (var device_id in marker_mgr.markers) {
 	    marker_mgr.update_marker_view (marker_mgr.markers[device_id]);
 	}
-	console.log ("update_markers");
 	my_pos.pan_zoom();
 	marker_mgr.overlap_detection();
     },
