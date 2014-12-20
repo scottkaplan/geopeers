@@ -382,7 +382,7 @@ var my_pos = {
 	if (! position)
 	    return;
 	console.log (Date.now()+": creating green star");
-	var image = 'images/green_star_32x32.png';
+	var image = 'images/current_location.png';
 
 	var marker_parms = { marker_id: 'my_pos',
 			     icon: image,
