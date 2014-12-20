@@ -1204,9 +1204,9 @@ class Protocol
       return response
     end
 
+    saw_field = false;
     ['mobile','email', 'mobile_dropdown', 'email_dropdown'].each do | field_type |
       my_contacts_field = "my_contacts_#{field_type}"
-      saw_field = false;
       if params[my_contacts_field]
         $LOG.debug params[my_contacts_field]
         type = field_type.sub(/_dropdown/, '')
@@ -1219,8 +1219,8 @@ class Protocol
         Logging.milestone ("Share by #{my_contacts_field} to #{share_to} via #{type}")
         saw_field = true
       end
-      return response if saw_field
     end
+    return response if saw_field
       
     share_to = first_string params['share_to']
     $LOG.debug share_to
