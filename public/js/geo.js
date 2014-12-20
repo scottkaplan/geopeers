@@ -777,8 +777,6 @@ var marker_mgr = {
     overlaps: function (box_1, box_2) {
 	if (! box_1 || ! box_1)
 	    return (false);
-	console.log (box_1);
-	console.log (box_2);
 	var x_overlap =
 	    (box_1.x <= box_2.x && box_2.x <= box_1.x+box_1.width) ||
 	    (box_2.x <= box_1.x && box_1.x <= box_2.x+box_2.width);
@@ -1159,6 +1157,7 @@ var share_location = {
 	$('input[name=share_via]').val('');
 	$('input[name=share_to]').val('');
 	$('input[name=share_device_id]').val('');
+	$('.share_to_group').val('');
     },
     clear_page: function () {
 	// start by showing the share_location form 
@@ -1180,8 +1179,7 @@ var share_location = {
 	}
     },
     set_share_to: function (display_type) {
-	// my_contacts.select_contact()
-	$('.share_to_group').val("");
+	share_location.clear_elements();
 	$.each(['email', 'mobile', 'my_contacts'], function (i, type) {
 	    $('#share_via_'+type).checkboxradio();
 	    if (display_type === type) {
@@ -1195,7 +1193,6 @@ var share_location = {
 	if (display_type === 'my_contacts') {
 	    my_contacts.select_contact();
 	}
-	share_location.clear_elements();
     },
     main_page: function () {
 	var allow_webapp_shares = false;	// used for testing
