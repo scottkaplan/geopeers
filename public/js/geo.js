@@ -1151,9 +1151,9 @@ var share_location = {
     clear_elements: function () {
 	$('#share_to_my_contacts').hide();
 	$('input[name=my_contacts_email]').val('');
-	$('input[name=my_contacts_email_dropdown]').empty();
+	$('#my_contacts_email_dropdown').empty();
 	$('input[name=my_contacts_mobile]').val('');
-	$('input[name=my_contacts_mobile_dropdown]').empty();
+	$('#my_contacts_mobile_dropdown').empty();
 	$('input[name=share_via]').val('');
 	$('input[name=share_to]').val('');
 	$('input[name=share_device_id]').val('');
