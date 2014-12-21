@@ -49,6 +49,7 @@ var background_gps = {
 	// and initialize it to turn off the GPS service we just turned on
 	$('#gps_cmd').show();
 	background_gps.main_menu('stop');
+	window.addEventListener("batterystatus", background_gps.battery_callback, false);
 
 	console.log ("init_background_gps - end");
     },
@@ -78,6 +79,12 @@ var background_gps = {
 		.text('Stop GPS');
 	}
     },
+    battery_level: null,
+    battery_is_plugged: null,
+    battery_callback: function (info) {
+	background_gps.battery_level = info.level;
+	background_gps.battery_is_plugged = info.isPlugged;
+    },
     callback: function (location) {
 	// executed every time a geolocation is recorded in the background.
 	console.log('callback:' + location.latitude + ',' + location.longitude);
@@ -88,9 +95,17 @@ var background_gps = {
 	// IF YOU DON'T, ios will CRASH YOUR APP for spending too much time in the background.
 	background_gps.handle.finish();
 
+	var battery_level = null;
+	if (background_gps.battery_level &&
+	    ! background_gps.battery_is_plugged) {
+	    // we don't care about battery_level when the device is plugged in
+	    battery_level = background_gps.battery_level;
+	}
+
 	// POST location to server
 	var request_parms = { gps_longitude: location.longitude,
 			      gps_latitude:  location.latitude,
+			      battery_level: battery_level,
 			      method:        'send_position',
 			      device_id:     device_id_mgr.get(),
 	};
