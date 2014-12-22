@@ -354,7 +354,8 @@ var page_mgr = {
 	    $('#geo_info').empty();
 	}
 	$(":mobile-pagecontainer").pagecontainer("change", '#'+page_id,
-						 {transition: 'slide'});
+						 {transition: 'slide',
+						  changeHash: false});
 	return;
     },
     get_active_page: function () {
