@@ -87,11 +87,13 @@ var background_gps = {
     },
     callback: function (location) {
 	// executed every time a geolocation is recorded in the background.
-	console.log('callback:' + location.latitude + ',' + location.longitude);
-	console.log (this);
+
+	// Android will not call this callback
+	// The plugin manages sync-ing GeoLocations to your server automatically,
+	// using the configured url, params and headers from the configure() called in init
+	
 	// You must execute the #finish method here
 	// to inform the native plugin that you're finished,
-	// and the background-task may be completed.
 	// IF YOU DON'T, ios will CRASH YOUR APP for spending too much time in the background.
 	background_gps.handle.finish();
 
