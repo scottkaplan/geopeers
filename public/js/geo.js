@@ -355,7 +355,7 @@ var page_mgr = {
 	}
 	$(":mobile-pagecontainer").pagecontainer("change", '#'+page_id,
 						 {transition: 'slide',
-						  changeHash: false});
+						  changeHash: true});
 	return;
     },
     get_active_page: function () {
@@ -1207,7 +1207,7 @@ var share_location = {
     callback:  function (data, textStatus, jqXHR) {
 	form_request_callback (data, 'share_location_form_spinner', 'share_location_form_info');
 
-	// in case the name was updated, update registration.reg_info
+	// in case the name was updated, update registration.reg_info from server
 	registration.init();
 	return;
     },
@@ -1319,12 +1319,10 @@ function config_callback (data, textStatus, jqXHR) {
 	setTimeout(function() {
 	    background_gps.init ();
 
-	    // sets registration.status
 	    registration.init();
 	    start_heartbeat();
 	}, 1000);
     } else {
-	// sets registration.status
 	registration.init();
 	start_heartbeat();
     }
@@ -1508,6 +1506,7 @@ function manage_shares_callback (data, textStatus, jqXHR) {
 	    paging:       false,
 	    scrollX:      true,
 	    order:        [ [ 3, 'desc' ], [ 2, 'desc' ] ],
+	    aoColumns:    [ { sWidth: '210px' }, { sWidth: '100px' } ]
 	} );
     }
 
@@ -1596,38 +1595,25 @@ function display_registration () {
 
 var registration = {
     // registration.init() launches request to get registration status
-    // manages the callback and the status variable
-
-    // status isn't used anymore
-    status : null,
+    // manages the callback and cache the reg_info
 
     reg_info : null,
     init: function () {
-	if (registration.status == 'REGISTERED' || registration.status == 'CHECKING')
-	    return;
 	var device_id = device_id_mgr.get();
 	if (device_id) {
 	    var request_parms = { method: 'get_registration',
 				  device_id: device_id};
 	    ajax_request (request_parms, registration.get_callback, geo_ajax_fail_callback);
-	    // while the request/response is in the air, we're in an indeterminant state
-	    // Anyone who cares about the registration status should assume that the popup 
-	    // has been filled out and is in the air.
-	    // So don't pop it up again
-	    registration.status = 'CHECKING';
 	}
     },
     get_callback: function (data, textStatus, jqXHR) {
 	console.log (data);
 	if (data) {
-	    registration.status = 'REGISTERED';
 	    registration.reg_info = data;
-	    update_registration_info();
 
 	    // initializations that require registration
+	    update_registration_info();
 	    init_geo.update_main_menu();
-	} else {
-	    registration.status = null;
 	}
     },
     send: function () {
@@ -1641,12 +1627,11 @@ var registration = {
     send_callback: function (data, textStatus, jqXHR) {
 	$('#registration_form_spinner').hide();
 	if (data) {
-	    registration.status = 'REGISTERED';
 	    display_message (data.message, 'message_success', 'registration_form_info');
 	} else {
 	    display_message ('No data', 'message_error', 'registration_form_info');
 	}
-	// update reg_info
+	// update reg_info from server
 	registration.init();
 	return;
     },
