@@ -54,3 +54,5 @@ gem 'rmagick', '~> 2.13.3'
 # gem 'debugger', group: [:development, :test]
 
 gem 'simplecov', :require => false, :group => :test
+
+gem 'i18n', '~> 0.6.11'
