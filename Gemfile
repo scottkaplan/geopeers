@@ -41,6 +41,11 @@ end
 
 gem 'rmagick', '~> 2.13.3'
 
+gem 'simplecov', :require => false, :group => :test
+
+gem 'i18n', '~> 0.6.11'
+gem 'aws-sdk', '~> 2'
+
 # Use ActiveModel has_secure_password
 # gem 'bcrypt', '~> 3.1.7'
 
@@ -52,7 +57,3 @@ gem 'rmagick', '~> 2.13.3'
 
 # Use debugger
 # gem 'debugger', group: [:development, :test]
-
-gem 'simplecov', :require => false, :group => :test
-
-gem 'i18n', '~> 0.6.11'
