@@ -140,7 +140,7 @@ def update_phonegap_repo
   run_cmd cmd
 end
 
-def build
+def build_native
   puts "Pull webapp repo"
   pull_webapp()
 
@@ -173,4 +173,46 @@ def build
   puts "Done"
 end
 
-build()
+def get_production_ami
+end
+
+def launch_ami ami_id
+end
+
+def create_ami ip
+
+end
+
+def build_appserver
+  require "#{Webapp_dir}/geopeers/geo.rb"
+  init()
+
+  puts "Launch production AMI"
+  production_ami_id = get_global ('production_ami_id')
+  ip = launch_ami (production_ami_id)
+
+  puts "Pull webapp repo"
+  pull_webapp()
+
+  require "#{Webapp_dir}/geopeers/geo.rb"
+  init()
+
+  puts "Create integrated/minified JS"
+  js()
+
+  puts "Create integrated/minified CSS"
+  css()
+
+  # restart httpd server
+  # test new server
+  ami_id = create_ami (ip)
+
+  # spin up new ASG w/new ELB
+  # test new ELB
+  # swing DNS to new ELB
+  # update production AMI id
+
+  puts "Done"
+end
+
+build_appserver()
