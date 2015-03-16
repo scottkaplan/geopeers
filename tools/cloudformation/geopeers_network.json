@@ -16,8 +16,7 @@
 		"NatAmiId"              : "ami-4c9e4b24",
 		"BastionKeyName"        : "geopeers",
 		"BastionInstanceType"   : "t2.micro",
-		"BastionAmiId"          : "ami-b66ed3de",
-		"BastionIpAllocationId" : "eipalloc-9c4bf6f9"
+		"BastionAmiId"          : "ami-b66ed3de"
 	    },
 	    "us-west-1" : {
 		"CidrBlock"             : "10.2.0.0/16",
@@ -25,11 +24,10 @@
 		"AZ"                    : "us-west-1a",
 		"NatKeyName"            : "geopeers",
 		"NatInstanceType"       : "t2.micro",
-		"NatAmiId"              : "ami-4c9e4b24",
+		"NatAmiId"              : "ami-2b2b296e",
 		"BastionKeyName"        : "geopeers",
 		"BastionInstanceType"   : "t2.micro",
-		"BastionAmiId"          : "ami-b66ed3de",
-		"BastionIpAllocationId" : "eipalloc-10d63275"
+		"BastionAmiId"          : "ami-4b6f650e"
 	    },
 	    "us-west-2" : {
 		"CidrBlock"             : "10.3.0.0/16",
@@ -37,17 +35,16 @@
 		"AZ"                    : "us-west-2a",
 		"NatKeyName"            : "geopeers",
 		"NatInstanceType"       : "t2.micro",
-		"NatAmiId"              : "ami-4c9e4b24",
+		"NatAmiId"              : "ami-bb69128b",
 		"BastionKeyName"        : "geopeers",
 		"BastionInstanceType"   : "t2.micro",
-		"BastionAmiId"          : "ami-b66ed3de",
-		"BastionIpAllocationId" : "eipalloc-9eaf73fb"
-	    },
-    }
+		"BastionAmiId"          : "ami-b5a7ea85"
+	    }
+	},
 
 	"AZParms" : {
-	    "us-east-1a" : {
-		"PublicCidrBlock"  : "10.1.1.0/24",
+       	    "us-east-1a" : {
+	        "PublicCidrBlock"  : "10.1.1.0/24",
 		"PrivateCidrBlock" : "10.1.11.0/24"
 	    },
 	    "us-east-1c" : {
@@ -122,22 +119,17 @@
 	    "Type" : "AWS::EC2::Subnet",
 	    "Properties" : {
 		"VpcId" : { "Ref" : "VPC" },
-				"AvailabilityZone" : {
-		    "Fn::Select" : [
-			0,
-			{
+		"AvailabilityZone" : {
 			    "Fn::FindInMap" : [
 				"RegionParms",
 				{ "Ref" : "AWS::Region" },
-				"AZs"
+				"AZ"
 			    ]
-			}
-		    ]
 		},
 		"CidrBlock" : {
 		    "Fn::FindInMap" : [
 			"AZParms",
-			"us-east-1a",
+			"us-west-2a",
 			"PublicCidrBlock"
 		    ]
 		},
@@ -160,13 +152,15 @@
 	    "Type" : "AWS::EC2::Subnet",
 	    "Properties" : {
 		"VpcId" : { "Ref" : "VPC" },
-		"AvailabilityZone" : { "Fn::Select" : [ 0,
-							{"Fn::FindInMap" : ["RegionParms",
-									    {"Ref" : "AWS::Region"},
-									    "AZs"] }
-						      ] },
+		"AvailabilityZone" : {
+			    "Fn::FindInMap" : [
+				"RegionParms",
+				{ "Ref" : "AWS::Region" },
+				"AZ"
+			    ]
+		},
 		"CidrBlock" : { "Fn::FindInMap" : ["AZParms",
-						   "us-east-1a",
+						   "us-west-2a",
 						   "PrivateCidrBlock"] },
 		"Tags" : [
 		    {"Key" : "Application", "Value" : { "Ref" : "AWS::StackName"} },
@@ -235,8 +229,23 @@
 		    "DeleteOnTermination"      : "true"
 		}],
 		"Tags" : [
-		    { "Key" : "Name", "Value" : "NAT A" }
-		]
+		    { "Key" : "Name", "Value" : "NAT" }
+		],
+		"UserData" : {
+		    "Fn::Base64" : {
+			"Fn::Join" : [
+			    "\n", [
+				"#!/bin/bash -xe",
+				"/usr/bin/yum -y install emacs telnet tcpdump git compat-libtermcap",
+				"/usr/sbin/useradd geopeers",
+				"/usr/bin/git clone https://scott:scott_kaplan@magtogo.gitsrc.com/git/chef-repo.git",
+				"/usr/bin/curl https://opscode-omnibus-packages.s3.amazonaws.com/el/6/x86_64/chefdk-0.3.5-1.x86_64.rpm -o chefdk-0.3.5-1.x86_64.rpm",
+				"/bin/rpm -U chefdk-0.3.5-1.x86_64.rpm",
+				"\n"
+			    ]
+			]
+		    }
+		}
 	    }
 	},
 
@@ -249,10 +258,7 @@
 		    {
 			"IpProtocol" : "tcp",
 			"FromPort" : "22",
-			"ToPort" : "22",
-			"CidrIp" : { "Fn::FindInMap" : ["RegionParms",
-							{ "Ref" : "AWS::Region" },
-							"CidrBlock"] }
+			"ToPort" : "22"
 		    },
 		    {
 			"IpProtocol" : "tcp",
@@ -297,75 +303,10 @@
 	    }
 	},
 	
-	"BastionSecurityGroup" : {
-	    "Type" : "AWS::EC2::SecurityGroup",
-	    "Properties" : {
-		"GroupDescription" : "Bastion Security Group",
-		"VpcId" : { "Ref" : "VPC" },
-		"SecurityGroupIngress" : [
-		    {
-			"IpProtocol" : "tcp",
-			"FromPort" : "22",
-			"ToPort" : "22",
-			"CidrIp" : "0.0.0.0/0"
-		    }
-		],
-		"Tags" : [
-		    { "Key" : "Name", "Value" : "Bastion Security Group" }
-		]
-	    }
-	},
-
-	"BastionInstance": {  
-	    "Type": "AWS::EC2::Instance",
-	    "Properties": {
-		"ImageId" : { "Ref" : "AmiId"},
-		"ImageId" : {
-		    "Fn::FindInMap" : ["RegionParms",
-				       { "Ref" : "AWS::Region" } ,
-				       "BastionAmiId"]
-		},
-		"KeyName" : {
-		    "Fn::FindInMap" : [
-			"RegionParms",
-			{"Ref" : "AWS::Region"},
-			"BastionKeyName"
-		    ]
-		},
-		"InstanceType" : {
-		    "Fn::FindInMap" : [
-			"RegionParms",
-			{ "Ref" : "AWS::Region" },
-			"BastionInstanceType"
-		    ]
-		},
-		"SubnetId": { "Ref" : "PublicSubnet" },
-		"SecurityGroupIds" : [ { "Ref" : "BastionSecurityGroup" } ],
-		"Tags": [ { "Key" : "Name", "Value": "bastion" } ],
-		"SourceDestCheck": "false",
-		"Monitoring" : "true",
-		"UserData" : {
-		    "Fn::Base64" : {
-			"Fn::Join" : [
-			    "\n", [
-				"#!/bin/bash -xe",
-				"/usr/bin/yum -y install emacs telnet tcpdump git compat-libtermcap",
-				"/usr/sbin/useradd geopeers",
-				"/usr/bin/git clone https://scott:scott_kaplan@magtogo.gitsrc.com/git/chef-repo.git",
-				"/usr/bin/curl https://opscode-omnibus-packages.s3.amazonaws.com/el/6/x86_64/chefdk-0.3.5-1.x86_64.rpm -o chefdk-0.3.5-1.x86_64.rpm",
-				"/bin/rpm -U chefdk-0.3.5-1.x86_64.rpm",
-				"\n"
-			    ]
-			]
-		    }
-		}
-	    }
-	},
-
 	"BastionEIPAddress" : {
 	    "Type" : "AWS::EC2::EIP",
 	    "Properties" : {
-		"InstanceId" : { "Ref" : "BastionInstance" },
+		"InstanceId" : { "Ref" : "PublicSubnetNATInstance" },
 		"Domain"     : "vpc"
 	    }
 	},
@@ -374,7 +315,7 @@
 	    "Type" : "AWS::EC2::EIPAssociation",
 	    "DependsOn" : "AttachGateway",
 	    "Properties" : {
-		"InstanceId" : { "Ref" : "BastionInstance" },
+		"InstanceId" : { "Ref" : "PublicSubnetNATInstance" },
 		"AllocationId" : { "Fn::GetAtt" : [ "BastionEIPAddress", "AllocationId" ]}
 	    }
 	},
@@ -387,7 +328,7 @@
 		"Name" : "bastion.geopeers.com",
 		"Type" : "A",
 		"TTL" : "900",
-		"ResourceRecords" : [ { "Fn::GetAtt" : [ "BastionInstance", "PublicIp" ] } ]
+		"ResourceRecords" : [ { "Fn::GetAtt" : [ "PublicSubnetNATInstance", "PublicIp" ] } ]
             }
 	}
     },
