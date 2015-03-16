@@ -180,6 +180,7 @@ def launch_ami ami_id
 end
 
 def create_ami ip
+<<<<<<< HEAD
   
 end
 
@@ -188,6 +189,19 @@ def build_appserver
   production_ami_id = get_production_ami()
   ip = launch_ami (production_ami_id)
   
+=======
+
+end
+
+def build_appserver
+  require "#{Webapp_dir}/geopeers/geo.rb"
+  init()
+
+  puts "Launch production AMI"
+  production_ami_id = get_global ('production_ami_id')
+  ip = launch_ami (production_ami_id)
+
+>>>>>>> c6c890d4b0e16402d385d2a0031c4d78b0a261a5
   puts "Pull webapp repo"
   pull_webapp()
 
@@ -212,4 +226,8 @@ def build_appserver
   puts "Done"
 end
 
+<<<<<<< HEAD
 build_native()
+=======
+build_appserver()
+>>>>>>> c6c890d4b0e16402d385d2a0031c4d78b0a261a5
