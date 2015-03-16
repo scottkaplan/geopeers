@@ -1,0 +1,410 @@
+{
+    "AWSTemplateFormatVersion" : "2010-09-09",
+
+    "Description" : "Build VPC w/INET GW, public & private subnets, bastion host and NAT",
+
+    "Parameters" : {
+    },
+
+    "Mappings" : {
+	"RegionParms" : {
+	    "us-east-1" : {
+		"CidrBlock"             : "10.1.0.0/16",
+		"AZs"                   : [ "us-east-1a", "us-east-1c" ],
+		"NatKeyName"            : "geopeers",
+		"NatInstanceType"       : "t2.micro",
+		"NatAmiId"              : "ami-4c9e4b24",
+		"BastionKeyName"        : "geopeers",
+		"BastionInstanceType"   : "t2.micro",
+		"BastionAmiId"          : "ami-b66ed3de",
+		"BastionIpAllocationId" : "eipalloc-9c4bf6f9"
+	    },
+	    "us-west-1" : {
+		"CidrBlock"             : "10.2.0.0/16",
+		"AZs"                   : [ "us-west-1a" ],
+		"AZ"                    : "us-west-1a",
+		"NatKeyName"            : "geopeers",
+		"NatInstanceType"       : "t2.micro",
+		"NatAmiId"              : "ami-4c9e4b24",
+		"BastionKeyName"        : "geopeers",
+		"BastionInstanceType"   : "t2.micro",
+		"BastionAmiId"          : "ami-b66ed3de",
+		"BastionIpAllocationId" : "eipalloc-10d63275"
+	    },
+	    "us-west-2" : {
+		"CidrBlock"             : "10.3.0.0/16",
+		"AZs"                   : [ "us-west-2a" ],
+		"AZ"                    : "us-west-2a",
+		"NatKeyName"            : "geopeers",
+		"NatInstanceType"       : "t2.micro",
+		"NatAmiId"              : "ami-4c9e4b24",
+		"BastionKeyName"        : "geopeers",
+		"BastionInstanceType"   : "t2.micro",
+		"BastionAmiId"          : "ami-b66ed3de",
+		"BastionIpAllocationId" : "eipalloc-9eaf73fb"
+	    },
+    }
+
+	"AZParms" : {
+	    "us-east-1a" : {
+		"PublicCidrBlock"  : "10.1.1.0/24",
+		"PrivateCidrBlock" : "10.1.11.0/24"
+	    },
+	    "us-east-1c" : {
+		"PublicCidrBlock"  : "10.1.2.0/24",
+		"PrivateCidrBlock" : "10.1.12.0/24"
+	    },
+	    "us-west-1a": {
+		"PublicCidrBlock"  : "10.2.1.0/24",
+		"PrivateCidrBlock" : "10.2.11.0/24"
+	    },
+	    "us-west-2a": {
+		"PublicCidrBlock"  : "10.3.1.0/24",
+		"PrivateCidrBlock" : "10.3.11.0/24"
+	    }
+	}
+    },
+
+    "Resources" : {
+
+	"VPC" : {
+	    "Type" : "AWS::EC2::VPC",
+	    "Properties" : {
+		"CidrBlock" : { "Fn::FindInMap" : ["RegionParms",
+						   { "Ref" : "AWS::Region" } ,
+						   "CidrBlock"] },
+		"Tags" : [
+		    {"Key" : "Application", "Value" : { "Ref" : "AWS::StackName"} },
+		    {"Key" : "Network", "Value" : "Public" }
+		]
+	    }
+	},
+
+	"InternetGateway" : {
+	    "Type" : "AWS::EC2::InternetGateway",
+	    "Properties" : {
+		"Tags" : [
+		    {"Key" : "Application", "Value" : { "Ref" : "AWS::StackName"} },
+		    {"Key" : "Network", "Value" : "Public" }
+		]
+	    }
+	},
+
+	"AttachGateway" : {
+	    "Type" : "AWS::EC2::VPCGatewayAttachment",
+	    "Properties" : {
+		"VpcId" : { "Ref" : "VPC" },
+		"InternetGatewayId" : { "Ref" : "InternetGateway" }
+	    }
+	},
+
+	"PublicRouteTable" : {
+	    "Type" : "AWS::EC2::RouteTable",
+	    "Properties" : {
+		"VpcId" : {"Ref" : "VPC"},
+		"Tags" : [
+		    {"Key" : "Application", "Value" : { "Ref" : "AWS::StackName"} },
+		    {"Key" : "Network", "Value" : "Public" }
+		]
+	    }
+	},
+	
+	"PublicRoute" : {
+	    "Type" : "AWS::EC2::Route",
+	    "Properties" : {
+		"RouteTableId" : { "Ref" : "PublicRouteTable" },
+		"DestinationCidrBlock" : "0.0.0.0/0",
+		"GatewayId" : { "Ref" : "InternetGateway" }
+	    }
+	},
+	
+	"PublicSubnet" : {
+	    "Type" : "AWS::EC2::Subnet",
+	    "Properties" : {
+		"VpcId" : { "Ref" : "VPC" },
+				"AvailabilityZone" : {
+		    "Fn::Select" : [
+			0,
+			{
+			    "Fn::FindInMap" : [
+				"RegionParms",
+				{ "Ref" : "AWS::Region" },
+				"AZs"
+			    ]
+			}
+		    ]
+		},
+		"CidrBlock" : {
+		    "Fn::FindInMap" : [
+			"AZParms",
+			"us-east-1a",
+			"PublicCidrBlock"
+		    ]
+		},
+		"Tags" : [
+		    {"Key" : "Application", "Value" : { "Ref" : "AWS::StackName"} },
+		    {"Key" : "Network", "Value" : "Public" }
+		]
+	    }
+	},
+
+	"PublicSubnetRouteTableAssociation" : {
+	    "Type" : "AWS::EC2::SubnetRouteTableAssociation",
+	    "Properties" : {
+		"SubnetId" : { "Ref" : "PublicSubnet" },
+		"RouteTableId" : { "Ref" : "PublicRouteTable" }
+	    }
+	},
+
+	"PrivateSubnet" : {
+	    "Type" : "AWS::EC2::Subnet",
+	    "Properties" : {
+		"VpcId" : { "Ref" : "VPC" },
+		"AvailabilityZone" : { "Fn::Select" : [ 0,
+							{"Fn::FindInMap" : ["RegionParms",
+									    {"Ref" : "AWS::Region"},
+									    "AZs"] }
+						      ] },
+		"CidrBlock" : { "Fn::FindInMap" : ["AZParms",
+						   "us-east-1a",
+						   "PrivateCidrBlock"] },
+		"Tags" : [
+		    {"Key" : "Application", "Value" : { "Ref" : "AWS::StackName"} },
+		    {"Key" : "Network", "Value" : "Private" }
+		]
+	    }
+	},
+
+	"PrivateRouteTable" : {
+	    "Type" : "AWS::EC2::RouteTable",
+	    "Properties" : {
+		"VpcId" : {"Ref" : "VPC"},
+		"Tags" : [
+		    {"Key" : "Application", "Value" : { "Ref" : "AWS::StackName"} },
+		    {"Key" : "Network", "Value" : "Public" }
+		]
+	    }
+	},
+	
+	"PrivateRoute" : {
+	    "Type" : "AWS::EC2::Route",
+	    "DependsOn" : "PublicSubnetNATInstance",
+	    "Properties" : {
+		"RouteTableId" : { "Ref" : "PrivateRouteTable" },
+		"DestinationCidrBlock" : "0.0.0.0/0",
+		"InstanceId" : { "Ref" : "PublicSubnetNATInstance" }
+	    }
+	},
+	
+	"PrivateSubnetRouteTableAssociation" : {
+	    "Type" : "AWS::EC2::SubnetRouteTableAssociation",
+	    "Properties" : {
+		"SubnetId" : { "Ref" : "PrivateSubnet" },
+		"RouteTableId" : { "Ref" : "PrivateRouteTable" }
+	    }
+	},
+
+	"PublicSubnetNATInstance" : {
+	    "Type" : "AWS::EC2::Instance",
+	    "Properties" : {
+		"KeyName" : {
+		    "Fn::FindInMap" : [
+			"RegionParms",
+			{"Ref" : "AWS::Region"},
+			"NatKeyName"
+		    ]
+		},
+		"InstanceType" : {
+		    "Fn::FindInMap" : [
+			"RegionParms",
+			{ "Ref" : "AWS::Region" },
+			"NatInstanceType"
+		    ]
+		},
+		"SourceDestCheck" : "false",
+		"ImageId" : {
+		    "Fn::FindInMap" : ["RegionParms",
+				       { "Ref" : "AWS::Region" } ,
+				       "NatAmiId"]
+		},
+		"NetworkInterfaces" : [{
+		    "SubnetId"                 : { "Ref" : "PublicSubnet" },
+		    "GroupSet"                 : [{ "Ref" : "NatSecurityGroup" }],
+		    "AssociatePublicIpAddress" : "true",
+		    "DeviceIndex"              : "0",
+		    "DeleteOnTermination"      : "true"
+		}],
+		"Tags" : [
+		    { "Key" : "Name", "Value" : "NAT A" }
+		]
+	    }
+	},
+
+	"NatSecurityGroup" : {
+	    "Type" : "AWS::EC2::SecurityGroup",
+	    "Properties" : {
+		"GroupDescription" : "NAT Security Group",
+		"VpcId" : { "Ref" : "VPC" },
+		"SecurityGroupIngress" : [
+		    {
+			"IpProtocol" : "tcp",
+			"FromPort" : "22",
+			"ToPort" : "22",
+			"CidrIp" : { "Fn::FindInMap" : ["RegionParms",
+							{ "Ref" : "AWS::Region" },
+							"CidrBlock"] }
+		    },
+		    {
+			"IpProtocol" : "tcp",
+			"FromPort" : "80",
+			"ToPort" : "80",
+			"CidrIp" : { "Fn::FindInMap" : ["RegionParms",
+							{ "Ref" : "AWS::Region" },
+							"CidrBlock"] }
+		    },
+		    {
+			"IpProtocol" : "tcp",
+			"FromPort" : "443",
+			"ToPort" : "443",
+			"CidrIp" : { "Fn::FindInMap" : ["RegionParms",
+							{ "Ref" : "AWS::Region" },
+							"CidrBlock"] }
+		    }
+		],
+		"SecurityGroupEgress" : [
+		    {
+			"IpProtocol" : "tcp",
+			"FromPort" : "22",
+			"ToPort" : "22",
+			"CidrIp" : "0.0.0.0/0"
+		    },
+		    {
+			"IpProtocol" : "tcp",
+			"FromPort" : "80",
+			"ToPort" : "80",
+			"CidrIp" : "0.0.0.0/0"
+		    },
+		    {
+			"IpProtocol" : "tcp",
+			"FromPort" : "443",
+			"ToPort" : "443",
+			"CidrIp" : "0.0.0.0/0"
+		    }
+		],
+		"Tags" : [
+		    { "Key" : "Name", "Value" : "NAT Security Group" }
+		]
+	    }
+	},
+	
+	"BastionSecurityGroup" : {
+	    "Type" : "AWS::EC2::SecurityGroup",
+	    "Properties" : {
+		"GroupDescription" : "Bastion Security Group",
+		"VpcId" : { "Ref" : "VPC" },
+		"SecurityGroupIngress" : [
+		    {
+			"IpProtocol" : "tcp",
+			"FromPort" : "22",
+			"ToPort" : "22",
+			"CidrIp" : "0.0.0.0/0"
+		    }
+		],
+		"Tags" : [
+		    { "Key" : "Name", "Value" : "Bastion Security Group" }
+		]
+	    }
+	},
+
+	"BastionInstance": {  
+	    "Type": "AWS::EC2::Instance",
+	    "Properties": {
+		"ImageId" : { "Ref" : "AmiId"},
+		"ImageId" : {
+		    "Fn::FindInMap" : ["RegionParms",
+				       { "Ref" : "AWS::Region" } ,
+				       "BastionAmiId"]
+		},
+		"KeyName" : {
+		    "Fn::FindInMap" : [
+			"RegionParms",
+			{"Ref" : "AWS::Region"},
+			"BastionKeyName"
+		    ]
+		},
+		"InstanceType" : {
+		    "Fn::FindInMap" : [
+			"RegionParms",
+			{ "Ref" : "AWS::Region" },
+			"BastionInstanceType"
+		    ]
+		},
+		"SubnetId": { "Ref" : "PublicSubnet" },
+		"SecurityGroupIds" : [ { "Ref" : "BastionSecurityGroup" } ],
+		"Tags": [ { "Key" : "Name", "Value": "bastion" } ],
+		"SourceDestCheck": "false",
+		"Monitoring" : "true",
+		"UserData" : {
+		    "Fn::Base64" : {
+			"Fn::Join" : [
+			    "\n", [
+				"#!/bin/bash -xe",
+				"/usr/bin/yum -y install emacs telnet tcpdump git compat-libtermcap",
+				"/usr/sbin/useradd geopeers",
+				"/usr/bin/git clone https://scott:scott_kaplan@magtogo.gitsrc.com/git/chef-repo.git",
+				"/usr/bin/curl https://opscode-omnibus-packages.s3.amazonaws.com/el/6/x86_64/chefdk-0.3.5-1.x86_64.rpm -o chefdk-0.3.5-1.x86_64.rpm",
+				"/bin/rpm -U chefdk-0.3.5-1.x86_64.rpm",
+				"\n"
+			    ]
+			]
+		    }
+		}
+	    }
+	},
+
+	"BastionEIPAddress" : {
+	    "Type" : "AWS::EC2::EIP",
+	    "Properties" : {
+		"InstanceId" : { "Ref" : "BastionInstance" },
+		"Domain"     : "vpc"
+	    }
+	},
+
+	"BastionEIPAddressAssociation" : {
+	    "Type" : "AWS::EC2::EIPAssociation",
+	    "DependsOn" : "AttachGateway",
+	    "Properties" : {
+		"InstanceId" : { "Ref" : "BastionInstance" },
+		"AllocationId" : { "Fn::GetAtt" : [ "BastionEIPAddress", "AllocationId" ]}
+	    }
+	},
+
+	"BastionDNSRecord" : {
+	    "Type" : "AWS::Route53::RecordSet",
+	    "DependsOn" : "BastionEIPAddressAssociation",
+	    "Properties" : {
+		"HostedZoneName" : "geopeers.com.",
+		"Name" : "bastion.geopeers.com",
+		"Type" : "A",
+		"TTL" : "900",
+		"ResourceRecords" : [ { "Fn::GetAtt" : [ "BastionInstance", "PublicIp" ] } ]
+            }
+	}
+    },
+
+    "Outputs" : {
+	"VpcId" : {
+	    "Value" : {"Ref" : "VPC"},
+	    "Description" : "VPC ID of newly created VPC"
+	},
+	"PublicSubnet" : {
+	    "Value" : {"Ref" : "PublicSubnet"},
+	    "Description" : "Public Subnet"
+	},
+	"PrivateSubnet" : {
+	    "Value" : {"Ref" : "PrivateSubnet"},
+	    "Description" : "Private Subnet"
+	}
+
+    }
+}
