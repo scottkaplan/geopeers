@@ -2,6 +2,10 @@
 
 require 'aws-sdk'
 
+def get_production_ami
+  
+end
+
 def launch_ami(ami_id,
                region: 'us-west-1',
                instance_type: 't2.micro',
