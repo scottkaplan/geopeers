@@ -1,0 +1,26 @@
+{
+    "Mappings" : {
+	"RegionParms" : {
+	    "us-east-1" : {
+		"CidrBlock" : "10.1.0.0/16"
+	    }
+	}
+    },
+
+    "Resources" : {
+	"VPC" : {
+	    "Type" : "AWS::EC2::VPC",
+	    "Properties" : {
+		"CidrBlock" : { "Fn::FindInMap" : [
+		    "RegionParms",
+		    {
+			"Fn::Select" : [
+			    0,
+			    [ "us-east-1" ]
+			]
+		    },			
+		    "CidrBlock"] }
+	    }
+	}
+    }
+}
