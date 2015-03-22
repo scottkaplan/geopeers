@@ -1,0 +1,389 @@
+{
+    "AWSTemplateFormatVersion" : "2010-09-09",
+
+    "Description" : "Create a multi-az, load balanced and auto scaled apache web server.  Notifications sent on scaling events.",
+
+    "Parameters" : {
+    },
+    
+    "Mappings" : {
+	"AWSInstanceType2Arch" : {
+	    "t1.micro"    : { "Arch" : "PV64"   },
+	    "t2.micro"    : { "Arch" : "HVM64"  },
+	    "t2.small"    : { "Arch" : "HVM64"  },
+	    "t2.medium"   : { "Arch" : "HVM64"  },
+	    "m1.small"    : { "Arch" : "PV64"   },
+	    "m1.medium"   : { "Arch" : "PV64"   },
+	    "m1.large"    : { "Arch" : "PV64"   },
+	    "m1.xlarge"   : { "Arch" : "PV64"   },
+	    "m2.xlarge"   : { "Arch" : "PV64"   },
+	    "m2.2xlarge"  : { "Arch" : "PV64"   },
+	    "m2.4xlarge"  : { "Arch" : "PV64"   },
+	    "m3.medium"   : { "Arch" : "HVM64"  },
+	    "m3.large"    : { "Arch" : "HVM64"  },
+	    "m3.xlarge"   : { "Arch" : "HVM64"  },
+	    "m3.2xlarge"  : { "Arch" : "HVM64"  },
+	    "c1.medium"   : { "Arch" : "PV64"   },
+	    "c1.xlarge"   : { "Arch" : "PV64"   },
+	    "c3.large"    : { "Arch" : "HVM64"  },
+	    "c3.xlarge"   : { "Arch" : "HVM64"  },
+	    "c3.2xlarge"  : { "Arch" : "HVM64"  },
+	    "c3.4xlarge"  : { "Arch" : "HVM64"  },
+	    "c3.8xlarge"  : { "Arch" : "HVM64"  },
+	    "g2.2xlarge"  : { "Arch" : "HVMG2"  },
+	    "r3.large"    : { "Arch" : "HVM64"  },
+	    "r3.xlarge"   : { "Arch" : "HVM64"  },
+	    "r3.2xlarge"  : { "Arch" : "HVM64"  },
+	    "r3.4xlarge"  : { "Arch" : "HVM64"  },
+	    "r3.8xlarge"  : { "Arch" : "HVM64"  },
+	    "i2.xlarge"   : { "Arch" : "HVM64"  },
+	    "i2.2xlarge"  : { "Arch" : "HVM64"  },
+	    "i2.4xlarge"  : { "Arch" : "HVM64"  },
+	    "i2.8xlarge"  : { "Arch" : "HVM64"  },
+	    "hi1.4xlarge" : { "Arch" : "HVM64"  },
+	    "hs1.8xlarge" : { "Arch" : "HVM64"  },
+	    "cr1.8xlarge" : { "Arch" : "HVM64"  },
+	    "cc2.8xlarge" : { "Arch" : "HVM64"  }
+	},
+
+	"AWSRegionArch2AMI" : {
+	    "us-east-1"      : { "PV64" : "ami-50842d38",
+				 "HVM64" : "ami-08842d60",
+				 "HVMG2" : "ami-3a329952"  },
+	    "us-west-2"      : { "PV64" : "ami-af86c69f",
+				 "HVM64" : "ami-8786c6b7",
+				 "HVMG2" : "ami-47296a77"  },
+	    "us-west-1"      : { "PV64" : "ami-c7a8a182",
+				 "HVM64" : "ami-cfa8a18a",
+				 "HVMG2" : "ami-331b1376"  },
+	    "eu-west-1"      : { "PV64" : "ami-aa8f28dd",
+				 "HVM64" : "ami-748e2903",
+				 "HVMG2" : "ami-00913777"  },
+	    "ap-southeast-1" : { "PV64" : "ami-20e1c572",
+				 "HVM64" : "ami-d6e1c584",
+				 "HVMG2" : "ami-fabe9aa8"  },
+	    "ap-northeast-1" : { "PV64" : "ami-21072820",
+				 "HVM64" : "ami-35072834",
+				 "HVMG2" : "ami-5dd1ff5c"  },
+	    "ap-southeast-2" : { "PV64" : "ami-8b4724b1",
+				 "HVM64" : "ami-fd4724c7",
+				 "HVMG2" : "ami-e98ae9d3"  },
+	    "sa-east-1"      : { "PV64" : "ami-9d6cc680",
+				 "HVM64" : "ami-956cc688",
+				 "HVMG2" : "NOT_SUPPORTED" },
+	    "cn-north-1"     : { "PV64" : "ami-a857c591",
+				 "HVM64" : "ami-ac57c595",
+				 "HVMG2" : "NOT_SUPPORTED" },
+	    "eu-central-1"   : { "PV64" : "ami-a03503bd",
+				 "HVM64" : "ami-b43503a9",
+				 "HVMG2" : "ami-b03503ad"  }
+	},
+
+	"RegionParms" : {
+	    "us-east-1" : {"CidrBlock"      : "10.1.0.0/16",
+			   "AZs"            : [ "us-east-1a", "us-east-1c" ],
+			   "VpcId"          : "vpc-47a5c722",
+			   "PublicSubnets"  : [ "subnet-10862f49","subnet-2a8ffa10"],
+			   "InstanceType"   : "t2.micro",
+			   "GeopeersAmiId"  : "ami-ee93f886",
+			   "KeyName"        : "geopeers"
+			  },
+	    "us-west-1" : {"CidrBlock"      : "10.2.0.0/16",
+			   "AZs"            : [ "us-west-1a" ],
+			   "VpcId"          : "vpc-083cf16d",
+			   "PublicSubnets"  : [ "subnet-76f75213" ],
+			   "InstanceType"   : "t2.micro",
+			   "GeopeersAmiId"  : "ami-ff14f3bb",
+			   "KeyName"        : "geopeers"
+			  }
+	},
+	"GlobalParms" : {
+	    "SNS" : { "SnsEmail" : "support@geopeers.com"},
+	    "SSL" : { "AccountId" : "775956577581" }
+	}
+	
+    },
+
+    "Resources" : {
+	"NotificationTopic": {
+	    "Type": "AWS::SNS::Topic",
+	    "Properties": {
+		"Subscription": [
+		    {
+			"Endpoint": {
+			    "Fn::FindInMap" : ["GlobalParms", "SNS", "SnsEmail"]
+			},
+			"Protocol": "email"
+		    }
+		]
+	    }
+	},
+
+	"WebServerGroup" : {
+	    "Type" : "AWS::AutoScaling::AutoScalingGroup",
+	    "Properties" : {
+		"AvailabilityZones" : {
+		    "Fn::FindInMap" : ["RegionParms",
+				       {"Ref" : "AWS::Region"},
+				       "AZs"]
+		},
+		"VPCZoneIdentifier" : {
+		    "Fn::FindInMap" : ["RegionParms",
+				       {"Ref" : "AWS::Region"},
+				       "PublicSubnets"]
+		},
+		"LaunchConfigurationName" : { "Ref" : "LaunchConfig" },
+		"MinSize" : "1",
+		"MaxSize" : "3",
+		"LoadBalancerNames" : [ { "Ref" : "ElasticLoadBalancer" } ],
+		"NotificationConfiguration" : {
+		    "TopicARN" : { "Ref" : "NotificationTopic" },
+		    "NotificationTypes" : [ "autoscaling:EC2_INSTANCE_LAUNCH",
+					    "autoscaling:EC2_INSTANCE_LAUNCH_ERROR",
+					    "autoscaling:EC2_INSTANCE_TERMINATE",
+					    "autoscaling:EC2_INSTANCE_TERMINATE_ERROR"]
+		}
+	    }
+	},
+
+	"LaunchConfig" : {
+	    "Type" : "AWS::AutoScaling::LaunchConfiguration",
+	    "Properties" : {
+		"KeyName" : {
+		    "Fn::FindInMap" : ["RegionParms",
+				       { "Ref" : "AWS::Region" } ,
+				       "KeyName"]
+		},
+		"AssociatePublicIpAddress" : true,
+		"IamInstanceProfile": {
+		    "Fn::Join" : [
+			"",
+			[
+			    "arn:aws:iam::",
+			    {
+				"Fn::FindInMap" : [
+				    "GlobalParms",
+				    "SSL",
+				    "AccountId"]
+			    },
+			    ":instance-profile/geopeers_server"
+			]
+		    ]
+		},
+		"InstanceType" : {
+		    "Fn::FindInMap" : ["RegionParms",
+				       { "Ref" : "AWS::Region" } ,
+				       "InstanceType"]
+		},
+		"ImageId" : {
+		    "Fn::FindInMap" : ["RegionParms",
+				       { "Ref" : "AWS::Region" } ,
+				       "GeopeersAmiId"]
+		}
+	    }
+	},
+
+	"WebServerScaleUpPolicy" : {
+	    "Type" : "AWS::AutoScaling::ScalingPolicy",
+	    "Properties" : {
+		"AdjustmentType" : "ChangeInCapacity",
+		"AutoScalingGroupName" : { "Ref" : "WebServerGroup" },
+		"Cooldown" : "60",
+		"ScalingAdjustment" : "1"
+	    }
+	},
+	"WebServerScaleDownPolicy" : {
+	    "Type" : "AWS::AutoScaling::ScalingPolicy",
+	    "Properties" : {
+		"AdjustmentType" : "ChangeInCapacity",
+		"AutoScalingGroupName" : { "Ref" : "WebServerGroup" },
+		"Cooldown" : "60",
+		"ScalingAdjustment" : "-1"
+	    }
+	},
+
+	"CPUAlarmHigh": {
+	    "Type": "AWS::CloudWatch::Alarm",
+	    "Properties": {
+		"AlarmDescription": "Scale-up if CPU > 90% for 10 minutes",
+		"MetricName": "CPUUtilization",
+		"Namespace": "AWS/EC2",
+		"Statistic": "Average",
+		"Period": "300",
+		"EvaluationPeriods": "2",
+		"Threshold": "90",
+		"AlarmActions": [ { "Ref": "WebServerScaleUpPolicy" } ],
+		"Dimensions": [
+		    {
+			"Name": "AutoScalingGroupName",
+			"Value": { "Ref": "WebServerGroup" }
+		    }
+		],
+		"ComparisonOperator": "GreaterThanThreshold"
+	    }
+	},
+	"CPUAlarmLow": {
+	    "Type": "AWS::CloudWatch::Alarm",
+	    "Properties": {
+		"AlarmDescription": "Scale-down if CPU < 70% for 10 minutes",
+		"MetricName": "CPUUtilization",
+		"Namespace": "AWS/EC2",
+		"Statistic": "Average",
+		"Period": "300",
+		"EvaluationPeriods": "2",
+		"Threshold": "70",
+		"AlarmActions": [ { "Ref": "WebServerScaleDownPolicy" } ],
+		"Dimensions": [
+		    {
+			"Name": "AutoScalingGroupName",
+			"Value": { "Ref": "WebServerGroup" }
+		    }
+		],
+		"ComparisonOperator": "LessThanThreshold"
+	    }
+	},
+
+	"ElasticLoadBalancer" : {
+	    "Type" : "AWS::ElasticLoadBalancing::LoadBalancer",
+	    "Properties" : {
+		"CrossZone" : "true",
+		"SecurityGroups" : [ { "Ref" : "LoadBalancerSecurityGroup" } ],
+		"Subnets" : {
+		    "Fn::FindInMap" : ["RegionParms",
+				       {"Ref" : "AWS::Region"},
+				       "PublicSubnets"]
+		},
+		"Listeners" : [
+		    {
+			"LoadBalancerPort" : "80",
+			"Protocol" : "HTTP",
+			"InstancePort" : "80",
+			"InstanceProtocol" : "HTTP"
+		    },
+		    {
+			"LoadBalancerPort" : "443",
+			"Protocol" : "HTTPS",
+			"InstancePort" : "443",
+			"InstanceProtocol" : "HTTPS",
+			"SSLCertificateId" : {
+			    "Fn::Join" : [
+				"",
+				[
+				    "arn:aws:iam::",
+				    {
+					"Fn::FindInMap" : [
+					    "GlobalParms",
+					    "SSL",
+					    "AccountId"]
+				    },
+				    ":server-certificate/geopeers"
+				]
+			    ]
+			}
+		    }
+		],
+		"HealthCheck" : {
+		    "Target" : "HTTP:80/robots.txt",
+		    "HealthyThreshold" : "3",
+		    "UnhealthyThreshold" : "5",
+		    "Interval" : "30",
+		    "Timeout" : "5"
+		}
+	    }
+	},
+
+	"LoadBalancerSecurityGroup" : {
+	    "Type" : "AWS::EC2::SecurityGroup",
+	    "Properties" : {
+		"GroupDescription" : "Enable HTTP access on port 80",
+		"VpcId" : {
+		    "Fn::FindInMap" : ["RegionParms",
+				       {"Ref" : "AWS::Region"},
+				       "VpcId"]
+		},
+		"SecurityGroupIngress" : [
+		    {
+			"IpProtocol" : "tcp",
+			"FromPort" : "80",
+			"ToPort" : "80",
+			"CidrIp" : "0.0.0.0/0"
+		    },
+		    {
+			"IpProtocol" : "tcp",
+			"FromPort" : "443",
+			"ToPort" : "443",
+			"CidrIp" : "0.0.0.0/0"
+		    }
+		],
+		"SecurityGroupEgress" : [
+		    {
+			"IpProtocol" : "tcp",
+			"FromPort" : "80",
+			"ToPort" : "80",
+			"CidrIp" : "0.0.0.0/0"
+		    },
+		    {
+			"IpProtocol" : "tcp",
+			"FromPort" : "443",
+			"ToPort" : "443",
+			"CidrIp" : "0.0.0.0/0"
+		    }
+		]
+	    }
+	},
+
+	"InstanceSecurityGroup" : {
+	    "Type" : "AWS::EC2::SecurityGroup",
+	    "DependsOn" : "ElasticLoadBalancer",
+	    "Properties" : {
+		"GroupDescription" : "Enable SSH access and HTTP/S from the load balancer only",
+		"SecurityGroupIngress" : [
+		    {
+			"IpProtocol" : "tcp",
+			"FromPort" : "22",
+			"ToPort" : "22"
+		    },
+		    {
+			"IpProtocol" : "tcp",
+			"FromPort" : "80",
+			"ToPort" : "80"
+		    },
+		    {
+			"IpProtocol" : "tcp",
+			"FromPort" : "443",
+			"ToPort" : "443"
+		    }
+		]
+	    }
+	},
+
+	"ELBDNSRecord" : {
+	    "Type" : "AWS::Route53::RecordSet",
+	    "Properties" : {
+		"HostedZoneName" : "geopeers.com.",
+		"Name" : "elb.geopeers.com",
+		"Type" : "CNAME",
+		"TTL" : "900",
+		"ResourceRecords" : [
+		    {"Fn::GetAtt" : [ "ElasticLoadBalancer", "DNSName" ]}
+		]
+            }
+	}
+	
+    },
+
+    "Outputs" : {
+	"URL" : {
+	    "Description" : "The URL of the website",
+	    "Value" :  { "Fn::Join" : [ "", [ "http://", { "Fn::GetAtt" : [ "ElasticLoadBalancer", "DNSName" ]}]]}
+	},
+	"GroupName" : {
+	    "Description" : "GroupName",
+	    "Value" :  {"Fn::GetAtt" : ["ElasticLoadBalancer", "SourceSecurityGroup.GroupName"]}
+	},
+	"OwnerAlias" : {
+	    "Description" : "OwnerAlias",
+	    "Value" :  {"Fn::GetAtt" : ["ElasticLoadBalancer", "SourceSecurityGroup.OwnerAlias"]}
+	}
+    }
+}
