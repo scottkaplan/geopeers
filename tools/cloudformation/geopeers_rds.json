@@ -1,7 +1,7 @@
 {
     "AWSTemplateFormatVersion" : "2010-09-09",
 
-    "Description" : "Create an RDS DBInstance in an existing Virtual Private Cloud (VPC).",
+    "Description" : "Create RDS DBInstance in a VPC",
 
     "Parameters" : {
     },
@@ -17,7 +17,7 @@
 	"RegionParms" : {
 	    "us-east-1" : {
 		"VpcId"          : "vpc-73b3d416",
-		"PrivateSubnets" : [ "subnet-0873d151","subnet-5ec0a964"],
+		"PrivateSubnets" : [ "subnet-0873d151", "subnet-5ec0a964"],
 		"InstanceClass"  : "db.t2.micro",
 		"CidrBlock"      : "10.1.0.0/16"
 	    },
@@ -59,7 +59,11 @@
 				       "credentials" ,
 				       "password"]
 		},
-		"DBSecurityGroups" : [ { "Ref" : "DBSecurityGroup" } ],
+		"VPCSecurityGroups" : [
+		    {
+		    	"Fn::GetAtt" : [ "DBEC2SecurityGroup", "GroupId" ]
+		    }
+		],
 		"DBSubnetGroupName" : { "Ref" : "DBSubnetGroup" }
 	    }
 	},
@@ -68,23 +72,46 @@
 	    "Type" : "AWS::RDS::DBSecurityGroup",
 	    "Properties" : {
 		"GroupDescription" : "Security group for RDS DB Instance",
-		"DBSecurityGroupIngress" : {
-		    "CIDRIP" : { "Fn::FindInMap" : ["RegionParms",
-						   { "Ref" : "AWS::Region" },
-						   "CidrBlock"] }
-		},
+		"DBSecurityGroupIngress" : [ {
+		    "CIDRIP" : "0.0.0.0/0"
+		} ],
 		"EC2VpcId" : {
 		    "Fn::FindInMap" : ["RegionParms",
 				       { "Ref" : "AWS::Region" } ,
 				       "VpcId"]
-		}
+		},
+		"Tags" : [
+		    {"Key" : "Name", "Value" : { "Ref" : "AWS::StackName"} }
+		]
+
+	    }
+	},
+
+	"DBEC2SecurityGroup" : {
+	    "Type" : "AWS::EC2::SecurityGroup",
+	    "Properties" : {
+		"VpcId" : {
+		    "Fn::FindInMap" : ["RegionParms",
+				       { "Ref" : "AWS::Region" } ,
+				       "VpcId"]
+		},
+		"GroupDescription" : "Security group for RDS DB Instance",
+		"SecurityGroupIngress" : [{
+		    "IpProtocol" : "tcp",
+		    "FromPort" : "3306",
+		    "ToPort" : "3306",
+		    "CidrIp" : "0.0.0.0/0"
+		}],
+		"Tags" : [
+		    {"Key" : "Name", "Value" : { "Ref" : "AWS::StackName"} }
+		]
 	    }
 	},
 
 	"DBSubnetGroup" : {
 	    "Type" : "AWS::RDS::DBSubnetGroup",
 	    "Properties" : {
-		"DBSubnetGroupDescription" : "Subnets that DB can run in",
+		"DBSubnetGroupDescription" : "Available subnets for DB instances",
 		"SubnetIds" : {
 		    "Fn::FindInMap" : ["RegionParms",
 				       { "Ref" : "AWS::Region" },
