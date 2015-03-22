@@ -1,0 +1,34 @@
+{
+  "AWSTemplateFormatVersion" : "2010-09-09",
+
+  "Description" : "Build Load Balancer and one instance",
+
+  "Resources" : {
+    "myELB" : {
+      "Type" : "AWS::ElasticLoadBalancing::LoadBalancer",
+      "Properties" : {
+        "AvailabilityZones" : [ "us-west-2a" ],
+        "Listeners" : [ {
+                          "LoadBalancerPort" : "80",
+                          "InstancePort" : "80",
+                          "Protocol" : "HTTP"
+                        } ]
+      }
+    },
+    "ELBIngressGroup" : {
+      "Type" : "AWS::EC2::SecurityGroup",
+      "Properties" : {
+        "GroupDescription" : "ELB ingress group",
+        "SecurityGroupIngress" : [
+                                  {
+                                    "IpProtocol" : "tcp",
+                                    "FromPort" : "80",
+                                    "ToPort" : "80",
+                                    "SourceSecurityGroupOwnerId" : {"Fn::GetAtt" : ["myELB", "SourceSecurityGroup.OwnerAlias"]},
+                                    "SourceSecurityGroupName" : {"Fn::GetAtt" : ["myELB", "SourceSecurityGroup.GroupName"]}
+                                  }
+                                 ]
+      }
+    }
+  }
+}
