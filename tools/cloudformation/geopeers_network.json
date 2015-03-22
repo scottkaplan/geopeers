@@ -1,7 +1,7 @@
 {
     "AWSTemplateFormatVersion" : "2010-09-09",
 
-    "Description" : "Build VPC w/INET GW, public & private subnets, bastion host and NAT",
+    "Description" : "VPC w/INET GW, public subnet, 2 private subnets, bastion and NAT on same instance",
 
     "Parameters" : {
     },
@@ -31,7 +31,7 @@
 	    },
 	    "us-west-2" : {
 		"CidrBlock"             : "10.3.0.0/16",
-		"AZs"                   : [ "us-west-2a" ],
+		"AZs"                   : [ "us-west-2a", "us-west-2b" ],
 		"AZ"                    : "us-west-2a",
 		"NatKeyName"            : "geopeers",
 		"NatInstanceType"       : "t2.micro",
@@ -58,6 +58,10 @@
 	    "us-west-2a": {
 		"PublicCidrBlock"  : "10.3.1.0/24",
 		"PrivateCidrBlock" : "10.3.11.0/24"
+	    },
+	    "us-west-2b": {
+		"PublicCidrBlock"  : "10.3.2.0/24",
+		"PrivateCidrBlock" : "10.3.12.0/24"
 	    }
 	}
     },
@@ -72,7 +76,8 @@
 						   "CidrBlock"] },
 		"Tags" : [
 		    {"Key" : "Application", "Value" : { "Ref" : "AWS::StackName"} },
-		    {"Key" : "Network", "Value" : "Public" }
+		    {"Key" : "Network", "Value" : "Public" },
+		    {"Key" : "Name", "Value" : { "Ref" : "AWS::StackName"} }
 		]
 	    }
 	},
@@ -82,7 +87,8 @@
 	    "Properties" : {
 		"Tags" : [
 		    {"Key" : "Application", "Value" : { "Ref" : "AWS::StackName"} },
-		    {"Key" : "Network", "Value" : "Public" }
+		    {"Key" : "Network", "Value" : "Public" },
+		    {"Key" : "Name", "Value" : { "Ref" : "AWS::StackName"} }
 		]
 	    }
 	},
@@ -101,7 +107,15 @@
 		"VpcId" : {"Ref" : "VPC"},
 		"Tags" : [
 		    {"Key" : "Application", "Value" : { "Ref" : "AWS::StackName"} },
-		    {"Key" : "Network", "Value" : "Public" }
+		    {"Key" : "Network", "Value" : "Public" },
+		    {"Key" : "Name",
+		     "Value" : {
+			"Fn::Join" : [
+			    "-",
+			    [ { "Ref" : "AWS::StackName" }, "Public" ]
+			]
+		     }
+		    }
 		]
 	    }
 	},
@@ -135,7 +149,15 @@
 		},
 		"Tags" : [
 		    {"Key" : "Application", "Value" : { "Ref" : "AWS::StackName"} },
-		    {"Key" : "Network", "Value" : "Public" }
+		    {"Key" : "Network", "Value" : "Public" },
+		    {"Key" : "Name",
+		     "Value" : {
+			"Fn::Join" : [
+			    "-",
+			    [ { "Ref" : "AWS::StackName" }, "Public" ]
+			]
+		     }
+		    }
 		]
 	    }
 	},
@@ -148,53 +170,140 @@
 	    }
 	},
 
-	"PrivateSubnet" : {
+	"PrivateSubnetA" : {
 	    "Type" : "AWS::EC2::Subnet",
 	    "Properties" : {
 		"VpcId" : { "Ref" : "VPC" },
 		"AvailabilityZone" : {
-			    "Fn::FindInMap" : [
-				"RegionParms",
-				{ "Ref" : "AWS::Region" },
-				"AZ"
-			    ]
+		    "Fn::Select" : [ 0,
+				     { "Fn::FindInMap" : ["RegionParms",
+							  {"Ref" : "AWS::Region"},
+							  "AZs"] }
+				   ]
 		},
-		"CidrBlock" : { "Fn::FindInMap" : ["AZParms",
-						   "us-west-2a",
-						   "PrivateCidrBlock"] },
+		"CidrBlock" : {
+		    "Fn::FindInMap" : ["AZParms",
+				       "us-west-2a",
+				       "PrivateCidrBlock"]
+		},
 		"Tags" : [
 		    {"Key" : "Application", "Value" : { "Ref" : "AWS::StackName"} },
-		    {"Key" : "Network", "Value" : "Private" }
+		    {"Key" : "Network", "Value" : "Private" },
+		    {"Key" : "Name",
+		     "Value" : {
+			"Fn::Join" : [
+			    "-",
+			    [ { "Ref" : "AWS::StackName" }, "Private A" ]
+			]
+		     }
+		    }
+
 		]
 	    }
 	},
 
-	"PrivateRouteTable" : {
+	"PrivateRouteTableA" : {
 	    "Type" : "AWS::EC2::RouteTable",
 	    "Properties" : {
 		"VpcId" : {"Ref" : "VPC"},
 		"Tags" : [
 		    {"Key" : "Application", "Value" : { "Ref" : "AWS::StackName"} },
-		    {"Key" : "Network", "Value" : "Public" }
+		    {"Key" : "Network", "Value" : "Private A" },
+		    {"Key" : "Name",
+		     "Value" : {
+			"Fn::Join" : [
+			    "-",
+			    [ { "Ref" : "AWS::StackName" }, "Private B" ]
+			]
+		     }
+		    }
 		]
 	    }
 	},
 	
-	"PrivateRoute" : {
+	"PrivateRouteA" : {
 	    "Type" : "AWS::EC2::Route",
 	    "DependsOn" : "PublicSubnetNATInstance",
 	    "Properties" : {
-		"RouteTableId" : { "Ref" : "PrivateRouteTable" },
+		"RouteTableId" : { "Ref" : "PrivateRouteTableA" },
 		"DestinationCidrBlock" : "0.0.0.0/0",
 		"InstanceId" : { "Ref" : "PublicSubnetNATInstance" }
 	    }
 	},
 	
-	"PrivateSubnetRouteTableAssociation" : {
+	"PrivateSubnetRouteTableAssociationA" : {
 	    "Type" : "AWS::EC2::SubnetRouteTableAssociation",
 	    "Properties" : {
-		"SubnetId" : { "Ref" : "PrivateSubnet" },
-		"RouteTableId" : { "Ref" : "PrivateRouteTable" }
+		"SubnetId" : { "Ref" : "PrivateSubnetA" },
+		"RouteTableId" : { "Ref" : "PrivateRouteTableA" }
+	    }
+	},
+
+	"PrivateSubnetB" : {
+	    "Type" : "AWS::EC2::Subnet",
+	    "Properties" : {
+		"VpcId" : { "Ref" : "VPC" },
+		"AvailabilityZone" : {
+		    "Fn::Select" : [ 1,
+				     { "Fn::FindInMap" : ["RegionParms",
+							  {"Ref" : "AWS::Region"},
+							  "AZs"] }
+				   ]
+		},
+		"CidrBlock" : {
+		    "Fn::FindInMap" : ["AZParms",
+				       "us-west-2b",
+				       "PrivateCidrBlock"]
+		},
+		"Tags" : [
+		    {"Key" : "Application", "Value" : { "Ref" : "AWS::StackName"} },
+		    {"Key" : "Network", "Value" : "Private" },
+		    {"Key" : "Name",
+		     "Value" : {
+			"Fn::Join" : [
+			    "-",
+			    [ { "Ref" : "AWS::StackName" }, "Private B" ]
+			]
+		     }
+		    }
+		]
+	    }
+	},
+
+	"PrivateRouteTableB" : {
+	    "Type" : "AWS::EC2::RouteTable",
+	    "Properties" : {
+		"VpcId" : {"Ref" : "VPC"},
+		"Tags" : [
+		    {"Key" : "Application", "Value" : { "Ref" : "AWS::StackName"} },
+		    {"Key" : "Network", "Value" : "Public" },
+		    {"Key" : "Name",
+		     "Value" : {
+			"Fn::Join" : [
+			    "-",
+			    [ { "Ref" : "AWS::StackName" }, "Private B" ]
+			]
+		     }
+		    }
+		]
+	    }
+	},
+	
+	"PrivateRouteB" : {
+	    "Type" : "AWS::EC2::Route",
+	    "DependsOn" : "PublicSubnetNATInstance",
+	    "Properties" : {
+		"RouteTableId" : { "Ref" : "PrivateRouteTableB" },
+		"DestinationCidrBlock" : "0.0.0.0/0",
+		"InstanceId" : { "Ref" : "PublicSubnetNATInstance" }
+	    }
+	},
+	
+	"PrivateSubnetRouteTableAssociationB" : {
+	    "Type" : "AWS::EC2::SubnetRouteTableAssociation",
+	    "Properties" : {
+		"SubnetId" : { "Ref" : "PrivateSubnetB" },
+		"RouteTableId" : { "Ref" : "PrivateRouteTableB" }
 	    }
 	},
 
@@ -229,7 +338,7 @@
 		    "DeleteOnTermination"      : "true"
 		}],
 		"Tags" : [
-		    { "Key" : "Name", "Value" : "NAT" }
+		    { "Key" : "Name", "Value" : "geopeers_nat_bastion" }
 		],
 		"UserData" : {
 		    "Fn::Base64" : {
@@ -258,7 +367,8 @@
 		    {
 			"IpProtocol" : "tcp",
 			"FromPort" : "22",
-			"ToPort" : "22"
+			"ToPort" : "22",
+			"CidrIp" : "0.0.0.0/0"
 		    },
 		    {
 			"IpProtocol" : "tcp",
@@ -298,7 +408,14 @@
 		    }
 		],
 		"Tags" : [
-		    { "Key" : "Name", "Value" : "NAT Security Group" }
+		    {"Key" : "Name",
+		     "Value" : {
+			"Fn::Join" : [
+			    "-",
+			    [ { "Ref" : "AWS::StackName" }, "Public" ]
+			]
+		     }
+		    }
 		]
 	    }
 	},
@@ -342,9 +459,13 @@
 	    "Value" : {"Ref" : "PublicSubnet"},
 	    "Description" : "Public Subnet"
 	},
-	"PrivateSubnet" : {
-	    "Value" : {"Ref" : "PrivateSubnet"},
-	    "Description" : "Private Subnet"
+	"PrivateSubnetA" : {
+	    "Value" : {"Ref" : "PrivateSubnetA"},
+	    "Description" : "Private Subnet A"
+	},
+	"PrivateSubnetB" : {
+	    "Value" : {"Ref" : "PrivateSubnetB"},
+	    "Description" : "Private Subnet B"
 	}
 
     }
