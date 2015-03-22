@@ -1,6 +1,6 @@
 #!/usr/bin/ruby
 
-require '/home/geopeers/sinatra/geopeers/geo.rb'
+require '../geo.rb'
 
 class Db
   @@conn = Mysql2::Client.new(:database => 'geopeers',
