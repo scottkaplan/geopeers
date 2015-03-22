@@ -1,0 +1,121 @@
+{
+    "AWSTemplateFormatVersion" : "2010-09-09",
+
+    "Description" : "Create an RDS DBInstance in an existing Virtual Private Cloud (VPC).",
+
+    "Parameters" : {
+    },
+
+   "Mappings" : {
+        "DBParms": {
+	    "credentials": {
+	        "name": "Geopeers",
+	        "username": "root",
+	        "password": "telepart"
+	    }
+	},
+	"RegionParms" : {
+	    "us-east-1" : {
+		"VpcId"          : "vpc-73b3d416",
+		"PrivateSubnets" : [ "subnet-0873d151","subnet-5ec0a964"],
+		"InstanceClass"  : "db.t2.micro",
+		"CidrBlock"      : "10.1.0.0/16"
+	    },
+	    "us-west-2" : {
+		"VpcId"          : "vpc-ea1aa98f",
+		"PrivateSubnets" : [ "subnet-fea00989", "subnet-c0f67da5"],
+		"InstanceClass"  : "db.t2.micro",
+		"CidrBlock"      : "10.3.0.0/16"
+	    }
+	}
+    },
+
+    "Resources" : {
+
+	"DB" : {
+	    "Type" : "AWS::RDS::DBInstance",
+	    "Properties" : {
+	        "MultiAZ" : false,
+		"DBName" : {
+		    "Fn::FindInMap" : ["DBParms",
+				       "credentials" ,
+				       "name"]
+		},
+		"AllocatedStorage" : "50",
+		"DBInstanceClass" : {
+		    "Fn::FindInMap" : ["RegionParms",
+				       { "Ref" : "AWS::Region" } ,
+				       "InstanceClass"]
+		},
+		"Engine" : "MySQL",
+		"EngineVersion" : "5.6",
+		"MasterUsername" : {
+		    "Fn::FindInMap" : ["DBParms",
+				       "credentials" ,
+				       "username"]
+		},
+		"MasterUserPassword" : {
+		    "Fn::FindInMap" : ["DBParms",
+				       "credentials" ,
+				       "password"]
+		},
+		"DBSecurityGroups" : [ { "Ref" : "DBSecurityGroup" } ],
+		"DBSubnetGroupName" : { "Ref" : "DBSubnetGroup" }
+	    }
+	},
+
+	"DBSecurityGroup" : {
+	    "Type" : "AWS::RDS::DBSecurityGroup",
+	    "Properties" : {
+		"GroupDescription" : "Security group for RDS DB Instance",
+		"DBSecurityGroupIngress" : {
+		    "CIDRIP" : { "Fn::FindInMap" : ["RegionParms",
+						   { "Ref" : "AWS::Region" },
+						   "CidrBlock"] }
+		},
+		"EC2VpcId" : {
+		    "Fn::FindInMap" : ["RegionParms",
+				       { "Ref" : "AWS::Region" } ,
+				       "VpcId"]
+		}
+	    }
+	},
+
+	"DBSubnetGroup" : {
+	    "Type" : "AWS::RDS::DBSubnetGroup",
+	    "Properties" : {
+		"DBSubnetGroupDescription" : "Subnets that DB can run in",
+		"SubnetIds" : {
+		    "Fn::FindInMap" : ["RegionParms",
+				       { "Ref" : "AWS::Region" },
+				       "PrivateSubnets"]
+		}
+	    }
+	},
+
+	"RDSDNSRecord" : {
+	    "Type" : "AWS::Route53::RecordSet",
+	    "Properties" : {
+		"HostedZoneName" : "geopeers.com.",
+		"Name" : "rds.geopeers.com",
+		"Type" : "CNAME",
+		"TTL" : "900",
+		"ResourceRecords" : [
+		    {
+			"Fn::GetAtt" : [ "DB", "Endpoint.Address" ]
+		    }
+		]
+            }
+	}
+
+    },
+    
+    "Outputs" : {
+	"DBConnectionName" : {
+	    "Value" : { "Fn::GetAtt": [ "DB", "Endpoint.Address" ] },
+	    "Description" : "DNS name for this RDS instance."
+	}
+    }
+
+}
+
